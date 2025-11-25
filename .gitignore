@@ -1,0 +1,17 @@
+# Django
+*.pyc
+__pycache__/
+db.sqlite3
+.env
+
+# Môi trường ảo
+venv/
+env/
+
+# IDE (VS Code...)
+.vscode/
+.idea/
+
+# Media (Ảnh upload thật của khách hàng không nên up lên git)
+media/
+!media/.gitkeep

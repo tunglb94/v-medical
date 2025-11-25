@@ -1,0 +1,376 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Quản Trị - V-Medical</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f3f4f6;
+        }
+        
+        body { background-color: var(--bg-color); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--primary-color);
+            color: #ecf0f1;
+            position: fixed;
+            top: 0; left: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar-brand {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-brand img { height: 50px; object-fit: contain; margin-bottom: 10px; background: white; padding: 5px; border-radius: 8px; }
+        .sidebar-brand h5 { font-weight: 800; letter-spacing: 1px; margin: 0; color: #fff; }
+        
+        .sidebar-menu { padding: 20px 0; flex-grow: 1; overflow-y: auto; list-style: none; margin: 0; }
+        .sidebar-menu li a {
+            display: flex; align-items: center;
+            padding: 15px 25px;
+            color: #bdc3c7;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+        .sidebar-menu li a:hover, .sidebar-menu li a.active {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            border-left-color: var(--accent-color);
+        }
+        .sidebar-menu li a i { margin-right: 15px; font-size: 1.2rem; width: 25px; text-align: center; }
+        
+        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        
+        /* --- MAIN CONTENT --- */
+        .main-content { margin-left: var(--sidebar-width); padding: 30px; }
+        
+        /* --- HEADER --- */
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .welcome-text h3 { font-weight: 700; color: #2c3e50; margin-bottom: 5px; }
+        .date-badge { background: white; padding: 8px 15px; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-weight: 600; color: #555; }
+        
+        /* --- KPI CARDS --- */
+        .kpi-card {
+            border: none; border-radius: 15px; overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s; h-100;
+        }
+        .kpi-card:hover { transform: translateY(-5px); }
+        .kpi-body { padding: 25px; display: flex; align-items: center; justify-content: space-between; color: white; }
+        .kpi-info h6 { font-size: 0.9rem; text-transform: uppercase; opacity: 0.8; margin-bottom: 5px; }
+        .kpi-info h3 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+        .kpi-icon { font-size: 2.5rem; opacity: 0.3; }
+        
+        /* Gradients */
+        .bg-gradient-primary { background: linear-gradient(45deg, #4e73df, #224abe); }
+        .bg-gradient-success { background: linear-gradient(45deg, #1cc88a, #13855c); }
+        .bg-gradient-info { background: linear-gradient(45deg, #36b9cc, #258391); }
+        .bg-gradient-warning { background: linear-gradient(45deg, #f6c23e, #dda20a); }
+        
+        /* --- CHART & TABLES --- */
+        .content-card { background: white; border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; overflow: hidden; }
+        .card-header-custom { background: white; padding: 20px 25px; border-bottom: 1px solid #f0f0f0; font-weight: 700; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
+        .card-body-custom { padding: 25px; }
+        
+        .table-hover tbody tr:hover { background-color: #f8f9fc; }
+        .avatar-circle { width: 35px; height: 35px; background: #e2e6ea; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #555; margin-right: 10px; }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar { width: 80px; }
+            .sidebar-brand h5, .sidebar-menu li a span, .sidebar-footer span { display: none; }
+            .sidebar-menu li a { justify-content: center; padding: 15px; }
+            .sidebar-menu li a i { margin: 0; }
+            .main-content { margin-left: 80px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="sidebar-brand">
+        <img src="{% static 'images/logo.png' %}" alt="Logo">
+        <h5>V-MEDICAL</h5>
+    </div>
+    
+    <ul class="sidebar-menu">
+        <li>
+            <a href="{% url 'admin_dashboard' %}" class="active" title="Tổng quan">
+                <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard</span>
+            </a>
+        </li>
+        <li class="menu-header small text-uppercase text-muted px-4 mt-3 mb-1 fw-bold" style="font-size: 0.75rem;">Nghiệp vụ</li>
+        <li>
+            <a href="/" target="_blank" title="Telesale">
+                <i class="bi bi-headset"></i> <span>Telesale Center</span>
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'reception_home' %}" target="_blank" title="Lễ tân">
+                <i class="bi bi-calendar-check-fill"></i> <span>Lễ Tân / Booking</span>
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'customer_list' %}" title="Khách hàng">
+                <i class="bi bi-people-fill"></i> <span>Hồ Sơ Khách Hàng</span>
+            </a>
+        </li>
+        
+        <li class="menu-header small text-uppercase text-muted px-4 mt-3 mb-1 fw-bold" style="font-size: 0.75rem;">Quản trị</li>
+        <li>
+            <a href="{% url 'sales_report' %}" title="Báo cáo">
+                <i class="bi bi-bar-chart-fill"></i> <span>Báo Cáo Doanh Thu</span>
+            </a>
+        </li>
+        <li>
+            <a href="/admin/" target="_blank" title="Cấu hình">
+                <i class="bi bi-gear-fill"></i> <span>Cấu Hình Hệ Thống</span>
+            </a>
+        </li>
+    </ul>
+    
+    <div class="sidebar-footer">
+        <a href="{% url 'logout' %}" class="btn btn-danger w-100 fw-bold d-flex align-items-center justify-content-center">
+            <i class="bi bi-box-arrow-left me-2"></i> <span>Đăng Xuất</span>
+        </a>
+    </div>
+</nav>
+
+<main class="main-content">
+    
+    <div class="dashboard-header">
+        <div class="welcome-text">
+            <h3>Dashboard Tổng Quan</h3>
+            <p class="text-muted mb-0">Xin chào, <span class="text-primary fw-bold">{{ request.user.username }}</span>! Chúc bạn một ngày làm việc hiệu quả.</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar-event me-2 text-primary"></i> {% now "l, d/m/Y" %}
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="kpi-card bg-gradient-success">
+                <div class="kpi-body">
+                    <div class="kpi-info">
+                        <h6>Doanh Thu Hôm Nay</h6>
+                        <h3>{{ revenue_today|intcomma }} <span class="fs-6">đ</span></h3>
+                    </div>
+                    <div class="kpi-icon"><i class="bi bi-currency-dollar"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="kpi-card bg-gradient-primary">
+                <div class="kpi-body">
+                    <div class="kpi-info">
+                        <h6>Khách Đến / Hẹn</h6>
+                        <h3>{{ appts_today_arrived }} <span class="fs-6 fw-normal opacity-75">/ {{ appts_today_total }}</span></h3>
+                    </div>
+                    <div class="kpi-icon"><i class="bi bi-people-fill"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="kpi-card bg-gradient-info">
+                <div class="kpi-body">
+                    <div class="kpi-info">
+                        <h6>Telesale Gọi</h6>
+                        <h3>{{ calls_today }} <span class="fs-6 fw-normal">cuộc</span></h3>
+                    </div>
+                    <div class="kpi-icon"><i class="bi bi-telephone-outbound-fill"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="kpi-card bg-gradient-warning">
+                <div class="kpi-body">
+                    <div class="kpi-info">
+                        <h6>Data Mới (Leads)</h6>
+                        <h3>{{ leads_today }} <span class="fs-6 fw-normal">khách</span></h3>
+                    </div>
+                    <div class="kpi-icon"><i class="bi bi-database-add"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="content-card">
+                <div class="card-header-custom">
+                    <span><i class="bi bi-graph-up-arrow me-2 text-primary"></i>XU HƯỚNG DOANH THU (7 NGÀY)</span>
+                </div>
+                <div class="card-body-custom">
+                    <div style="height: 320px;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header-custom">
+                    <span><i class="bi bi-receipt me-2 text-success"></i>GIAO DỊCH GẦN ĐÂY</span>
+                    <a href="{% url 'sales_report' %}" class="btn btn-sm btn-outline-primary rounded-pill">Xem tất cả</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary">
+                            <tr>
+                                <th class="ps-4">Khách hàng</th>
+                                <th>Dịch vụ</th>
+                                <th>Nhân viên</th>
+                                <th class="text-end pe-4">Số tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ order.customer.name }}</div>
+                                    <div class="small text-muted">{{ order.created_at|date:"H:i" }}</div>
+                                </td>
+                                <td>{{ order.treatment_name }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle bg-light text-primary" style="width: 25px; height: 25px; font-size: 0.7rem;">
+                                            {{ order.sale_consultant.username|slice:":1"|upper }}
+                                        </div>
+                                        <span class="small">{{ order.sale_consultant.username }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4 fw-bold text-success">
+                                    +{{ order.total_amount|intcomma }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center p-4 text-muted">Chưa có giao dịch nào.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            
+            <div class="content-card bg-dark text-white">
+                <div class="card-body-custom">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-lightning-fill text-warning me-2"></i>Thao tác nhanh</h5>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'add_customer' %}" class="btn btn-outline-light text-start py-2">
+                            <i class="bi bi-person-plus-fill me-2"></i> Thêm Khách Hàng Mới
+                        </a>
+                        <a href="{% url 'reception_walkin' %}" class="btn btn-outline-warning text-start text-white py-2">
+                            <i class="bi bi-clipboard-plus-fill me-2"></i> Tiếp Nhận Khách Vãng Lai
+                        </a>
+                        <a href="/admin/auth/user/add/" target="_blank" class="btn btn-outline-info text-start text-white py-2">
+                            <i class="bi bi-person-badge-fill me-2"></i> Tạo Tài Khoản Nhân Viên
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header-custom">
+                    <span><i class="bi bi-calendar-event me-2 text-info"></i>LỊCH HẸN MỚI</span>
+                    <a href="{% url 'reception_home' %}" class="text-decoration-none small">Chi tiết</a>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for app in recent_appts %}
+                    <div class="list-group-item border-0 border-bottom py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong class="text-dark">{{ app.customer.name }}</strong>
+                            <span class="badge {% if app.status == 'SCHEDULED' %}bg-primary{% elif app.status == 'ARRIVED' %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill">
+                                {{ app.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span><i class="bi bi-clock me-1"></i>{{ app.appointment_date|date:"H:i d/m" }}</span>
+                            <span>{{ app.customer.phone }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="p-4 text-center text-muted">Chưa có lịch hẹn mới.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="text-center mt-4 text-muted small">
+        &copy; 2025 <strong>V-Medical Clinic Management System</strong>. All rights reserved.
+    </div>
+
+</main>
+
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_data|json_script:"chart-data" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const labels = JSON.parse(document.getElementById('chart-labels').textContent);
+        const data = JSON.parse(document.getElementById('chart-data').textContent);
+
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Doanh thu (VNĐ)',
+                    data: data,
+                    borderColor: '#2ecc71', // Màu xanh lá
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)', // Nền mờ
+                    borderWidth: 3,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#2ecc71',
+                    fill: true,
+                    tension: 0.4 // Đường cong mềm mại
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { borderDash: [5], color: '#f0f0f0' },
+                        ticks: { font: { size: 11 } }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

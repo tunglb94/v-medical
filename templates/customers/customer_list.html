@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản Lý Khách Hàng - V-Medical</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body{background:#f0f2f5;font-family:'Segoe UI',sans-serif;}
+        .filter-bar { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 mb-4 shadow-sm">
+  <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
+      <img src="{% static 'images/logo.png' %}" alt="Logo" height="40" class="d-inline-block align-text-top me-2 bg-white rounded p-1">
+      DATA KHÁCH HÀNG
+  </a>
+  <div class="ms-auto d-flex gap-2 text-white align-items-center">
+      <a href="/" class="btn btn-sm btn-outline-light">Telesale</a>
+      <a href="/reception/" class="btn btn-sm btn-outline-light">Lễ tân</a>
+      <a href="/sales/report/" class="btn btn-sm btn-outline-light">Báo cáo</a>
+      <span class="mx-2">|</span>
+      <span class="fw-bold me-2">{{ request.user.username }}</span>
+      <a href="{% url 'logout' %}" class="btn btn-sm btn-danger"><i class="bi bi-box-arrow-right"></i></a>
+  </div>
+</nav>
+
+<div class="container">
+    
+    <div class="filter-bar p-3 mb-4">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-secondary">Từ khóa</label>
+                <input type="text" name="q" class="form-control" placeholder="Tên, SĐT..." value="{{ query }}">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-secondary">Nguồn Data</label>
+                <select name="source" class="form-select">
+                    <option value="">-- Tất cả --</option>
+                    {% for code, label in source_choices %}
+                        <option value="{{ code }}" {% if source_filter == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-secondary">Vấn đề da</label>
+                <select name="skin" class="form-select">
+                    <option value="">-- Tất cả --</option>
+                    {% for code, label in skin_choices %}
+                        <option value="{{ code }}" {% if skin_filter == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-secondary">Tỉnh thành</label>
+                <input class="form-control" list="cityOptions" name="city" placeholder="Chọn tỉnh..." value="{{ city_filter }}">
+                <datalist id="cityOptions">
+                    {% for city in cities %}
+                        <option value="{{ city }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-secondary">Ngày tạo</label>
+                <div class="input-group">
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+            </div>
+
+            <div class="col-12 d-flex justify-content-end gap-2 border-top pt-3 mt-2">
+                <a href="{% url 'customer_list' %}" class="btn btn-secondary">Đặt lại</a>
+                <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-funnel-fill me-1"></i> LỌC DỮ LIỆU</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold text-primary mb-0">
+                <i class="bi bi-list-ul me-2"></i>Kết quả lọc: {{ total_count }} khách hàng
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-secondary text-uppercase small">
+                        <tr>
+                            <th class="ps-4">Họ Tên</th>
+                            <th>Điện thoại</th>
+                            <th>Nguồn</th>
+                            <th>Tỉnh thành</th>
+                            <th>Vấn đề da</th>
+                            <th>Ngày tạo</th>
+                            <th class="text-end pe-4">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in page_obj %}
+                        <tr>
+                            <td class="ps-4">
+                                <a href="{% url 'customer_detail' customer.pk %}" class="fw-bold text-decoration-none text-dark">
+                                    {{ customer.name }}
+                                </a>
+                            </td>
+                            <td class="text-primary fw-bold">{{ customer.phone }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ customer.get_source_display }}</span></td>
+                            <td>{{ customer.city|default:"--" }}</td>
+                            <td>{{ customer.get_skin_condition_display }}</td>
+                            <td class="text-muted small">{{ customer.created_at|date:"d/m/Y" }}</td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'customer_detail' customer.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    Chi tiết
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center py-5 text-muted">Không tìm thấy dữ liệu</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj.has_other_pages %}
+            <div class="p-3">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}&source={{ source_filter }}&skin={{ skin_filter }}&city={{ city_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">Trước</a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}&source={{ source_filter }}&skin={{ skin_filter }}&city={{ city_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">Sau</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

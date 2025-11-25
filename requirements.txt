@@ -1,0 +1,4 @@
+Django>=5.0
+Pillow          # Để xử lý ảnh (avatar, ảnh da)
+psycopg2-binary # Driver cho PostgreSQL (nếu dùng)
+django-crispy-forms # Để form đẹp hơn sau này

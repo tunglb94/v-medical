@@ -1,0 +1,375 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V-Medical - Telesale Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        body { background-color: #f2f4f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        /* Scrollbar đẹp */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #7f8c8d; }
+
+        .card-custom { 
+            border: none; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            background: white;
+            height: 88vh; /* Chiều cao cố định */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .customer-list { overflow-y: auto; flex-grow: 1; }
+
+        .list-group-item {
+            border: none;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 15px;
+        }
+        .list-group-item:hover { background-color: #f8f9fa; padding-left: 20px; }
+        .list-group-item.active {
+            background-color: #eef2ff;
+            color: #000;
+            border-left: 4px solid #4e73df;
+        }
+        
+        .form-label { font-size: 0.8rem; font-weight: 700; color: #858796; text-transform: uppercase; margin-bottom: 5px; }
+        .form-control:read-only { background-color: #eaecf4; border: 1px solid #d1d3e2; color: #5a5c69; }
+        
+        /* Timeline style */
+        .timeline-item { border-left: 2px solid #e3e6f0; padding-left: 15px; padding-bottom: 15px; position: relative; }
+        .timeline-item::before {
+            content: ''; position: absolute; left: -6px; top: 0;
+            width: 10px; height: 10px; border-radius: 50%; background: #bdc3c7;
+        }
+        .timeline-item.success::before { background: #1cc88a; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow px-3 mb-3">
+  <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+      <img src="{% static 'images/logo.png' %}" alt="Logo" height="40" class="d-inline-block align-text-top me-2 bg-white rounded p-1">
+      V-MEDICAL TELESALE
+  </a>
+  
+  <div class="ms-auto text-white d-flex align-items-center">
+      
+      <div class="d-none d-md-flex gap-2 me-3">
+          <a href="{% url 'reception_home' %}" class="btn btn-sm btn-outline-light fw-bold">
+              <i class="bi bi-calendar-check me-1"></i> Lễ tân
+          </a>
+          <a href="{% url 'customer_list' %}" class="btn btn-sm btn-outline-light fw-bold">
+              <i class="bi bi-people me-1"></i> Khách hàng
+          </a>
+          <a href="{% url 'sales_report' %}" class="btn btn-sm btn-outline-light fw-bold">
+              <i class="bi bi-graph-up me-1"></i> Báo cáo
+          </a>
+      </div>
+
+      <div class="me-3 text-end border-start ps-3">
+          <div class="fw-bold">{{ request.user.username }}</div>
+          <small class="opacity-75">Telesale</small>
+      </div>
+      
+      <a href="{% url 'logout' %}" class="btn btn-sm btn-danger border-0 shadow-sm" title="Đăng xuất">
+          <i class="bi bi-box-arrow-right"></i>
+      </a>
+  </div>
+</nav>
+
+<div class="container-fluid px-3">
+    <div class="row g-3">
+        
+        <div class="col-lg-3">
+            <div class="card card-custom">
+                <div class="p-3 border-bottom bg-white rounded-top d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold text-primary mb-0">DANH SÁCH KHÁCH</h6>
+                        <small class="text-muted">Cần xử lý</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                        <i class="bi bi-plus-lg"></i> Thêm
+                    </button>
+                </div>
+                
+                <div class="list-group list-group-flush customer-list">
+                    {% for customer in customers %}
+                        <a href="?id={{ customer.id }}" 
+                           class="list-group-item list-group-item-action {% if selected_customer.id == customer.id %}active{% endif %}">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <span class="fw-bold">{{ customer.name }}</span>
+                                <span class="badge bg-light text-secondary border" style="font-weight: normal;">{{ customer.created_at|date:"d/m" }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted"><i class="bi bi-phone me-1"></i>{{ customer.phone }}</small>
+                                <small class="badge {% if customer.skin_condition == 'ACNE' %}bg-danger bg-opacity-10 text-danger{% else %}bg-info bg-opacity-10 text-info{% endif %}">
+                                    {{ customer.get_skin_condition_display }}
+                                </small>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <div class="text-center p-5 text-muted">Chưa có dữ liệu</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show py-2 shadow-sm" role="alert">
+                        <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card card-custom">
+                <div class="card-body p-0 d-flex flex-column">
+                    
+                    {% if selected_customer %}
+                        <div class="p-4 border-bottom bg-white">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h4 class="fw-bold text-dark mb-0">
+                                    <i class="bi bi-person-circle me-2 text-primary"></i>{{ selected_customer.name }}
+                                </h4>
+                                <span class="badge bg-secondary">ID: #{{ selected_customer.id }}</span>
+                            </div>
+
+                            <form>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Số điện thoại</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control fw-bold text-primary" value="{{ selected_customer.phone }}" readonly>
+                                            <a href="tel:{{ selected_customer.phone }}" class="btn btn-primary"><i class="bi bi-telephone-fill"></i></a>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Năm sinh/Tuổi</label>
+                                        <input type="text" class="form-control form-control-sm" value="{{ selected_customer.age|default:'--' }}" readonly>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Tỉnh Thành</label>
+                                        <input type="text" class="form-control form-control-sm" value="{{ selected_customer.city|default:'--' }}" readonly>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Nguồn</label>
+                                        <input type="text" class="form-control form-control-sm" value="{{ selected_customer.get_source_display }}" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Vấn đề da</label>
+                                        <input type="text" class="form-control form-control-sm text-danger fw-bold" value="{{ selected_customer.get_skin_condition_display }}" readonly>
+                                    </div>
+                                </div>
+                                {% if selected_customer.note_telesale %}
+                                <div class="mt-2 small text-muted fst-italic">
+                                    <i class="bi bi-sticky me-1"></i> Note Data: "{{ selected_customer.note_telesale }}"
+                                </div>
+                                {% endif %}
+                            </form>
+                        </div>
+
+                        <div class="d-flex flex-grow-1 overflow-hidden">
+                            
+                            <div class="w-50 border-end p-4 overflow-auto bg-light">
+                                <h6 class="fw-bold text-secondary mb-3 small text-uppercase"><i class="bi bi-clock-history me-2"></i>Lịch sử chăm sóc</h6>
+                                
+                                {% if call_history %}
+                                    <div class="ps-2">
+                                    {% for log in call_history %}
+                                        <div class="timeline-item {% if log.status == 'BOOKED' %}success{% endif %}">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span class="fw-bold small">{{ log.caller.username|default:"Hệ thống" }}</span>
+                                                <small class="text-muted" style="font-size: 0.7rem;">{{ log.call_time|date:"d/m H:i" }}</small>
+                                            </div>
+                                            <div class="mb-1">
+                                                <span class="badge rounded-pill border 
+                                                    {% if log.status == 'BOOKED' %}bg-success text-white border-success
+                                                    {% elif log.status == 'NO_ANSWER' %}bg-white text-secondary
+                                                    {% else %}bg-warning bg-opacity-25 text-dark border-warning{% endif %}">
+                                                    {{ log.get_status_display }}
+                                                </span>
+                                            </div>
+                                            <p class="mb-0 small text-secondary fst-italic bg-white p-2 rounded border shadow-sm">
+                                                {{ log.note }}
+                                            </p>
+                                        </div>
+                                    {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-center text-muted mt-5 opacity-50">
+                                        <i class="bi bi-chat-square-dots display-6"></i>
+                                        <p class="small mt-2">Chưa có lịch sử tương tác</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="w-50 p-4 bg-white d-flex flex-column">
+                                <h6 class="fw-bold text-primary mb-3 small text-uppercase"><i class="bi bi-pencil-square me-2"></i>Ghi nhận cuộc gọi mới</h6>
+                                
+                                <form method="POST" class="d-flex flex-column flex-grow-1">
+                                    {% csrf_token %}
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label small text-muted mb-1">Nhân viên thực hiện:</label>
+                                        <select name="telesale_id" class="form-select form-select-sm fw-bold text-primary">
+                                            {% for staff in staff_users %}
+                                                <option value="{{ staff.id }}" {% if staff.id == request.user.id %}selected{% endif %}>
+                                                    {{ staff.username }} {% if staff.first_name %}- {{ staff.first_name }}{% endif %}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3 flex-grow-1">
+                                        <textarea name="note" class="form-control h-100" placeholder="Nhập nội dung trao đổi với khách..." style="resize: none;" required></textarea>
+                                    </div>
+
+                                    <div class="mb-3 bg-light p-2 rounded border">
+                                        <label class="form-label small fw-bold text-primary mb-1">
+                                            <i class="bi bi-clock"></i> Chọn giờ hẹn (Nếu đặt lịch):
+                                        </label>
+                                        <input type="datetime-local" name="appointment_date" class="form-control form-control-sm fw-bold text-primary">
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" name="status" value="BOOKED" class="btn btn-success fw-bold py-2">
+                                            <i class="bi bi-calendar-check me-2"></i> ĐẶT LỊCH HẸN
+                                        </button>
+                                        
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <button type="submit" name="status" value="CALLING" class="btn btn-warning w-100 text-dark fw-bold">
+                                                    <i class="bi bi-arrow-repeat"></i> Gọi lại sau
+                                                </button>
+                                            </div>
+                                            <div class="col-6">
+                                                <button type="submit" name="status" value="NO_ANSWER" class="btn btn-light border w-100">
+                                                    <i class="bi bi-telephone-x"></i> Ko nghe
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="status" value="NOT_INTERESTED" class="btn btn-outline-danger btn-sm border-0">
+                                            Khách không có nhu cầu / Sai số
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                        </div>
+
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted bg-light">
+                            <i class="bi bi-arrow-left-circle display-4 mb-3 text-primary opacity-25"></i>
+                            <h5>Chọn khách hàng để bắt đầu</h5>
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2"></i>Thêm Data Khách Mới</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      
+      <form action="/add-customer/" method="POST">
+          {% csrf_token %}
+          <div class="modal-body bg-light">
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-dark">Họ và Tên <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required placeholder="Nguyễn Văn A">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-dark">Số điện thoại <span class="text-danger">*</span></label>
+                    <input type="text" name="phone" class="form-control" required placeholder="09xx...">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label text-dark">Tuổi</label>
+                    <input type="number" name="age" class="form-control" placeholder="VD: 25">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-dark">Nguồn Data</label>
+                    <select name="source" class="form-select">
+                        <option value="FACEBOOK">Facebook Ads</option>
+                        <option value="GOOGLE">Google Ads</option>
+                        <option value="TIKTOK">Tiktok</option>
+                        <option value="SEO">SEO Website</option>
+                        <option value="REFERRAL">Bạn giới thiệu</option>
+                        <option value="OTHER">Khác</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-dark">Tình trạng da</label>
+                    <select name="skin_condition" class="form-select">
+                        <option value="ACNE">Mụn viêm/ẩn</option>
+                        <option value="PIGMENTATION">Nám/Tàn nhang</option>
+                        <option value="SCAR">Sẹo rỗ</option>
+                        <option value="AGING">Lão hóa</option>
+                        <option value="OTHER">Khác</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold text-dark">Tỉnh/Thành phố</label>
+                <input class="form-control" list="provinceOptions" name="city" placeholder="Nhập tên tỉnh...">
+                <datalist id="provinceOptions">
+                    <option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Cần Thơ">
+                    <option value="An Giang"><option value="Bà Rịa - Vũng Tàu"><option value="Bắc Giang"><option value="Bắc Kạn"><option value="Bạc Liêu">
+                    <option value="Bắc Ninh"><option value="Bến Tre"><option value="Bình Định"><option value="Bình Dương"><option value="Bình Phước">
+                    <option value="Bình Thuận"><option value="Cà Mau"><option value="Cao Bằng"><option value="Đắk Lắk"><option value="Đắk Nông">
+                    <option value="Điện Biên"><option value="Đồng Nai"><option value="Đồng Tháp"><option value="Gia Lai"><option value="Hà Giang">
+                    <option value="Hà Nam"><option value="Hà Tĩnh"><option value="Hải Dương"><option value="Hậu Giang"><option value="Hòa Bình">
+                    <option value="Hưng Yên"><option value="Khánh Hòa"><option value="Kiên Giang"><option value="Kon Tum"><option value="Lai Châu">
+                    <option value="Lâm Đồng"><option value="Lạng Sơn"><option value="Lào Cai"><option value="Long An"><option value="Nam Định">
+                    <option value="Nghệ An"><option value="Ninh Bình"><option value="Ninh Thuận"><option value="Phú Thọ"><option value="Phú Yên">
+                    <option value="Quảng Bình"><option value="Quảng Nam"><option value="Quảng Ngãi"><option value="Quảng Ninh"><option value="Quảng Trị">
+                    <option value="Sóc Trăng"><option value="Sơn La"><option value="Tây Ninh"><option value="Thái Bình"><option value="Thái Nguyên">
+                    <option value="Thanh Hóa"><option value="Thừa Thiên Huế"><option value="Tiền Giang"><option value="Trà Vinh"><option value="Tuyên Quang">
+                    <option value="Vĩnh Long"><option value="Vĩnh Phúc"><option value="Yên Bái">
+                </datalist>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-dark">Ghi chú Data</label>
+                <textarea name="note_telesale" class="form-control" rows="2" placeholder="Note từ Marketing..."></textarea>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="btn btn-primary fw-bold">Lưu Khách Mới</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

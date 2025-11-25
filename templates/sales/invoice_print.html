@@ -1,0 +1,83 @@
+{% load static %}
+{% load humanize %} <!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hóa đơn #{{ order.id }}</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; font-size: 14px; margin: 0; padding: 20px; background: #fff; }
+        .invoice-container { max-width: 400px; margin: 0 auto; border: 1px solid #ddd; padding: 15px; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .fw-bold { font-weight: bold; }
+        .mb-1 { margin-bottom: 5px; }
+        .mb-2 { margin-bottom: 10px; }
+        .border-bottom { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+        .border-top { border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        td { vertical-align: top; }
+        @media print { .no-print { display: none; } .invoice-container { border: none; padding: 0; } body { padding: 0; } }
+        .btn-print { display: block; width: 100%; padding: 10px; background: #0d6efd; color: white; text-align: center; text-decoration: none; margin-bottom: 20px; border-radius: 5px; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+
+    <div class="no-print text-center" style="max-width: 400px; margin: 0 auto;">
+        <a href="javascript:window.print()" class="btn-print">🖨️ IN HÓA ĐƠN</a>
+    </div>
+
+    <div class="invoice-container">
+        <div class="text-center border-bottom">
+            <h3 class="mb-1">{{ clinic_info.name }}</h3>
+            <div class="mb-1">{{ clinic_info.address }}</div>
+            <div class="mb-2">Hotline: {{ clinic_info.hotline }}</div>
+        </div>
+
+        <div class="mb-2">
+            <div class="fw-bold text-center" style="font-size: 16px; margin: 10px 0;">PHIẾU THANH TOÁN</div>
+            <table>
+                <tr><td>Số phiếu:</td><td class="text-right fw-bold">#{{ order.id }}</td></tr>
+                <tr><td>Ngày:</td><td class="text-right">{{ order.created_at|date:"d/m/Y H:i" }}</td></tr>
+                <tr><td>Thu ngân:</td><td class="text-right">{{ request.user.username }}</td></tr>
+            </table>
+        </div>
+
+        <div class="border-bottom"></div>
+        <div class="mb-2">
+            <strong>Khách hàng:</strong> {{ order.customer.name }}<br>
+            <strong>SĐT:</strong> {{ order.customer.phone }}
+        </div>
+        <div class="border-bottom"></div>
+
+        <table class="mb-2">
+            <tr style="font-weight: bold;"><td>Dịch vụ</td><td class="text-right">Thành tiền</td></tr>
+            <tr>
+                <td style="padding-top: 5px;">{{ order.treatment_name }}</td>
+                <td class="text-right" style="padding-top: 5px;">{{ order.original_price|intcomma }}</td>
+            </tr>
+            {% if order.discount > 0 %}
+            <tr>
+                <td><i>Giảm giá</i></td>
+                <td class="text-right"><i>-{{ order.discount|intcomma }}</i></td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <div class="border-top">
+            <table>
+                <tr style="font-size: 16px;">
+                    <td class="fw-bold">TỔNG CỘNG:</td>
+                    <td class="text-right fw-bold">{{ order.total_amount|intcomma }} đ</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="text-center" style="margin-top: 30px; font-style: italic;">
+            Xin cảm ơn và hẹn gặp lại!<br>
+            {{ clinic_info.website }}
+        </div>
+    </div>
+
+    <script>window.onload = function() { /* window.print(); */ }</script>
+</body>
+</html>
