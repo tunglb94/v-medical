@@ -88,32 +88,68 @@
         
         <div class="col-12 col-lg-3">
             <div class="card card-custom">
-                <div class="p-3 border-bottom bg-white rounded-top d-flex justify-content-between align-items-center">
-                    <div>
+                <div class="p-3 border-bottom bg-white rounded-top">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="fw-bold text-primary mb-0">DANH SÁCH KHÁCH</h6>
-                        <small class="text-muted">Cần xử lý</small>
+                        <button type="button" class="btn btn-sm btn-outline-primary border-0" data-bs-toggle="modal" data-bs-target="#addCustomerModal" title="Thêm thủ công">
+                            <i class="bi bi-plus-circle-fill fs-5"></i>
+                        </button>
                     </div>
-                    <button type="button" class="btn btn-sm btn-primary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                        <i class="bi bi-plus-lg"></i> Thêm
-                    </button>
+
+                    <form method="GET" id="filterForm">
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" name="q" class="form-control" placeholder="Tìm SĐT, Tên..." value="{{ search_query }}">
+                            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                        </div>
+
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="type" id="filterNew" value="new" 
+                                   {% if filter_type == 'new' %}checked{% endif %} 
+                                   onchange="this.form.submit()">
+                            <label class="btn btn-outline-success btn-sm fw-bold" for="filterNew">
+                                <i class="bi bi-star-fill me-1"></i>MỚI (Hôm nay)
+                            </label>
+
+                            <input type="radio" class="btn-check" name="type" id="filterOld" value="old" 
+                                   {% if filter_type == 'old' %}checked{% endif %} 
+                                   onchange="this.form.submit()">
+                            <label class="btn btn-outline-secondary btn-sm fw-bold" for="filterOld">
+                                <i class="bi bi-archive-fill me-1"></i>DATA CŨ
+                            </label>
+                        </div>
+                    </form>
                 </div>
                 
                 <div class="list-group list-group-flush customer-list">
                     {% for customer in customers %}
-                        <a href="?id={{ customer.id }}" class="list-group-item list-group-item-action {% if selected_customer.id == customer.id %}active{% endif %}">
+                        <a href="?id={{ customer.id }}&type={{ filter_type }}&q={{ search_query }}" 
+                           class="list-group-item list-group-item-action {% if selected_customer.id == customer.id %}active{% endif %}">
                             <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                <span class="fw-bold">{{ customer.name }}</span>
-                                <span class="badge bg-light text-secondary border" style="font-weight: normal;">{{ customer.created_at|date:"d/m" }}</span>
+                                <span class="fw-bold text-truncate" style="max-width: 140px;">{{ customer.name }}</span>
+                                <span class="badge bg-light text-secondary border fw-normal" style="font-size: 0.7rem;">
+                                    {{ customer.created_at|date:"d/m" }}
+                                </span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted"><i class="bi bi-phone me-1"></i>{{ customer.phone }}</small>
-                                <small class="badge {% if customer.skin_condition == 'ACNE' %}bg-danger bg-opacity-10 text-danger{% else %}bg-info bg-opacity-10 text-info{% endif %}">
-                                    {{ customer.get_skin_condition_display }}
-                                </small>
+                                <small class="text-muted"><i class="bi bi-telephone-fill me-1" style="font-size: 0.7rem;"></i>{{ customer.phone }}</small>
+                                
+                                {% if customer.source == 'FACEBOOK' %}
+                                    <i class="bi bi-facebook text-primary" title="Facebook"></i>
+                                {% elif customer.source == 'GOOGLE' %}
+                                    <i class="bi bi-google text-danger" title="Google"></i>
+                                {% endif %}
                             </div>
                         </a>
                     {% empty %}
-                        <div class="text-center p-5 text-muted">Chưa có dữ liệu</div>
+                        <div class="text-center p-5 text-muted">
+                            <i class="bi bi-inbox display-6 opacity-25"></i>
+                            <p class="small mt-2 mb-0">Không tìm thấy khách nào</p>
+                            {% if filter_type == 'new' %}
+                                <a href="?type=old" class="small text-primary text-decoration-none">Xem data cũ?</a>
+                            {% else %}
+                                <a href="?type=new" class="small text-primary text-decoration-none">Xem data mới?</a>
+                            {% endif %}
+                        </div>
                     {% endfor %}
                 </div>
             </div>
@@ -172,8 +208,8 @@
                                 </div>
                                 {% endif %}
                                 {% if selected_customer.note_telesale %}
-                                <div class="mt-1 small text-muted fst-italic">
-                                    <i class="bi bi-sticky me-1"></i> Note Data: "{{ selected_customer.note_telesale }}"
+                                <div class="mt-2 p-2 bg-warning bg-opacity-10 border border-warning rounded small text-dark">
+                                    <i class="bi bi-sticky-fill me-1 text-warning"></i> <strong>Ghi chú Data:</strong> {{ selected_customer.note_telesale }}
                                 </div>
                                 {% endif %}
                             </form>
@@ -191,7 +227,10 @@
                                                 <small class="text-muted" style="font-size: 0.7rem;">{{ log.call_time|date:"d/m H:i" }}</small>
                                             </div>
                                             <div class="mb-1">
-                                                <span class="badge rounded-pill border {% if log.status == 'BOOKED' %}bg-success text-white border-success{% elif log.status == 'NO_ANSWER' %}bg-white text-secondary{% else %}bg-warning bg-opacity-25 text-dark border-warning{% endif %}">
+                                                <span class="badge rounded-pill border 
+                                                    {% if log.status == 'BOOKED' %}bg-success text-white border-success
+                                                    {% elif log.status == 'NO_ANSWER' %}bg-white text-secondary
+                                                    {% else %}bg-warning bg-opacity-25 text-dark border-warning{% endif %}">
                                                     {{ log.get_status_display }}
                                                 </span>
                                             </div>
@@ -260,7 +299,6 @@
       <form action="{% url 'add_customer' %}" method="POST">
           {% csrf_token %}
           <div class="modal-body bg-light">
-            
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-dark">Họ và Tên <span class="text-danger">*</span></label>
@@ -271,7 +309,6 @@
                     <input type="text" name="phone" class="form-control" required placeholder="09xx...">
                 </div>
             </div>
-
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label text-dark fw-bold">Ngày sinh</label>
@@ -289,7 +326,6 @@
                     </select>
                 </div>
             </div>
-
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-dark">Tỉnh/Thành phố</label>
@@ -304,7 +340,6 @@
                     <input type="text" name="address" class="form-control" placeholder="Số nhà, tên đường, phường/xã...">
                 </div>
             </div>
-
             <div class="mb-3">
                 <label class="form-label text-dark">Tình trạng da</label>
                 <select name="skin_condition" class="form-select">
@@ -315,12 +350,10 @@
                     <option value="OTHER">Khác</option>
                 </select>
             </div>
-
             <div class="mb-3">
                 <label class="form-label text-dark">Ghi chú Data</label>
                 <textarea name="note_telesale" class="form-control" rows="2" placeholder="Note từ Marketing..."></textarea>
             </div>
-
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>

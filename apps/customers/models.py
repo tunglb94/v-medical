@@ -1,5 +1,6 @@
 from django.db import models
 from datetime import date
+from django.utils import timezone
 
 class Customer(models.Model):
     class SkinIssue(models.TextChoices):
@@ -42,7 +43,9 @@ class Customer(models.Model):
     )
     
     note_telesale = models.TextField(blank=True, verbose_name="Ghi chú ban đầu")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
+    
+    # Quan trọng: Dùng default=timezone.now để có thể import ngày cũ từ Excel
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Ngày tạo")
 
     # Property tính tuổi tự động để hiển thị
     @property
@@ -54,3 +57,7 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.phone})"
+
+    class Meta:
+        verbose_name = "Khách hàng"
+        verbose_name_plural = "Danh sách Khách hàng"
