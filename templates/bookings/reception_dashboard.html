@@ -42,7 +42,7 @@
 
 <div class="container-fluid px-4">
     <div class="row mb-4 align-items-center">
-        <div class="col-md-7 d-flex gap-2">
+        <div class="col-12 col-md-7 d-flex flex-column flex-md-row gap-2 mb-3 mb-md-0">
             <form action="" method="GET" class="d-flex gap-2 flex-grow-1">
                 <input type="text" name="q" class="form-control form-control-lg border-0 shadow-sm" 
                        placeholder="🔍 Tìm khách cũ (Tên/SĐT)..." value="{{ search_query }}">
@@ -53,12 +53,12 @@
                 {% endif %}
             </form>
             
-            <button class="btn btn-lg btn-warning text-dark fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#walkinModal">
+            <button class="btn btn-lg btn-warning text-dark fw-bold shadow-sm w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#walkinModal">
                 <i class="bi bi-person-plus-fill me-1"></i> KHÁCH VÃNG LAI
             </button>
         </div>
         
-        <div class="col-md-5 d-flex justify-content-end align-items-center">
+        <div class="col-12 col-md-5 d-flex justify-content-between justify-content-md-end align-items-center">
             <div class="bg-white p-2 rounded shadow-sm d-flex align-items-center">
                 <span class="text-muted me-2 fw-bold small text-uppercase">Lịch ngày:</span>
                 <form method="GET" id="dateForm">

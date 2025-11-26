@@ -32,6 +32,7 @@
             flex-direction: column;
             z-index: 1000;
             box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+            transition: all 0.3s; /* Hiệu ứng trượt mượt mà */
         }
         
         .sidebar-brand {
@@ -62,7 +63,7 @@
         .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
         
         /* --- MAIN CONTENT --- */
-        .main-content { margin-left: var(--sidebar-width); padding: 30px; }
+        .main-content { margin-left: var(--sidebar-width); padding: 30px; transition: all 0.3s; }
         
         /* --- HEADER --- */
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
@@ -73,7 +74,7 @@
         .kpi-card {
             border: none; border-radius: 15px; overflow: hidden;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            transition: transform 0.3s; h-100;
+            transition: transform 0.3s; height: 100%;
         }
         .kpi-card:hover { transform: translateY(-5px); }
         .kpi-body { padding: 25px; display: flex; align-items: center; justify-content: space-between; color: white; }
@@ -95,17 +96,45 @@
         .table-hover tbody tr:hover { background-color: #f8f9fc; }
         .avatar-circle { width: 35px; height: 35px; background: #e2e6ea; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #555; margin-right: 10px; }
 
-        /* Responsive */
+        /* --- MOBILE RESPONSIVE --- */
+        .mobile-nav-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1001;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
         @media (max-width: 992px) {
-            .sidebar { width: 80px; }
-            .sidebar-brand h5, .sidebar-menu li a span, .sidebar-footer span { display: none; }
-            .sidebar-menu li a { justify-content: center; padding: 15px; }
-            .sidebar-menu li a i { margin: 0; }
-            .main-content { margin-left: 80px; }
+            .sidebar { width: 260px; transform: translateX(-100%); } /* Mặc định ẩn */
+            .sidebar.show { transform: translateX(0); } /* Hiện khi có class show */
+            
+            .sidebar-brand h5, .sidebar-menu li a span, .sidebar-footer span { display: inline-block; } /* Hiện lại text */
+            .sidebar-menu li a { justify-content: flex-start; }
+            
+            .main-content { margin-left: 0; padding: 15px; }
+            
+            .mobile-nav-toggle { display: block; }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                margin-top: 40px; /* Tránh nút menu đè */
+            }
+            .date-badge { margin-top: 10px; }
         }
     </style>
 </head>
 <body>
+
+<button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('show')">
+    <i class="bi bi-list fs-4"></i>
+</button>
 
 <nav class="sidebar">
     <div class="sidebar-brand">

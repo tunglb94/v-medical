@@ -1,37 +1,38 @@
-{% load static %} <!DOCTYPE html>
+{% load static %}
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Đăng nhập - V-Medical Clinic</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
     <style>
         body {
-            background-color: #f5f7fa;
-            height: 100vh;
+            background-color: #f8f9fa;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', sans-serif;
+            padding: 15px;
         }
 
         .login-container {
-            display: flex;
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             overflow: hidden;
             width: 900px;
-            max-width: 95%;
+            max-width: 100%;
             min-height: 550px;
+            display: flex;
+            flex-direction: row;
         }
 
-        /* CỘT TRÁI: THƯƠNG HIỆU (MÀU ĐỎ) */
         .login-brand {
             flex: 1;
-            background: linear-gradient(135deg, #d31027 0%, #ea384d 100%);
+            background: linear-gradient(135deg, #b71c1c 0%, #d32f2f 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -41,111 +42,101 @@
             text-align: center;
             position: relative;
         }
-        
-        .brand-content { z-index: 2; }
 
-        /* LOGO ẢNH */
         .logo-img {
-            max-width: 180px; /* Điều chỉnh kích thước logo */
-            margin-bottom: 20px;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); /* Đổ bóng nhẹ cho logo */
-            background: white; /* Nền trắng cho logo nếu cần */
+            width: 120px;
+            height: 120px;
+            background: white;
+            border-radius: 50%;
             padding: 15px;
-            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            object-fit: contain;
         }
 
-        .brand-title {
-            font-size: 2.2rem;
-            font-weight: 800;
-            letter-spacing: 2px;
-            margin-bottom: 5px;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
+        .brand-title { font-size: 2rem; font-weight: 800; letter-spacing: 1px; margin-bottom: 10px; text-transform: uppercase; }
         .brand-subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; }
-        
-        /* CỘT PHẢI: FORM */
+
         .login-form {
-            flex: 1;
+            flex: 1.2;
             padding: 60px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            background-color: #fff;
         }
 
-        .login-header h3 { color: #d31027; font-weight: 800; font-size: 1.8rem; margin-bottom: 10px; }
-        .form-label { font-size: 0.85rem; font-weight: 700; color: #6c757d; text-transform: uppercase; margin-bottom: 8px; }
-        
-        .form-control {
-            height: 55px; border-radius: 12px; border: 2px solid #f1f1f1;
-            background-color: #fcfcfc; padding-left: 20px; font-size: 1rem; transition: all 0.3s;
-        }
-        .form-control:focus { background-color: #fff; border-color: #ea384d; box-shadow: 0 0 0 4px rgba(234, 56, 77, 0.1); }
-
-        .btn-login {
-            height: 55px; border-radius: 12px; background: #d31027; border: none;
-            font-weight: 700; font-size: 1.1rem; letter-spacing: 1px; margin-top: 10px;
-            width: 100%; color: white; box-shadow: 0 4px 15px rgba(211, 16, 39, 0.3);
-            transition: all 0.3s;
-        }
-        .btn-login:hover { background: #b71c1c; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(211, 16, 39, 0.4); }
-
+        /* --- MOBILE RESPONSIVE --- */
         @media (max-width: 768px) {
-            .login-container { flex-direction: column; width: 100%; height: 100vh; border-radius: 0; }
-            .login-brand { padding: 30px; flex: 0.4; }
-            .login-form { flex: 0.6; padding: 30px; }
+            .login-container {
+                flex-direction: column;
+                height: auto;
+                min-height: auto;
+                border-radius: 15px;
+                margin: 10px;
+            }
+
+            .login-brand {
+                padding: 20px 15px;
+                flex: none;
+            }
+
+            .logo-img { 
+                width: 60px; height: 60px; 
+                margin-bottom: 10px; padding: 5px; 
+            }
+            .brand-title { font-size: 1.2rem; margin-bottom: 0; }
+            .brand-subtitle { display: none; }
+
+            .login-form {
+                padding: 30px 20px;
+                flex: none;
+            }
+            
+            .form-header { margin-bottom: 20px; text-align: center; }
+            .form-header h3 { font-size: 1.5rem; }
+            
+            .btn-login { height: 50px; font-size: 1rem; }
         }
+
+        .form-control { height: 50px; border-radius: 10px; padding-left: 15px; font-size: 1rem; background-color: #fcfcfc; }
+        .btn-login { height: 50px; border-radius: 10px; background: #d31027; border: none; font-weight: 700; font-size: 1.1rem; color: white; width: 100%; transition: all 0.3s; }
     </style>
 </head>
 <body>
 
 <div class="login-container">
     <div class="login-brand">
-        <div class="brand-content">
-            <img src="{% static 'images/logo.png' %}" alt="V-Medical Logo" class="logo-img">
-            
-            <div class="brand-title">V-MEDICAL</div>
-            <div class="brand-subtitle">Hệ thống Quản lý Thẩm mỹ viện</div>
-            <div class="mt-5 small opacity-75">
-                &copy; 2025 V-Medical Technology
-            </div>
-        </div>
+        <img src="{% static 'images/logo.png' %}" alt="V-Medical Logo" class="logo-img">
+        <div class="brand-title">V-MEDICAL</div>
+        <div class="brand-subtitle">Hệ thống Quản lý Thẩm mỹ viện</div>
     </div>
-
     <div class="login-form">
-        <div class="login-header">
-            <h3>XIN CHÀO!</h3>
-            <p class="text-muted">Vui lòng đăng nhập để bắt đầu làm việc.</p>
+        <div class="form-header">
+            <h3>ĐĂNG NHẬP</h3>
+            <p class="text-muted small">Vui lòng nhập thông tin tài khoản.</p>
         </div>
 
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-danger d-flex align-items-center small py-2 rounded-3 mb-4">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    <div>{{ message }}</div>
-                </div>
+                <div class="alert alert-danger small py-2 mb-3">{{ message }}</div>
             {% endfor %}
         {% endif %}
 
         <form method="POST">
             {% csrf_token %}
             <div class="mb-3">
-                <label class="form-label">Tên tài khoản</label>
-                <input type="text" name="username" class="form-control" placeholder="Nhập username..." required autofocus>
+                <label class="form-label fw-bold small text-muted">Tên tài khoản</label>
+                <input type="text" name="username" class="form-control" required>
             </div>
             
             <div class="mb-4">
-                <label class="form-label">Mật khẩu</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                <label class="form-label fw-bold small text-muted">Mật khẩu</label>
+                <input type="password" name="password" class="form-control" required>
             </div>
 
-            <button type="submit" class="btn btn-login">
-                ĐĂNG NHẬP <i class="bi bi-box-arrow-in-right ms-2"></i>
+            <button type="submit" class="btn btn-login shadow-sm">
+                VÀO HỆ THỐNG <i class="bi bi-arrow-right-circle ms-2"></i>
             </button>
-            
-            <div class="text-center mt-4">
-                <a href="#" class="text-secondary small text-decoration-none">Quên mật khẩu? Liên hệ IT</a>
-            </div>
         </form>
     </div>
 </div>

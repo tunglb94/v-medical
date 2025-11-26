@@ -22,12 +22,35 @@
             border-radius: 12px; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
             background: white;
-            height: 88vh; /* Chiều cao cố định */
+            /* Height tự động trên mobile */
+            height: 100%;
+            min-height: 88vh;
             display: flex;
             flex-direction: column;
         }
 
-        .customer-list { overflow-y: auto; flex-grow: 1; }
+        /* Trên PC thì giữ nguyên chiều cao cố định để scroll đẹp */
+        @media (min-width: 992px) {
+            .card-custom { height: 88vh; overflow: hidden; }
+            .customer-list { overflow-y: auto; flex-grow: 1; }
+        }
+
+        /* Trên Mobile */
+        @media (max-width: 991px) {
+            .customer-list { 
+                max-height: 300px; /* Giới hạn chiều cao danh sách khách trên mobile */
+                overflow-y: auto; 
+            }
+            .col-lg-3 { margin-bottom: 20px; } /* Tạo khoảng cách giữa 2 cột khi xếp chồng */
+            
+            /* Chuyển layout panel bên phải thành dọc trên mobile */
+            .flex-grow-1.overflow-hidden { 
+                flex-direction: column; 
+                overflow: visible !important; 
+            }
+            .w-50 { width: 100% !important; }
+            .border-end { border-right: none !important; border-bottom: 1px solid #dee2e6; }
+        }
 
         .list-group-item {
             border: none;
@@ -91,7 +114,7 @@
 <div class="container-fluid px-3">
     <div class="row g-3">
         
-        <div class="col-lg-3">
+        <div class="col-12 col-lg-3">
             <div class="card card-custom">
                 <div class="p-3 border-bottom bg-white rounded-top d-flex justify-content-between align-items-center">
                     <div>
@@ -125,7 +148,7 @@
             </div>
         </div>
 
-        <div class="col-lg-9">
+        <div class="col-12 col-lg-9">
             
             {% if messages %}
                 {% for message in messages %}
@@ -157,19 +180,19 @@
                                             <a href="tel:{{ selected_customer.phone }}" class="btn btn-primary"><i class="bi bi-telephone-fill"></i></a>
                                         </div>
                                     </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label">Năm sinh/Tuổi</label>
+                                    <div class="col-6 col-md-2">
+                                        <label class="form-label">Tuổi</label>
                                         <input type="text" class="form-control form-control-sm" value="{{ selected_customer.age|default:'--' }}" readonly>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-6 col-md-2">
                                         <label class="form-label">Tỉnh Thành</label>
                                         <input type="text" class="form-control form-control-sm" value="{{ selected_customer.city|default:'--' }}" readonly>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-6 col-md-2">
                                         <label class="form-label">Nguồn</label>
                                         <input type="text" class="form-control form-control-sm" value="{{ selected_customer.get_source_display }}" readonly>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-6 col-md-3">
                                         <label class="form-label">Vấn đề da</label>
                                         <input type="text" class="form-control form-control-sm text-danger fw-bold" value="{{ selected_customer.get_skin_condition_display }}" readonly>
                                     </div>
@@ -340,19 +363,7 @@
                 <input class="form-control" list="provinceOptions" name="city" placeholder="Nhập tên tỉnh...">
                 <datalist id="provinceOptions">
                     <option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Cần Thơ">
-                    <option value="An Giang"><option value="Bà Rịa - Vũng Tàu"><option value="Bắc Giang"><option value="Bắc Kạn"><option value="Bạc Liêu">
-                    <option value="Bắc Ninh"><option value="Bến Tre"><option value="Bình Định"><option value="Bình Dương"><option value="Bình Phước">
-                    <option value="Bình Thuận"><option value="Cà Mau"><option value="Cao Bằng"><option value="Đắk Lắk"><option value="Đắk Nông">
-                    <option value="Điện Biên"><option value="Đồng Nai"><option value="Đồng Tháp"><option value="Gia Lai"><option value="Hà Giang">
-                    <option value="Hà Nam"><option value="Hà Tĩnh"><option value="Hải Dương"><option value="Hậu Giang"><option value="Hòa Bình">
-                    <option value="Hưng Yên"><option value="Khánh Hòa"><option value="Kiên Giang"><option value="Kon Tum"><option value="Lai Châu">
-                    <option value="Lâm Đồng"><option value="Lạng Sơn"><option value="Lào Cai"><option value="Long An"><option value="Nam Định">
-                    <option value="Nghệ An"><option value="Ninh Bình"><option value="Ninh Thuận"><option value="Phú Thọ"><option value="Phú Yên">
-                    <option value="Quảng Bình"><option value="Quảng Nam"><option value="Quảng Ngãi"><option value="Quảng Ninh"><option value="Quảng Trị">
-                    <option value="Sóc Trăng"><option value="Sơn La"><option value="Tây Ninh"><option value="Thái Bình"><option value="Thái Nguyên">
-                    <option value="Thanh Hóa"><option value="Thừa Thiên Huế"><option value="Tiền Giang"><option value="Trà Vinh"><option value="Tuyên Quang">
-                    <option value="Vĩnh Long"><option value="Vĩnh Phúc"><option value="Yên Bái">
-                </datalist>
+                    </datalist>
             </div>
 
             <div class="mb-3">

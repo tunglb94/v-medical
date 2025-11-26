@@ -32,12 +32,12 @@
     
     <div class="filter-bar p-3 mb-4">
         <form method="GET" class="row g-3">
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <label class="form-label small fw-bold text-secondary">Từ khóa</label>
                 <input type="text" name="q" class="form-control" placeholder="Tên, SĐT..." value="{{ query }}">
             </div>
 
-            <div class="col-md-2">
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-bold text-secondary">Nguồn Data</label>
                 <select name="source" class="form-select">
                     <option value="">-- Tất cả --</option>
@@ -47,7 +47,7 @@
                 </select>
             </div>
 
-            <div class="col-md-2">
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-bold text-secondary">Vấn đề da</label>
                 <select name="skin" class="form-select">
                     <option value="">-- Tất cả --</option>
@@ -57,7 +57,7 @@
                 </select>
             </div>
 
-            <div class="col-md-2">
+            <div class="col-12 col-md-2">
                 <label class="form-label small fw-bold text-secondary">Tỉnh thành</label>
                 <input class="form-control" list="cityOptions" name="city" placeholder="Chọn tỉnh..." value="{{ city_filter }}">
                 <datalist id="cityOptions">
@@ -67,7 +67,7 @@
                 </datalist>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <label class="form-label small fw-bold text-secondary">Ngày tạo</label>
                 <div class="input-group">
                     <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
@@ -76,8 +76,8 @@
             </div>
 
             <div class="col-12 d-flex justify-content-end gap-2 border-top pt-3 mt-2">
-                <a href="{% url 'customer_list' %}" class="btn btn-secondary">Đặt lại</a>
-                <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-funnel-fill me-1"></i> LỌC DỮ LIỆU</button>
+                <a href="{% url 'customer_list' %}" class="btn btn-secondary w-50">Đặt lại</a>
+                <button type="submit" class="btn btn-primary fw-bold px-4 w-50"><i class="bi bi-funnel-fill me-1"></i> LỌC DỮ LIỆU</button>
             </div>
         </form>
     </div>
