@@ -110,10 +110,46 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="card kpi-card h-100 border-start border-5 border-primary"><div class="card-body"><div class="text-muted small fw-bold text-uppercase mb-1">Tổng Ngân Sách</div><h3 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted fw-normal">đ</span></h3></div></div></div>
-        <div class="col-md-3"><div class="card kpi-card h-100 border-start border-5 border-warning"><div class="card-body"><div class="text-muted small fw-bold text-uppercase mb-1">Tổng Leads (SĐT)</div><h3 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }} <span class="fs-6 text-muted fw-normal">số</span></h3></div></div></div>
-        <div class="col-md-3"><div class="card kpi-card h-100 border-start border-5 border-danger"><div class="card-body"><div class="text-muted small fw-bold text-uppercase mb-1">Giá CPL Trung Bình</div><h3 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/số</span></h3></div></div></div>
-        <div class="col-md-3"><div class="card kpi-card h-100 border-start border-5 border-success"><div class="card-body"><div class="text-muted small fw-bold text-uppercase mb-1">Tổng Lịch Hẹn</div><h3 class="fw-bold text-success mb-0">{{ totals.sum_appts }} <span class="fs-6 text-muted fw-normal">lịch</span></h3></div></div></div>
+        <div class="col-md-2">
+            <div class="card kpi-card h-100 border-start border-5 border-primary">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Ngân Sách</div>
+                    <h4 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted fw-normal">đ</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card kpi-card h-100 border-start border-5 border-warning">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Leads</div>
+                    <h4 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }} <span class="fs-6 text-muted fw-normal">số</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100 border-start border-5 border-danger">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Giá CPL Trung Bình</div>
+                    <h4 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/số</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100 border-start border-5 border-info">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Giá Hẹn TB (CPA)</div>
+                    <h4 class="fw-bold text-info mb-0">{{ avg_cpa|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/lịch</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card kpi-card h-100 border-start border-5 border-success">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Lịch Hẹn</div>
+                    <h4 class="fw-bold text-success mb-0">{{ totals.sum_appts }} <span class="fs-6 text-muted fw-normal">lịch</span></h4>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="card shadow-sm border-0 mb-4">
@@ -134,8 +170,7 @@
                         <th>Tương tác</th>
                         <th>SĐT (Leads)</th>
                         <th class="text-end">Giá CPL</th>
-                        <th>Tỷ lệ số</th>
-                        <th>Lịch hẹn</th>
+                        <th class="text-end text-info">Giá Hẹn (CPA)</th> <th>Lịch hẹn</th>
                         <th>Tỷ lệ chốt</th>
                         <th>Thao tác</th> </tr>
                 </thead>
@@ -155,7 +190,9 @@
                         </td>
 
                         <td class="text-end fw-bold text-danger">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
-                        <td>{{ stat.conversion_rate_lead|floatformat:1 }}%</td>
+                        
+                        <td class="text-end fw-bold text-info">{{ stat.cost_per_appointment|floatformat:0|intcomma }}</td>
+
                         <td class="fw-bold text-success">{{ stat.appointments }}</td>
                         <td>
                             {% if stat.conversion_rate_appt >= 50 %}<span class="badge bg-success rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
@@ -182,7 +219,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="9" class="py-5 text-muted">Chưa có dữ liệu báo cáo nào.</td></tr>
+                    <tr><td colspan="10" class="py-5 text-muted">Chưa có dữ liệu báo cáo nào.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -225,7 +262,6 @@
         var bsCollapse = new bootstrap.Collapse(collapseElement, { show: true });
 
         // 2. Lấy dữ liệu từ data-attributes
-        // Lưu ý: Dữ liệu số đã được stringformat:'d' để loại bỏ dấu phẩy
         var date = button.getAttribute('data-date');
         var spend = button.getAttribute('data-spend'); 
         var comments = button.getAttribute('data-comments');
@@ -233,7 +269,7 @@
         var leads = button.getAttribute('data-leads');
         var appointments = button.getAttribute('data-appointments');
 
-        // 3. Điền vào form (Selector theo name)
+        // 3. Điền vào form
         document.querySelector('[name="report_date"]').value = date;
         document.querySelector('[name="spend_amount"]').value = spend;
         document.querySelector('[name="comments"]').value = comments;
@@ -251,10 +287,6 @@
     // --- HÀM RESET FORM (Về trạng thái thêm mới) ---
     function resetForm() {
         document.getElementById('marketingForm').reset();
-        
-        // Reset ngày về hôm nay (Optional)
-        // document.querySelector('[name="report_date"]').valueAsDate = new Date();
-
         var btnSave = document.getElementById('btnSave');
         btnSave.className = "btn btn-success fw-bold px-4 shadow-sm";
         btnSave.innerHTML = "<i class='bi bi-save me-1'></i> LƯU BÁO CÁO";

@@ -54,10 +54,13 @@ def marketing_dashboard(request):
         sum_inboxes=Sum('inboxes')
     )
     
-    # Tính chỉ số trung bình (CPL)
+    # Tính chỉ số trung bình (CPL & CPA)
     total_spend = totals['sum_spend'] or 0
     total_leads = totals['sum_leads'] or 0
+    total_appts = totals['sum_appts'] or 0
+    
     avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
+    avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0 # <--- GIÁ HẸN TB
     
     # D. CHUẨN BỊ DỮ LIỆU BIỂU ĐỒ & SO SÁNH TĂNG GIẢM
     chart_dates = []
@@ -95,6 +98,7 @@ def marketing_dashboard(request):
         'form': form,
         'totals': totals,
         'avg_cpl': avg_cpl,
+        'avg_cpa': avg_cpa, # <--- Biến mới
         
         # Data cho Chart.js
         'chart_dates': chart_dates,

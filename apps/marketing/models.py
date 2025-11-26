@@ -29,6 +29,13 @@ class DailyCampaignStat(models.Model):
         return 0
 
     @property
+    def cost_per_appointment(self):
+        """Giá mỗi lịch hẹn (CPA) - MỚI THÊM"""
+        if self.appointments > 0:
+            return self.spend_amount / self.appointments
+        return 0
+
+    @property
     def conversion_rate_lead(self):
         """Tỷ lệ ra số: SĐT / (Comment + Inbox)"""
         total = self.total_interactions
