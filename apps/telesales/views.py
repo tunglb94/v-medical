@@ -11,36 +11,37 @@ from apps.authentication.decorators import allowed_users
 
 User = get_user_model()
 
-# --- 1. DASHBOARD TELESALE (CÓ BỘ LỌC) ---
+# --- 1. DASHBOARD TELESALE ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['TELESALE'])
 def telesale_dashboard(request):
     today = timezone.now().date()
     
-    # --- 1. LỌC DỮ LIỆU ---
+    # --- LỌC DỮ LIỆU ---
     customers = Customer.objects.all()
 
-    # Lọc theo từ khóa (SĐT hoặc Tên)
+    # 1. Tìm kiếm theo SĐT hoặc Tên
     search_query = request.GET.get('q', '')
     if search_query:
         customers = customers.filter(
             Q(phone__icontains=search_query) | Q(name__icontains=search_query)
         )
 
-    # Lọc Khách Mới / Khách Cũ
+    # 2. Lọc Khách Mới / Khách Cũ
+    # Mặc định chọn 'new' (Khách hôm nay) để ưu tiên gọi
     filter_type = request.GET.get('type', 'new') 
     
     if filter_type == 'new':
-        # Khách mới: Tạo trong ngày hôm nay
+        # Khách mới: Có ngày tạo là hôm nay
         customers = customers.filter(created_at__date=today)
     elif filter_type == 'old':
-        # Khách cũ: Tạo trước ngày hôm nay
+        # Khách cũ: Có ngày tạo nhỏ hơn hôm nay
         customers = customers.exclude(created_at__date=today)
     
     # Sắp xếp: Mới nhất lên đầu
     customers = customers.order_by('-created_at')
 
-    # --- 2. LOGIC CHỌN KHÁCH & LỊCH SỬ ---
+    # --- XỬ LÝ CHỌN KHÁCH ---
     selected_customer = None
     call_history = []
     
@@ -53,7 +54,7 @@ def telesale_dashboard(request):
     if selected_customer:
         call_history = CallLog.objects.filter(customer=selected_customer).order_by('-call_time')
 
-    # --- 3. XỬ LÝ LƯU CUỘC GỌI (POST) ---
+    # --- XỬ LÝ LƯU CUỘC GỌI (POST) ---
     if request.method == "POST" and selected_customer:
         note_content = request.POST.get('note')
         status_value = request.POST.get('status')
@@ -105,7 +106,7 @@ def telesale_dashboard(request):
     return render(request, 'telesales/dashboard.html', context)
 
 
-# --- 2. THÊM KHÁCH HÀNG NHANH (HÀM BỊ THIẾU) ---
+# --- 2. THÊM KHÁCH HÀNG NHANH ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['TELESALE'])
 def add_customer_manual(request):
