@@ -1,7 +1,7 @@
 from django.db import models
+from datetime import date
 
 class Customer(models.Model):
-    # --- CÁC KHAI BÁO CỐ ĐỊNH (CHOICES) ---
     class SkinIssue(models.TextChoices):
         ACNE = "ACNE", "Mụn viêm/Mụn ẩn"
         PIGMENTATION = "PIGMENTATION", "Nám/Tàn nhang"
@@ -17,13 +17,14 @@ class Customer(models.Model):
         REFERRAL = "REFERRAL", "Bạn giới thiệu"
         OTHER = "OTHER", "Khác"
 
-    # --- CÁC CỘT DỮ LIỆU ---
     name = models.CharField(max_length=100, verbose_name="Họ và Tên")
     phone = models.CharField(max_length=15, unique=True, verbose_name="Số điện thoại")
-    age = models.IntegerField(null=True, blank=True, verbose_name="Tuổi")
     
-    # Thay trường address cũ bằng city (Tỉnh thành)
-    address = models.TextField(null=True, blank=True, verbose_name="Địa chỉ chi tiết") 
+    # Thay Age bằng Date of Birth
+    dob = models.DateField(null=True, blank=True, verbose_name="Ngày sinh")
+    
+    # Địa chỉ chi tiết & Tỉnh thành
+    address = models.TextField(null=True, blank=True, verbose_name="Địa chỉ chi tiết")
     city = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tỉnh/Thành phố")
     
     source = models.CharField(
@@ -42,6 +43,14 @@ class Customer(models.Model):
     
     note_telesale = models.TextField(blank=True, verbose_name="Ghi chú ban đầu")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
+
+    # Property tính tuổi tự động để hiển thị
+    @property
+    def age(self):
+        if self.dob:
+            today = date.today()
+            return today.year - self.dob.year - ((today.month, today.day) < (self.dob.month, self.dob.day))
+        return None
 
     def __str__(self):
         return f"{self.name} ({self.phone})"

@@ -95,7 +95,7 @@
                         <tr>
                             <th class="ps-4">Họ Tên</th>
                             <th>Điện thoại</th>
-                            <th>Nguồn</th>
+                            <th>Tuổi</th> <th>Nguồn</th>
                             <th>Tỉnh thành</th>
                             <th>Vấn đề da</th>
                             <th>Ngày tạo</th>
@@ -111,6 +111,9 @@
                                 </a>
                             </td>
                             <td class="text-primary fw-bold">{{ customer.phone }}</td>
+                            
+                            <td>{{ customer.age|default:"--" }}</td>
+                            
                             <td><span class="badge bg-light text-dark border">{{ customer.get_source_display }}</span></td>
                             <td>{{ customer.city|default:"--" }}</td>
                             <td>{{ customer.get_skin_condition_display }}</td>
@@ -122,7 +125,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="7" class="text-center py-5 text-muted">Không tìm thấy dữ liệu</td></tr>
+                        <tr><td colspan="8" class="text-center py-5 text-muted">Không tìm thấy dữ liệu</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
