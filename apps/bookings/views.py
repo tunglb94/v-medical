@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.db.models import Q
 from django.contrib.auth import get_user_model
+from django.http import JsonResponse # <--- Mới thêm
 
 from apps.bookings.models import Appointment
 from apps.customers.models import Customer
@@ -15,7 +16,6 @@ from apps.authentication.decorators import allowed_users
 User = get_user_model()
 
 # --- 1. DASHBOARD LỄ TÂN ---
-# Cho phép cả Lễ tân và Telesale vào xem lịch
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE'])
 def reception_dashboard(request):
@@ -29,9 +29,8 @@ def reception_dashboard(request):
         appointment_date__date=current_date
     ).order_by('status', 'appointment_date')
 
-    # Lấy danh sách nhân sự (bao gồm KTV)
     doctors = User.objects.filter(role='DOCTOR')
-    technicians = User.objects.filter(role='TECHNICIAN') # <-- KTV
+    technicians = User.objects.filter(role='TECHNICIAN')
     consultants = User.objects.filter(role='CONSULTANT')
     services = Service.objects.filter(is_active=True).order_by('name')
 
@@ -56,7 +55,46 @@ def reception_dashboard(request):
     return render(request, 'bookings/reception_dashboard.html', context)
 
 
-# --- 2. CHECK-IN ---
+# --- 2. API LẤY DỮ LIỆU CHO LỊCH (FULLCALENDAR) --- <--- MỚI THÊM
+@login_required(login_url='/auth/login/')
+def get_appointments_api(request):
+    start_date = request.GET.get('start')
+    end_date = request.GET.get('end')
+    
+    events = []
+    if start_date and end_date:
+        # Lọc lịch hẹn trong khoảng thời gian hiển thị của lịch
+        appointments = Appointment.objects.filter(
+            appointment_date__range=[start_date[:10], end_date[:10]]
+        )
+        
+        for app in appointments:
+            # Màu sắc theo trạng thái
+            color = '#6c757d' # Mặc định xám
+            if app.status == 'SCHEDULED': color = '#0d6efd' # Xanh dương (Đặt lịch)
+            elif app.status == 'ARRIVED': color = '#ffc107' # Vàng (Đã đến)
+            elif app.status == 'COMPLETED': color = '#198754' # Xanh lá (Hoàn thành)
+            elif app.status in ['CANCELLED', 'NO_SHOW']: color = '#dc3545' # Đỏ (Hủy)
+            
+            events.append({
+                'id': app.id,
+                'title': f"{app.customer.name} ({app.customer.phone})",
+                'start': app.appointment_date.isoformat(),
+                'backgroundColor': color,
+                'borderColor': color,
+                'extendedProps': {
+                    'customerName': app.customer.name,
+                    'phone': app.customer.phone,
+                    'status': app.get_status_display(),
+                    'statusCode': app.status,
+                    'doctor': app.assigned_doctor.last_name if app.assigned_doctor else "Chưa gán"
+                }
+            })
+            
+    return JsonResponse(events, safe=False)
+
+
+# --- 3. CHECK-IN ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE'])
 def checkin_appointment(request, appointment_id):
@@ -69,7 +107,7 @@ def checkin_appointment(request, appointment_id):
     return redirect('reception_home')
 
 
-# --- 3. TẠO LỊCH NHANH (KHÁCH CŨ) ---
+# --- 4. TẠO LỊCH NHANH (KHÁCH CŨ) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE'])
 def create_appointment_reception(request):
@@ -89,7 +127,7 @@ def create_appointment_reception(request):
     return redirect('reception_home')
 
 
-# --- 4. KHÁCH VÃNG LAI (CHỈ LỄ TÂN) ---
+# --- 5. KHÁCH VÃNG LAI (CHỈ LỄ TÂN) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST']) 
 def add_walkin_appointment(request):
@@ -109,7 +147,7 @@ def add_walkin_appointment(request):
                 phone=phone,
                 defaults={
                     'name': name,
-                    'age': age if age else None,
+                    'dob': None, # Xử lý tuổi sau nếu cần
                     'city': city,
                     'source': 'OTHER',
                     'address': 'Khách vãng lai tại quầy'
@@ -129,7 +167,7 @@ def add_walkin_appointment(request):
     return redirect('reception_home')
 
 
-# --- 5. CHỐT CA (CHỈ LỄ TÂN) ---
+# --- 6. CHỐT CA (CHỈ LỄ TÂN) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST'])
 def finish_appointment(request):
@@ -172,7 +210,7 @@ def finish_appointment(request):
                     treatment_name=treatment_name,
                     original_price=original_price,
                     discount=discount,
-                    total_amount=final_amount, # Giá thực thu
+                    total_amount=final_amount,
                     is_paid=True,
                     note=f"Chốt đơn ngày {timezone.now().date()}"
                 )

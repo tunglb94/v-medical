@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include # Nhớ import include
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -12,27 +12,28 @@ from apps.bookings.views import (
     checkin_appointment, 
     create_appointment_reception,
     finish_appointment,
-    add_walkin_appointment
+    add_walkin_appointment,
+    get_appointments_api # <--- MỚI THÊM
 )
 
-# Import views từ Sales (Báo cáo, Hóa đơn, Admin Dashboard)
+# Import views từ Sales
 from apps.sales.views import (
     revenue_dashboard, 
     print_invoice, 
-    admin_dashboard # <-- View tổng quan cho Sếp
+    admin_dashboard
 )
 
 urlpatterns = [
     # --- 1. ADMIN DJANGO ---
     path('admin/', admin.site.urls),
     
-    # --- 2. AUTHENTICATION (ĐĂNG NHẬP/XUẤT) ---
+    # --- 2. AUTHENTICATION ---
     path('auth/', include('apps.authentication.urls')), 
 
-    # --- 3. DASHBOARD TỔNG QUAN (DÀNH CHO SẾP/ADMIN) ---
+    # --- 3. DASHBOARD ---
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
-    # --- 4. TELESALE (TRANG CHỦ) ---
+    # --- 4. TELESALE ---
     path('', telesale_dashboard, name='home'),
     path('add-customer/', add_customer_manual, name='add_customer'),
     
@@ -42,19 +43,19 @@ urlpatterns = [
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
     path('reception/finish/', finish_appointment, name='reception_finish'),
     path('reception/walk-in/', add_walkin_appointment, name='reception_walkin'),
+    
+    # API cho Lịch (Calendar)
+    path('api/calendar/appointments/', get_appointments_api, name='api_appointments'), # <--- MỚI
 
     # --- 6. SALES & BÁO CÁO ---
     path('sales/report/', revenue_dashboard, name='sales_report'),
     path('sales/invoice/<int:order_id>/', print_invoice, name='print_invoice'),
 
-    # --- 7. CUSTOMER MANAGEMENT (QUẢN LÝ KHÁCH HÀNG) ---
+    # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 
-    
-    # ...
-    path('marketing/', include('apps.marketing.urls')), # <--- THÊM DÒNG NÀY
+    path('marketing/', include('apps.marketing.urls')),
 ]
 
-# Cấu hình hiển thị file tĩnh (CSS, Ảnh) khi Debug = True
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
