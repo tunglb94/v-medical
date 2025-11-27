@@ -2,8 +2,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Q, Max, Subquery, OuterRef
 from django.utils import timezone
+from datetime import timedelta
+
 from apps.customers.models import Customer
 from apps.telesales.models import CallLog
 from apps.bookings.models import Appointment
@@ -17,37 +19,71 @@ User = get_user_model()
 def telesale_dashboard(request):
     today = timezone.now().date()
     
-    # --- LỌC DỮ LIỆU ---
+    # Mặc định lấy tất cả khách
     customers = Customer.objects.all()
 
-    # 1. Tìm kiếm
+    # --- 1. TÌM KIẾM CƠ BẢN ---
     search_query = request.GET.get('q', '')
     if search_query:
         customers = customers.filter(
             Q(phone__icontains=search_query) | Q(name__icontains=search_query)
         )
 
-    # 2. Lọc Khách Mới / Khách Cũ
+    # --- 2. BỘ LỌC NÂNG CAO (AUTOMATION) ---
     filter_type = request.GET.get('type', 'new') 
-    if filter_type == 'new':
-        customers = customers.filter(created_at__date=today)
-    elif filter_type == 'old':
-        customers = customers.exclude(created_at__date=today)
     
+    if filter_type == 'new':
+        # Khách mới tạo hôm nay
+        customers = customers.filter(created_at__date=today)
+        
+    elif filter_type == 'old':
+        # Khách cũ (Data cũ)
+        customers = customers.exclude(created_at__date=today)
+        
+    elif filter_type == 'callback':
+        # Tự động lọc: Khách có cuộc gọi gần nhất là "Đang chăm sóc" (CALLING)
+        # Logic: Lấy CallLog mới nhất của mỗi khách -> Check status
+        # (Sử dụng Subquery để tối ưu hiệu năng thay vì vòng lặp Python)
+        last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
+        customers = customers.annotate(
+            last_status=Subquery(last_log.values('status')[:1])
+        ).filter(last_status='CALLING')
+        
+    elif filter_type == 'birthday':
+        # Khách có sinh nhật hôm nay
+        customers = customers.filter(dob__day=today.day, dob__month=today.month)
+        
+    elif filter_type == 'dormant':
+        # Khách "ngủ đông": Lần cuối đến (ARRIVED/COMPLETED) > 90 ngày trước
+        # Và không có lịch hẹn nào trong tương lai
+        cutoff_date = today - timedelta(days=90)
+        
+        # 1. Tìm ngày hẹn gần nhất của từng khách (trạng thái đã đến/hoàn thành)
+        customers = customers.annotate(
+            last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
+        )
+        
+        # 2. Lọc: Đã từng đến VÀ Lần cuối < 90 ngày VÀ Không có lịch tương lai (SCHEDULED)
+        customers = customers.filter(
+            last_visit__lt=cutoff_date
+        ).exclude(
+            appointments__status='SCHEDULED',
+            appointments__appointment_date__gte=today
+        )
+    
+    # Sắp xếp mặc định
     customers = customers.order_by('-created_at')
 
-    # --- XỬ LÝ CHỌN KHÁCH (FIX LỖI ID RÁC) ---
+    # --- XỬ LÝ CHỌN KHÁCH & HIỂN THỊ ---
     selected_customer = None
     call_history = []
     
     customer_id = request.GET.get('id')
     if customer_id:
         try:
-            # Chỉ lấy ID nếu là số hợp lệ
             clean_id = int(float(str(customer_id).replace(',', '.')))
             selected_customer = get_object_or_404(Customer, id=clean_id)
         except (ValueError, TypeError, Customer.DoesNotExist):
-            # Nếu ID rác (vd: 1.389, text...), bỏ qua không chọn khách nào
             pass
     elif customers.exists():
         selected_customer = customers.first()

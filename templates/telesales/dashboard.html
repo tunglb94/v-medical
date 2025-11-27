@@ -47,6 +47,9 @@
         .timeline-item { border-left: 2px solid #e3e6f0; padding-left: 15px; padding-bottom: 15px; position: relative; }
         .timeline-item::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: #bdc3c7; }
         .timeline-item.success::before { background: #1cc88a; }
+        
+        /* Automation Badges */
+        .badge-notify { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;}
     </style>
 </head>
 <body>
@@ -91,20 +94,32 @@
                             <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
                         </div>
 
-                        <div class="btn-group w-100" role="group">
+                        <div class="btn-group w-100 mb-2" role="group">
                             <input type="radio" class="btn-check" name="type" id="filterNew" value="new" 
                                    {% if filter_type == 'new' %}checked{% endif %} 
                                    onchange="this.form.submit()">
                             <label class="btn btn-outline-success btn-sm fw-bold" for="filterNew">
-                                <i class="bi bi-star-fill me-1"></i> MỚI (Hôm nay)
+                                <i class="bi bi-star-fill me-1"></i> MỚI
                             </label>
 
                             <input type="radio" class="btn-check" name="type" id="filterOld" value="old" 
                                    {% if filter_type == 'old' %}checked{% endif %} 
                                    onchange="this.form.submit()">
                             <label class="btn btn-outline-secondary btn-sm fw-bold" for="filterOld">
-                                <i class="bi bi-archive-fill me-1"></i> DATA CŨ
+                                <i class="bi bi-archive-fill me-1"></i> CŨ
                             </label>
+                        </div>
+
+                        <div class="d-flex gap-1 justify-content-between">
+                            <button type="submit" name="type" value="callback" class="btn btn-sm {% if filter_type == 'callback' %}btn-warning text-dark{% else %}btn-outline-warning text-dark{% endif %} flex-fill fw-bold" title="Khách cần gọi lại">
+                                <i class="bi bi-telephone-outbound-fill"></i> Gọi lại
+                            </button>
+                            <button type="submit" name="type" value="birthday" class="btn btn-sm {% if filter_type == 'birthday' %}btn-danger{% else %}btn-outline-danger{% endif %} flex-fill fw-bold" title="Sinh nhật hôm nay">
+                                <i class="bi bi-cake2-fill"></i> SN
+                            </button>
+                            <button type="submit" name="type" value="dormant" class="btn btn-sm {% if filter_type == 'dormant' %}btn-dark{% else %}btn-outline-dark{% endif %} flex-fill fw-bold" title="Khách > 3 tháng chưa đến">
+                                <i class="bi bi-moon-stars-fill"></i> Ngủ
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -121,21 +136,23 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <small class="text-muted"><i class="bi bi-telephone-fill me-1" style="font-size: 0.7rem;"></i>{{ customer.phone }}</small>
-                                {% if customer.source == 'FACEBOOK' %}
-                                    <i class="bi bi-facebook text-primary" title="Facebook"></i>
-                                {% elif customer.source == 'GOOGLE' %}
-                                    <i class="bi bi-google text-danger" title="Google"></i>
-                                {% endif %}
+                                
+                                <div>
+                                    {% if filter_type == 'birthday' %}<i class="bi bi-cake2-fill text-danger me-1"></i>{% endif %}
+                                    {% if customer.source == 'FACEBOOK' %}
+                                        <i class="bi bi-facebook text-primary" title="Facebook"></i>
+                                    {% elif customer.source == 'GOOGLE' %}
+                                        <i class="bi bi-google text-danger" title="Google"></i>
+                                    {% endif %}
+                                </div>
                             </div>
                         </a>
                     {% empty %}
                         <div class="text-center p-5 text-muted">
                             <i class="bi bi-inbox display-6 opacity-25"></i>
-                            <p class="small mt-2 mb-0">Không tìm thấy khách nào</p>
-                            {% if filter_type == 'new' %}
-                                <a href="?type=old" class="small text-primary text-decoration-none">Thử tìm ở Data Cũ?</a>
-                            {% else %}
-                                <a href="?type=new" class="small text-primary text-decoration-none">Thử tìm ở Data Mới?</a>
+                            <p class="small mt-2 mb-0">Danh sách trống</p>
+                            {% if filter_type != 'new' %}
+                                <a href="?type=new" class="small text-primary text-decoration-none">Quay về Data Mới?</a>
                             {% endif %}
                         </div>
                     {% endfor %}
@@ -161,7 +178,12 @@
                                 <h4 class="fw-bold text-dark mb-0">
                                     <i class="bi bi-person-circle me-2 text-primary"></i>{{ selected_customer.name }}
                                 </h4>
-                                <span class="badge bg-secondary">ID: #{{ selected_customer.id }}</span>
+                                <div>
+                                    {% if selected_customer.dob %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger me-2"><i class="bi bi-cake2 me-1"></i>{{ selected_customer.dob|date:"d/m/Y" }}</span>
+                                    {% endif %}
+                                    <span class="badge bg-secondary">ID: #{{ selected_customer.id }}</span>
+                                </div>
                             </div>
 
                             <form>

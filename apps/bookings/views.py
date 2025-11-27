@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.db.models import Q
 from django.contrib.auth import get_user_model
-from django.http import JsonResponse # <--- Mới thêm
+from django.http import JsonResponse
 
 from apps.bookings.models import Appointment
 from apps.customers.models import Customer
@@ -19,16 +19,24 @@ User = get_user_model()
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE'])
 def reception_dashboard(request):
+    # Lấy ngày hiện tại
+    today = timezone.now().date()
+    
     selected_date_str = request.GET.get('date')
     if selected_date_str:
-        current_date = parse_date(selected_date_str) or timezone.now().date()
+        current_date = parse_date(selected_date_str) or today
     else:
-        current_date = timezone.now().date()
+        current_date = today
     
+    # Lấy danh sách lịch hẹn
     appointments = Appointment.objects.filter(
         appointment_date__date=current_date
     ).order_by('status', 'appointment_date')
 
+    # --- TÍNH NĂNG SINH NHẬT (AUTOMATION) ---
+    birthdays_today = Customer.objects.filter(dob__day=today.day, dob__month=today.month)
+
+    # Data cho Dropdown
     doctors = User.objects.filter(role='DOCTOR')
     technicians = User.objects.filter(role='TECHNICIAN')
     consultants = User.objects.filter(role='CONSULTANT')
@@ -43,8 +51,9 @@ def reception_dashboard(request):
 
     context = {
         'appointments': appointments,
+        'birthdays_today': birthdays_today, # <-- Truyền danh sách sinh nhật
         'current_date': current_date,
-        'today': timezone.now().date(),
+        'today': today,
         'doctors': doctors,
         'technicians': technicians,
         'consultants': consultants,
@@ -55,7 +64,7 @@ def reception_dashboard(request):
     return render(request, 'bookings/reception_dashboard.html', context)
 
 
-# --- 2. API LẤY DỮ LIỆU CHO LỊCH (FULLCALENDAR) --- <--- MỚI THÊM
+# --- 2. API LẤY DỮ LIỆU CHO LỊCH (FULLCALENDAR) ---
 @login_required(login_url='/auth/login/')
 def get_appointments_api(request):
     start_date = request.GET.get('start')
@@ -63,18 +72,16 @@ def get_appointments_api(request):
     
     events = []
     if start_date and end_date:
-        # Lọc lịch hẹn trong khoảng thời gian hiển thị của lịch
         appointments = Appointment.objects.filter(
             appointment_date__range=[start_date[:10], end_date[:10]]
         )
         
         for app in appointments:
-            # Màu sắc theo trạng thái
-            color = '#6c757d' # Mặc định xám
-            if app.status == 'SCHEDULED': color = '#0d6efd' # Xanh dương (Đặt lịch)
-            elif app.status == 'ARRIVED': color = '#ffc107' # Vàng (Đã đến)
-            elif app.status == 'COMPLETED': color = '#198754' # Xanh lá (Hoàn thành)
-            elif app.status in ['CANCELLED', 'NO_SHOW']: color = '#dc3545' # Đỏ (Hủy)
+            color = '#6c757d'
+            if app.status == 'SCHEDULED': color = '#0d6efd'
+            elif app.status == 'ARRIVED': color = '#ffc107'
+            elif app.status == 'COMPLETED': color = '#198754'
+            elif app.status in ['CANCELLED', 'NO_SHOW']: color = '#dc3545'
             
             events.append({
                 'id': app.id,
@@ -147,7 +154,7 @@ def add_walkin_appointment(request):
                 phone=phone,
                 defaults={
                     'name': name,
-                    'dob': None, # Xử lý tuổi sau nếu cần
+                    'dob': None, 
                     'city': city,
                     'source': 'OTHER',
                     'address': 'Khách vãng lai tại quầy'
