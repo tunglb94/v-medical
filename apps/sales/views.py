@@ -158,14 +158,12 @@ def admin_dashboard(request):
     this_year = today.year
     
     # --- A. KPI TÀI CHÍNH & TĂNG TRƯỞNG ---
-    # Doanh thu tháng này
     revenue_this_month = Order.objects.filter(
         created_at__month=this_month, 
         created_at__year=this_year, 
         is_paid=True
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
 
-    # Doanh thu tháng trước (để tính tăng trưởng)
     last_month_date = today.replace(day=1) - timedelta(days=1)
     revenue_last_month = Order.objects.filter(
         created_at__month=last_month_date.month, 
@@ -173,25 +171,26 @@ def admin_dashboard(request):
         is_paid=True
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
 
-    # Tính % tăng trưởng
     growth_rate = 0
     if revenue_last_month > 0:
         growth_rate = ((revenue_this_month - revenue_last_month) / revenue_last_month) * 100
     elif revenue_this_month > 0:
-        growth_rate = 100 # Tăng trưởng tuyệt đối
+        growth_rate = 100
 
     # --- B. KPI VẬN HÀNH HÔM NAY ---
     appts_today_total = Appointment.objects.filter(appointment_date__date=today).count()
-    # Tỷ lệ đến: (Đã đến + Hoàn thành) / Tổng hẹn
-    appts_arrived = Appointment.objects.filter(appointment_date__date=today, status__in=['ARRIVED', 'COMPLETED']).count()
-    arrival_rate = (appts_arrived / appts_today_total * 100) if appts_today_total > 0 else 0
+    
+    # SỬA LỖI Ở ĐÂY: Đổi tên biến appts_arrived thành appts_today_arrived
+    appts_today_arrived = Appointment.objects.filter(appointment_date__date=today, status__in=['ARRIVED', 'COMPLETED']).count()
+    
+    arrival_rate = (appts_today_arrived / appts_today_total * 100) if appts_today_total > 0 else 0
 
     new_leads_month = Customer.objects.filter(created_at__month=this_month, created_at__year=this_year).count()
     calls_today = CallLog.objects.filter(call_time__date=today).count()
     leads_today = Customer.objects.filter(created_at__date=today).count()
     revenue_today = Order.objects.filter(created_at__date=today, is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
 
-    # --- C. BIỂU ĐỒ DOANH THU 30 NGÀY (TREND) ---
+    # --- C. BIỂU ĐỒ DOANH THU 30 NGÀY ---
     last_30_days = today - timedelta(days=30)
     revenue_30d = Order.objects.filter(created_at__date__range=[last_30_days, today], is_paid=True)\
         .annotate(date=TruncDate('created_at')).values('date').annotate(total=Sum('total_amount')).order_by('date')
@@ -199,41 +198,35 @@ def admin_dashboard(request):
     chart_labels = [item['date'].strftime('%d/%m') for item in revenue_30d]
     chart_data = [float(item['total']) for item in revenue_30d]
 
-    # --- D. TOP DỊCH VỤ BÁN CHẠY (PIE CHART) ---
+    # --- D. TOP DỊCH VỤ ---
     top_services = Order.objects.filter(is_paid=True).values('treatment_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
     
     service_labels = [item['treatment_name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- E. TOP NHÂN VIÊN XUẤT SẮC THÁNG ---
+    # --- E. TOP NHÂN VIÊN ---
     top_sales = Order.objects.filter(created_at__month=this_month, is_paid=True)\
         .values('sale_consultant__username', 'sale_consultant__first_name', 'sale_consultant__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
 
-    # Giao dịch gần đây
     recent_orders = Order.objects.order_by('-created_at')[:6]
     recent_appts = Appointment.objects.order_by('-created_at')[:6]
 
     context = {
-        # KPI Cards
         'revenue_today': revenue_today,
         'revenue_this_month': revenue_this_month,
         'growth_rate': growth_rate,
         'appts_today_total': appts_today_total,
-        'appts_today_arrived': appts_today_arrived,
+        'appts_today_arrived': appts_today_arrived, # Đã khớp tên biến
         'arrival_rate': arrival_rate,
         'new_leads_month': new_leads_month,
         'calls_today': calls_today,
         'leads_today': leads_today,
-        
-        # Charts
         'chart_labels': chart_labels,
         'chart_data': chart_data,
         'service_labels': service_labels,
         'service_data': service_data,
-        
-        # Lists
         'top_sales': top_sales,
         'recent_orders': recent_orders,
         'recent_appts': recent_appts,
