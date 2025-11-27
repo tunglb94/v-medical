@@ -170,7 +170,8 @@
                         <th>Tương tác</th>
                         <th>SĐT (Leads)</th>
                         <th class="text-end">Giá CPL</th>
-                        <th class="text-end text-info">Giá Hẹn (CPA)</th> <th>Lịch hẹn</th>
+                        <th class="text-end text-info">Giá Hẹn (CPA)</th>
+                        <th>Lịch hẹn</th>
                         <th>Tỷ lệ chốt</th>
                         <th>Thao tác</th> </tr>
                 </thead>
@@ -190,9 +191,7 @@
                         </td>
 
                         <td class="text-end fw-bold text-danger">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
-                        
                         <td class="text-end fw-bold text-info">{{ stat.cost_per_appointment|floatformat:0|intcomma }}</td>
-
                         <td class="fw-bold text-success">{{ stat.appointments }}</td>
                         <td>
                             {% if stat.conversion_rate_appt >= 50 %}<span class="badge bg-success rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
@@ -208,7 +207,7 @@
                                 data-comments="{{ stat.comments }}"
                                 data-inboxes="{{ stat.inboxes }}"
                                 data-leads="{{ stat.leads }}"
-                                data-appointments="{{ stat.appointments }}">
+                                data-appointments="{{ stat.appointments }}"> 
                                 <i class="bi bi-pencil-fill"></i>
                             </button>
 
@@ -255,7 +254,7 @@
         });
     });
 
-    // --- HÀM XỬ LÝ SỬA BÁO CÁO ---
+    // --- HÀM XỬ LÝ SỬA BÁO CÁO (ĐÃ FIX) ---
     function editReport(button) {
         // 1. Mở form
         var collapseElement = document.getElementById('inputForm');
@@ -267,7 +266,7 @@
         var comments = button.getAttribute('data-comments');
         var inboxes = button.getAttribute('data-inboxes');
         var leads = button.getAttribute('data-leads');
-        var appointments = button.getAttribute('data-appointments');
+        var appointments = button.getAttribute('data-appointments'); // Đã thêm
 
         // 3. Điền vào form
         document.querySelector('[name="report_date"]').value = date;
@@ -275,7 +274,7 @@
         document.querySelector('[name="comments"]').value = comments;
         document.querySelector('[name="inboxes"]').value = inboxes;
         document.querySelector('[name="leads"]').value = leads;
-        document.querySelector('[name="appointments"]').value = appointments;
+        document.querySelector('[name="appointments"]').value = appointments; // Đã thêm
 
         // 4. Cuộn lên đầu & Đổi nút
         collapseElement.scrollIntoView({ behavior: 'smooth' });
