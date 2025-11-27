@@ -1,230 +1,129 @@
+{% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marketing Dashboard - V-Medical</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        .kpi-card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s; background: white; }
-        .kpi-card:hover { transform: translateY(-5px); }
-        .trend-up { color: #198754; font-weight: bold; font-size: 0.85rem; }
-        .trend-down { color: #dc3545; font-weight: bold; font-size: 0.85rem; }
-        .table-hover tbody tr:hover { background-color: #f8f9fa; }
-        .fw-bolder { font-weight: 800 !important; }
-    </style>
-</head>
-<body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 mb-4 shadow-sm">
-  <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
-      <img src="{% static 'images/logo.png' %}" alt="Logo" height="40" class="d-inline-block align-text-top me-2 bg-white rounded p-1">
-      MARKETING CENTER
-  </a>
-  <div class="ms-auto d-flex gap-2 text-white align-items-center">
-      <div class="d-none d-md-flex gap-2 me-3">
-          <a href="/" class="btn btn-sm btn-outline-light">Telesale</a>
-          <a href="{% url 'reception_home' %}" class="btn btn-sm btn-outline-light">Lễ tân</a>
-          <a href="{% url 'sales_report' %}" class="btn btn-sm btn-outline-light">Doanh thu</a>
-      </div>
-      <div class="vr bg-secondary mx-2"></div>
-      <div class="fw-bold me-3">{{ request.user.username }}</div>
-      <a href="{% url 'logout' %}" class="btn btn-sm btn-danger"><i class="bi bi-power"></i></a>
-  </div>
-</nav>
+{% block title %}Marketing Dashboard - V-Medical{% endblock %}
 
-<div class="container-fluid px-4 pb-5">
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <form method="GET" class="d-flex gap-2 bg-white p-2 rounded shadow-sm">
-            <div class="input-group input-group-sm">
-                <span class="input-group-text bg-light border-0 fw-bold">Từ</span>
-                <input type="date" name="date_start" class="form-control border-0" value="{{ date_start }}">
-            </div>
-            <div class="input-group input-group-sm">
-                <span class="input-group-text bg-light border-0 fw-bold">Đến</span>
-                <input type="date" name="date_end" class="form-control border-0" value="{{ date_end }}">
-            </div>
-            <button class="btn btn-sm btn-dark px-3"><i class="bi bi-filter"></i> Lọc</button>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold text-dark mb-0">MARKETING CENTER</h4>
+    
+    <div class="d-flex gap-2">
+        <form method="GET" class="d-flex gap-2 bg-white p-1 rounded border">
+            <input type="date" name="date_start" class="form-control border-0 form-control-sm" value="{{ date_start }}">
+            <span class="align-self-center text-muted">-</span>
+            <input type="date" name="date_end" class="form-control border-0 form-control-sm" value="{{ date_end }}">
+            <button class="btn btn-sm btn-dark"><i class="bi bi-filter"></i></button>
         </form>
         
-        <button class="btn btn-primary fw-bold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#inputForm" onclick="resetForm()">
-            <i class="bi bi-pencil-square me-2"></i> NHẬP BÁO CÁO NGÀY
+        <button class="btn btn-primary btn-sm fw-bold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#inputForm" onclick="resetForm()">
+            <i class="bi bi-plus-lg me-1"></i> NHẬP BÁO CÁO
         </button>
     </div>
+</div>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show shadow-sm" role="alert">
-                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
+<div class="collapse mb-4" id="inputForm">
+    <div class="card border-0 shadow-sm border-top border-primary border-4">
+        <div class="card-body bg-light">
+            <form method="POST" class="row g-3 align-items-end" id="marketingForm">
+                {% csrf_token %}
+                <div class="col-md-2"><label class="small fw-bold text-muted">Ngày</label>{{ form.report_date }}</div>
+                <div class="col-md-2"><label class="small fw-bold text-muted">Chi tiêu</label>{{ form.spend_amount }}</div>
+                <div class="col-md-2"><label class="small fw-bold text-muted">Comment</label>{{ form.comments }}</div>
+                <div class="col-md-2"><label class="small fw-bold text-muted">Inbox</label>{{ form.inboxes }}</div>
+                <div class="col-md-2"><label class="small fw-bold text-primary">Leads</label>{{ form.leads }}</div>
+                <div class="col-md-2"><label class="small fw-bold text-success">Lịch hẹn</label>{{ form.appointments }}</div>
+                <div class="col-12 text-end mt-3">
+                    <button type="submit" class="btn btn-success fw-bold px-4" id="btnSave">LƯU BÁO CÁO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-    <div class="collapse mb-4" id="inputForm">
-        <div class="card border-0 shadow-sm border-top border-primary border-4">
-            <div class="card-body bg-light">
-                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-clipboard-data me-2"></i>NHẬP / CHỈNH SỬA SỐ LIỆU</h6>
-                
-                <form method="POST" class="row g-3 align-items-end" id="marketingForm">
-                    {% csrf_token %}
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Ngày báo cáo</label>
-                        {{ form.report_date }}
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Ngân sách (VNĐ)</label>
-                        {{ form.spend_amount }}
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Số Comment</label>
-                        {{ form.comments }}
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Số Inbox</label>
-                        {{ form.inboxes }}
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-primary mb-1">SĐT (Leads)</label>
-                        {{ form.leads }}
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-success mb-1">Lịch hẹn</label>
-                        {{ form.appointments }}
-                    </div>
-                    <div class="col-12 text-end mt-3">
-                        <button type="button" class="btn btn-secondary me-2" data-bs-toggle="collapse" data-bs-target="#inputForm">Đóng</button>
-                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm" id="btnSave">
-                            <i class="bi bi-save me-1"></i> LƯU BÁO CÁO
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-primary p-3">
+            <div class="text-muted small fw-bold mb-1">CHI TIÊU</div>
+            <h4 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted">đ</span></h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-warning p-3">
+            <div class="text-muted small fw-bold mb-1">LEADS</div>
+            <h4 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }}</h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-danger p-3">
+            <div class="text-muted small fw-bold mb-1">GIÁ SỐ (CPL)</div>
+            <h4 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }}</h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-success p-3">
+            <div class="text-muted small fw-bold mb-1">LỊCH HẸN</div>
+            <h4 class="fw-bold text-success mb-0">{{ totals.sum_appts }}</h4>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-info p-3">
+            <div class="text-muted small fw-bold mb-1">GIÁ HẸN (CPA)</div>
+            <h4 class="fw-bold text-info mb-0">{{ avg_cpa|floatformat:0|intcomma }}</h4>
+        </div>
+    </div>
+</div>
+
+<div class="card card-box mb-4">
+    <div class="card-body">
+        <div style="height: 300px;"><canvas id="marketingChart"></canvas></div>
+    </div>
+</div>
+
+<div class="card card-box">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center">
+            <thead class="bg-light text-secondary small">
+                <tr>
+                    <th class="py-3 text-start ps-4">Ngày</th>
+                    <th>Chi tiêu</th>
+                    <th>Tương tác</th>
+                    <th>Leads</th>
+                    <th>Giá CPL</th>
+                    <th>Giá Hẹn</th>
+                    <th>Lịch hẹn</th>
+                    <th>Chốt</th>
+                    <th>#</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in stats %}
+                <tr>
+                    <td class="text-start ps-4 fw-bold text-primary">{{ stat.report_date|date:"d/m" }}</td>
+                    <td>{{ stat.spend_amount|intcomma }}</td>
+                    <td>{{ stat.total_interactions }}</td>
+                    <td class="fw-bold">{{ stat.leads }}</td>
+                    <td class="text-danger fw-bold">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
+                    <td class="text-info fw-bold">{{ stat.cost_per_appointment|floatformat:0|intcomma }}</td>
+                    <td class="text-success fw-bold">{{ stat.appointments }}</td>
+                    <td>
+                        {% if stat.conversion_rate_appt >= 30 %}<span class="badge bg-success">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
+                        {% else %}<span class="badge bg-secondary">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>{% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-light text-warning border" onclick="editReport(this)"
+                            data-date="{{ stat.report_date|date:'Y-m-d' }}"
+                            data-spend="{{ stat.spend_amount|stringformat:'d' }}"
+                            data-comments="{{ stat.comments }}" data-inboxes="{{ stat.inboxes }}"
+                            data-leads="{{ stat.leads }}" data-appointments="{{ stat.appointments }}">
+                            <i class="bi bi-pencil-fill"></i>
                         </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-2">
-            <div class="card kpi-card h-100 border-start border-5 border-primary">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Ngân Sách</div>
-                    <h4 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted fw-normal">đ</span></h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card kpi-card h-100 border-start border-5 border-warning">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Leads</div>
-                    <h4 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }} <span class="fs-6 text-muted fw-normal">số</span></h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card kpi-card h-100 border-start border-5 border-danger">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase mb-1">Giá CPL Trung Bình</div>
-                    <h4 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/số</span></h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card kpi-card h-100 border-start border-5 border-info">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase mb-1">Giá Hẹn TB (CPA)</div>
-                    <h4 class="fw-bold text-info mb-0">{{ avg_cpa|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/lịch</span></h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card kpi-card h-100 border-start border-5 border-success">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Lịch Hẹn</div>
-                    <h4 class="fw-bold text-success mb-0">{{ totals.sum_appts }} <span class="fs-6 text-muted fw-normal">lịch</span></h4>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white fw-bold py-3 border-bottom"><i class="bi bi-graph-up me-2 text-primary"></i>XU HƯỚNG HIỆU QUẢ (LEADS vs CPL)</div>
-        <div class="card-body"><div style="height: 350px;"><canvas id="marketingChart"></canvas></div></div>
-    </div>
-
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center border-bottom">
-            <span><i class="bi bi-table me-2 text-success"></i>CHI TIẾT THEO NGÀY</span>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 text-center">
-                <thead class="table-light text-secondary small text-uppercase">
-                    <tr>
-                        <th class="text-start ps-4 py-3">Ngày</th>
-                        <th class="text-end">Ngân sách</th>
-                        <th>Tương tác</th>
-                        <th>SĐT (Leads)</th>
-                        <th class="text-end">Giá CPL</th>
-                        <th class="text-end text-info">Giá Hẹn (CPA)</th>
-                        <th>Lịch hẹn</th>
-                        <th>Tỷ lệ chốt</th>
-                        <th>Thao tác</th> </tr>
-                </thead>
-                <tbody>
-                    {% for stat in stats %}
-                    <tr>
-                        <td class="text-start ps-4 fw-bold text-primary">{{ stat.report_date|date:"d/m/Y" }}</td>
-                        <td class="text-end">{{ stat.spend_amount|intcomma }} đ</td>
-                        <td>{{ stat.total_interactions }}</td>
-                        
-                        <td class="fw-bolder" style="font-size: 1.1rem;">
-                            {{ stat.leads }}
-                            <br>
-                            {% if stat.trend_lead > 0 %}<span class="trend-up"><i class="bi bi-caret-up-fill"></i> {{ stat.trend_lead|floatformat:0 }}%</span>
-                            {% elif stat.trend_lead < 0 %}<span class="trend-down"><i class="bi bi-caret-down-fill"></i> {{ stat.trend_lead|floatformat:0 }}%</span>
-                            {% else %}<span class="text-muted small">-</span>{% endif %}
-                        </td>
-
-                        <td class="text-end fw-bold text-danger">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
-                        <td class="text-end fw-bold text-info">{{ stat.cost_per_appointment|floatformat:0|intcomma }}</td>
-                        <td class="fw-bold text-success">{{ stat.appointments }}</td>
-                        <td>
-                            {% if stat.conversion_rate_appt >= 50 %}<span class="badge bg-success rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
-                            {% elif stat.conversion_rate_appt >= 30 %}<span class="badge bg-warning text-dark rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
-                            {% else %}<span class="badge bg-danger rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>{% endif %}
-                        </td>
-                        
-                        <td>
-                            <button class="btn btn-sm btn-warning shadow-sm" title="Sửa"
-                                onclick="editReport(this)"
-                                data-date="{{ stat.report_date|date:'Y-m-d' }}"
-                                data-spend="{{ stat.spend_amount|stringformat:'d' }}" 
-                                data-comments="{{ stat.comments }}"
-                                data-inboxes="{{ stat.inboxes }}"
-                                data-leads="{{ stat.leads }}"
-                                data-appointments="{{ stat.appointments }}">
-                                <i class="bi bi-pencil-fill"></i>
-                            </button>
-
-                            <form action="{% url 'delete_marketing_report' stat.id %}" method="POST" class="d-inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa báo cáo ngày {{ stat.report_date }}?');">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Xóa"><i class="bi bi-trash-fill"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="10" class="py-5 text-muted">Chưa có dữ liệu báo cáo nào.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
 </div>
 
 {{ chart_dates|json_script:"j-dates" }}
@@ -235,65 +134,42 @@
     document.addEventListener('DOMContentLoaded', function() {
         if(document.getElementById('j-dates')) {
             function getData(id) { return JSON.parse(document.getElementById(id).textContent); }
-            const ctx = document.getElementById('marketingChart').getContext('2d');
-            new Chart(ctx, {
+            new Chart(document.getElementById('marketingChart'), {
                 type: 'bar',
                 data: {
                     labels: getData('j-dates'),
                     datasets: [
-                        { label: 'Leads', data: getData('j-leads'), type: 'bar', backgroundColor: 'rgba(13, 110, 253, 0.7)', order: 2, yAxisID: 'y', borderRadius: 4 },
-                        { label: 'CPL (VNĐ)', data: getData('j-cpl'), type: 'line', borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', borderWidth: 3, pointRadius: 4, fill: false, tension: 0.3, order: 1, yAxisID: 'y1' }
+                        { label: 'Leads', data: getData('j-leads'), type: 'bar', backgroundColor: '#3498db', borderRadius: 4 },
+                        { label: 'CPL', data: getData('j-cpl'), type: 'line', borderColor: '#e74c3c', borderWidth: 2, tension: 0.3 }
                     ]
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Số lượng Leads', color: '#0d6efd' } },
-                        y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Chi phí CPL', color: '#dc3545' } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
             });
         }
     });
 
-    // --- HÀM XỬ LÝ SỬA BÁO CÁO ---
     function editReport(button) {
-        // 1. Mở form
         var collapseElement = document.getElementById('inputForm');
-        var bsCollapse = new bootstrap.Collapse(collapseElement, { show: true });
+        new bootstrap.Collapse(collapseElement, { show: true });
+        
+        document.querySelector('[name="report_date"]').value = button.getAttribute('data-date');
+        document.querySelector('[name="spend_amount"]').value = button.getAttribute('data-spend');
+        document.querySelector('[name="comments"]').value = button.getAttribute('data-comments');
+        document.querySelector('[name="inboxes"]').value = button.getAttribute('data-inboxes');
+        document.querySelector('[name="leads"]').value = button.getAttribute('data-leads');
+        document.querySelector('[name="appointments"]').value = button.getAttribute('data-appointments');
 
-        // 2. Lấy dữ liệu từ data-attributes
-        var date = button.getAttribute('data-date');
-        var spend = button.getAttribute('data-spend'); 
-        var comments = button.getAttribute('data-comments');
-        var inboxes = button.getAttribute('data-inboxes');
-        var leads = button.getAttribute('data-leads');
-        var appointments = button.getAttribute('data-appointments');
-
-        // 3. Điền vào form
-        document.querySelector('[name="report_date"]').value = date;
-        document.querySelector('[name="spend_amount"]').value = spend;
-        document.querySelector('[name="comments"]').value = comments;
-        document.querySelector('[name="inboxes"]').value = inboxes;
-        document.querySelector('[name="leads"]').value = leads;
-        document.querySelector('[name="appointments"]').value = appointments;
-
-        // 4. Cuộn lên đầu & Đổi nút
         collapseElement.scrollIntoView({ behavior: 'smooth' });
         var btnSave = document.getElementById('btnSave');
-        btnSave.className = "btn btn-warning fw-bold px-4 shadow-sm";
-        btnSave.innerHTML = "<i class='bi bi-pencil-square me-1'></i> CẬP NHẬT";
+        btnSave.className = "btn btn-warning fw-bold px-4";
+        btnSave.innerText = "CẬP NHẬT";
     }
 
-    // --- HÀM RESET FORM ---
     function resetForm() {
         document.getElementById('marketingForm').reset();
         var btnSave = document.getElementById('btnSave');
-        btnSave.className = "btn btn-success fw-bold px-4 shadow-sm";
-        btnSave.innerHTML = "<i class='bi bi-save me-1'></i> LƯU BÁO CÁO";
+        btnSave.className = "btn btn-success fw-bold px-4";
+        btnSave.innerText = "LƯU BÁO CÁO";
     }
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}

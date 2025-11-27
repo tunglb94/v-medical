@@ -1,56 +1,28 @@
+{% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lễ Tân - V-Medical Clinic</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+{% block title %}Lễ Tân - V-Medical{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-scheduled { border-left: 5px solid #0d6efd; background-color: #f8f9fa; }
+    .status-arrived { border-left: 5px solid #ffc107; background-color: #fff3cd; }
+    .status-completed { border-left: 5px solid #198754; background-color: #d1e7dd; }
+    .status-cancelled { border-left: 5px solid #dc3545; opacity: 0.6; }
     
-    <style>
-        body { background-color: #eef2f7; font-family: 'Segoe UI', sans-serif; }
-        .bg-teal { background-color: #009688; }
-        .card-box { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: white; }
-        .status-scheduled { border-left: 5px solid #0d6efd; background-color: #f8f9fa; }
-        .status-arrived { border-left: 5px solid #ffc107; background-color: #fff3cd; }
-        .status-completed { border-left: 5px solid #198754; background-color: #d1e7dd; }
-        .status-cancelled { border-left: 5px solid #dc3545; opacity: 0.6; }
-        
-        /* Calendar Styles */
-        #calendar { min-height: 600px; font-family: 'Segoe UI', sans-serif; }
-        .fc-event { cursor: pointer; border-radius: 4px; border: none; font-size: 0.85rem; padding: 2px 4px; }
-        .fc-toolbar-title { font-size: 1.5rem !important; font-weight: bold; color: #2c3e50; }
-        .fc-button-primary { background-color: #2c3e50 !important; border-color: #2c3e50 !important; }
-        .fc-button-active { background-color: #1a252f !important; }
-        .fc-day-today { background-color: rgba(0, 150, 136, 0.05) !important; }
-    </style>
-</head>
-<body>
+    /* Calendar Styles */
+    #calendar { min-height: 650px; font-family: 'Segoe UI', sans-serif; background: white; padding: 10px; border-radius: 8px; }
+    .fc-event { cursor: pointer; border-radius: 4px; border: none; font-size: 0.85rem; padding: 2px 4px; margin-bottom: 2px; }
+    .fc-toolbar-title { font-size: 1.2rem !important; font-weight: bold; color: #2c3e50; }
+    .fc-button-primary { background-color: #2c3e50 !important; border-color: #2c3e50 !important; }
+    .fc-button-active { background-color: #1a252f !important; }
+    .fc-day-today { background-color: rgba(52, 152, 219, 0.05) !important; }
+</style>
+{% endblock %}
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-teal px-3 mb-4 shadow-sm">
-  <a class="navbar-brand fw-bold d-flex align-items-center" href="/reception/">
-      <img src="{% static 'images/logo.png' %}" alt="Logo" height="40" class="d-inline-block align-text-top me-2 bg-white rounded p-1">
-      LỄ TÂN V-MEDICAL
-  </a>
-  
-  <div class="ms-auto text-white d-flex align-items-center">
-      <div class="d-none d-md-flex gap-2 me-3">
-          <a href="/" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-headset me-1"></i> Telesale</a>
-          <a href="{% url 'customer_list' %}" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-people me-1"></i> Khách hàng</a>
-          <a href="{% url 'sales_report' %}" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-graph-up me-1"></i> Báo cáo</a>
-      </div>
-      <div class="me-3 text-end border-start ps-3">
-          <div class="fw-bold">{{ request.user.username }}</div>
-          <small class="opacity-75">Lễ tân</small>
-      </div>
-      <a href="{% url 'logout' %}" class="btn btn-sm btn-danger border-0 shadow-sm"><i class="bi bi-box-arrow-right"></i></a>
-  </div>
-</nav>
-
-<div class="container-fluid px-4">
+{% block content %}
+<div class="container-fluid p-0">
     
     {% if birthdays_today %}
     <div class="alert alert-danger bg-danger bg-opacity-10 border-danger d-flex align-items-center shadow-sm mb-4" role="alert">
@@ -67,14 +39,13 @@
     </div>
     {% endif %}
 
-    <div class="row mb-4 align-items-center">
-        <div class="col-12 col-md-7 d-flex flex-column flex-md-row gap-2 mb-3 mb-md-0">
-            
-            <div class="btn-group shadow-sm me-3">
-                <button onclick="switchView('list')" class="btn btn-light text-primary fw-bold active" id="btnListView">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+        <div class="d-flex gap-2">
+            <div class="btn-group shadow-sm">
+                <button onclick="switchView('list')" class="btn btn-white border text-primary fw-bold active" id="btnListView">
                     <i class="bi bi-list-ul me-1"></i> Danh Sách
                 </button>
-                <button onclick="switchView('calendar')" class="btn btn-light text-secondary fw-bold" id="btnCalendarView">
+                <button onclick="switchView('calendar')" class="btn btn-white border text-secondary fw-bold" id="btnCalendarView">
                     <i class="bi bi-calendar-week me-1"></i> Lịch Biểu
                 </button>
             </div>
@@ -84,160 +55,128 @@
             </button>
         </div>
         
-        <div class="col-12 col-md-5 d-flex justify-content-end align-items-center" id="dateFilterBlock">
-            <div class="bg-white p-2 rounded shadow-sm d-flex align-items-center">
-                <span class="text-muted me-2 fw-bold small text-uppercase">Lịch ngày:</span>
-                <form method="GET" id="dateForm">
-                    <input type="date" name="date" class="form-control fw-bold text-primary border-0 p-0" 
-                           style="width: 140px;"
-                           value="{{ current_date|date:'Y-m-d' }}" 
-                           onchange="document.getElementById('dateForm').submit()">
-                </form>
-            </div>
+        <div class="d-flex align-items-center bg-white p-1 rounded border shadow-sm" id="dateFilterBlock">
+            <span class="text-muted small fw-bold px-2 text-uppercase">Ngày xem:</span>
+            <form method="GET" id="dateForm" class="m-0">
+                <input type="date" name="date" class="form-control border-0 p-1 fw-bold text-primary" 
+                       style="width: 130px;"
+                       value="{{ current_date|date:'Y-m-d' }}" 
+                       onchange="document.getElementById('dateForm').submit()">
+            </form>
             {% if current_date != today %}
-                <a href="/reception/" class="btn btn-sm btn-outline-danger ms-2 fw-bold">Về hôm nay</a>
+                <a href="/reception/" class="btn btn-sm btn-outline-danger ms-2 fw-bold" title="Về hôm nay"><i class="bi bi-arrow-counterclockwise"></i></a>
             {% endif %}
         </div>
     </div>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
     <div id="listViewSection">
-        <div class="row">
+        <div class="row g-3">
             <div class="col-lg-8">
-                <div class="card card-box mb-4">
-                    <div class="card-header bg-white border-bottom pt-3 pb-2 d-flex justify-content-between">
-                        <h5 class="fw-bold text-teal"><i class="bi bi-calendar-check me-2"></i>DANH SÁCH HẸN NGÀY {{ current_date|date:"d/m" }}</h5>
+                <div class="card card-box h-100">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold text-primary m-0"><i class="bi bi-clock-history me-2"></i>LỊCH HẸN NGÀY {{ current_date|date:"d/m" }}</h6>
                         <span class="badge bg-secondary">{{ appointments.count }} khách</span>
                     </div>
-                    <div class="card-body p-0">
-                        {% if appointments %}
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
-                                    <thead class="bg-light text-secondary">
-                                        <tr>
-                                            <th class="ps-4">Giờ</th>
-                                            <th>Khách hàng</th>
-                                            <th>Trạng thái</th>
-                                            <th>Thao tác</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for app in appointments %}
-                                        <tr class="
-                                            {% if app.status == 'SCHEDULED' %}status-scheduled
-                                            {% elif app.status == 'ARRIVED' %}status-arrived
-                                            {% elif app.status == 'COMPLETED' %}status-completed
-                                            {% else %}status-cancelled{% endif %}">
-                                            
-                                            <td class="ps-4 fw-bold text-primary" style="font-size: 1.1rem;">
-                                                {{ app.appointment_date|date:"H:i" }}
-                                            </td>
-                                            <td>
-                                                <div class="fw-bold d-flex align-items-center">
-                                                    {{ app.customer.name }}
-                                                    {% if app.customer.ranking == 'DIAMOND' %}
-                                                        <i class="bi bi-gem text-info ms-1" title="Kim Cương"></i>
-                                                    {% elif app.customer.ranking == 'GOLD' %}
-                                                        <i class="bi bi-star-fill text-warning ms-1" title="Vàng"></i>
-                                                    {% elif app.customer.ranking == 'SILVER' %}
-                                                        <i class="bi bi-star-half text-secondary ms-1" title="Bạc"></i>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="small text-muted">{{ app.customer.phone }}</div>
-                                            </td>
-                                            <td>
-                                                {% if app.status == 'SCHEDULED' %}
-                                                    <span class="badge bg-primary">Đã đặt</span>
-                                                {% elif app.status == 'ARRIVED' %}
-                                                    <span class="badge bg-warning text-dark">Đang chờ</span>
-                                                {% elif app.status == 'COMPLETED' %}
-                                                    <span class="badge bg-success">Hoàn thành</span>
-                                                {% else %}
-                                                    <span class="badge bg-secondary">Đã hủy</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if app.status == 'SCHEDULED' %}
-                                                    <a href="{% url 'checkin' app.id %}" class="btn btn-sm btn-warning fw-bold shadow-sm">
-                                                        <i class="bi bi-box-arrow-in-right me-1"></i> CHECK-IN
-                                                    </a>
-                                                {% elif app.status == 'ARRIVED' %}
-                                                    <button class="btn btn-sm btn-success fw-bold shadow-sm"
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#finishModal"
-                                                            data-id="{{ app.id }}"
-                                                            data-name="{{ app.customer.name }}">
-                                                        <i class="bi bi-clipboard-check me-1"></i> CHỐT CA
-                                                    </button>
-                                                {% else %}
-                                                    <button class="btn btn-sm btn-light border" disabled>--</button>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        {% else %}
-                            <div class="text-center p-5 text-muted">
-                                <i class="bi bi-calendar-x display-4 opacity-25"></i>
-                                <p class="mt-3">Không có lịch hẹn nào trong ngày này.</p>
-                            </div>
-                        {% endif %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light text-secondary small text-uppercase">
+                                <tr>
+                                    <th class="ps-4">Giờ</th>
+                                    <th>Khách hàng</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-end pe-4">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in appointments %}
+                                <tr class="{% if app.status == 'SCHEDULED' %}status-scheduled{% elif app.status == 'ARRIVED' %}status-arrived{% elif app.status == 'COMPLETED' %}status-completed{% else %}status-cancelled{% endif %}">
+                                    <td class="ps-4 fw-bold text-primary fs-5">
+                                        {{ app.appointment_date|date:"H:i" }}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold d-flex align-items-center text-dark">
+                                            {{ app.customer.name }}
+                                            {% if app.customer.ranking == 'DIAMOND' %}
+                                                <i class="bi bi-gem text-info ms-1" title="Kim Cương"></i>
+                                            {% elif app.customer.ranking == 'GOLD' %}
+                                                <i class="bi bi-star-fill text-warning ms-1" title="Vàng"></i>
+                                            {% elif app.customer.ranking == 'SILVER' %}
+                                                <i class="bi bi-star-half text-secondary ms-1" title="Bạc"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="small text-muted">{{ app.customer.phone }}</div>
+                                    </td>
+                                    <td>
+                                        {% if app.status == 'SCHEDULED' %}<span class="badge bg-primary">Đã đặt</span>
+                                        {% elif app.status == 'ARRIVED' %}<span class="badge bg-warning text-dark">Đang chờ</span>
+                                        {% elif app.status == 'COMPLETED' %}<span class="badge bg-success">Hoàn thành</span>
+                                        {% else %}<span class="badge bg-secondary">Hủy/Vắng</span>{% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        {% if app.status == 'SCHEDULED' %}
+                                            <a href="{% url 'checkin' app.id %}" class="btn btn-sm btn-warning fw-bold shadow-sm"><i class="bi bi-box-arrow-in-right me-1"></i> CHECK-IN</a>
+                                        {% elif app.status == 'ARRIVED' %}
+                                            <button class="btn btn-sm btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#finishModal" data-id="{{ app.id }}" data-name="{{ app.customer.name }}">
+                                                <i class="bi bi-clipboard-check me-1"></i> CHỐT CA
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-light border text-muted" disabled>--</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-5 text-muted">Chưa có lịch hẹn nào.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-4">
-                <div class="card card-box" style="min-height: 500px;">
-                    <div class="card-header bg-white border-bottom pt-3 pb-2">
-                        <h5 class="fw-bold text-secondary"><i class="bi bi-search me-2"></i>TÌM KHÁCH CŨ</h5>
+                <div class="card card-box h-100">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="fw-bold text-secondary m-0"><i class="bi bi-search me-2"></i>TÌM KHÁCH CŨ</h6>
                     </div>
                     <div class="card-body">
                         <form action="" method="GET" class="d-flex gap-2 mb-3">
-                            <input type="text" name="q" class="form-control border shadow-sm" 
-                                   placeholder="Nhập tên hoặc SĐT..." value="{{ search_query }}">
+                            <input type="text" name="q" class="form-control" placeholder="Nhập tên hoặc SĐT..." value="{{ search_query }}">
                             <input type="hidden" name="date" value="{{ current_date|date:'Y-m-d' }}">
-                            <button type="submit" class="btn btn-primary shadow-sm"><i class="bi bi-search"></i></button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
                         </form>
 
-                        {% if search_query %}
-                            {% if search_results %}
-                                <div class="list-group">
-                                    {% for customer in search_results %}
-                                        <div class="list-group-item list-group-item-action p-3 border-0 border-bottom">
-                                            <div class="d-flex w-100 justify-content-between">
-                                                <h6 class="mb-1 fw-bold text-primary">{{ customer.name }}</h6>
-                                                <small class="text-muted">{{ customer.phone }}</small>
+                        <div class="list-group list-group-flush">
+                            {% if search_query and search_results %}
+                                {% for customer in search_results %}
+                                    <div class="list-group-item px-0 py-3 border-bottom">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <div class="fw-bold text-primary">
+                                                {{ customer.name }}
+                                                {% if customer.ranking == 'DIAMOND' %}<i class="bi bi-gem text-info small ms-1"></i>{% endif %}
                                             </div>
-                                            <p class="mb-1 small text-muted">{{ customer.address|default:"Chưa có địa chỉ" }}</p>
-                                            <div class="mt-2">
-                                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill fw-bold"
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#receptionBookingModal"
-                                                        data-id="{{ customer.id }}" 
-                                                        data-name="{{ customer.name }}">
-                                                    <i class="bi bi-plus-lg"></i> Đặt lịch ngay
-                                                </button>
-                                            </div>
+                                            <small class="text-muted">{{ customer.phone }}</small>
                                         </div>
-                                    {% endfor %}
-                                </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="small text-muted text-truncate" style="max-width: 150px;">{{ customer.address|default:"--" }}</span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 fw-bold"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#receptionBookingModal"
+                                                    data-id="{{ customer.id }}" 
+                                                    data-name="{{ customer.name }}">
+                                                + Đặt lịch
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% elif search_query %}
+                                <div class="text-center mt-4 text-muted small">Không tìm thấy khách hàng.</div>
                             {% else %}
-                                <div class="text-center mt-5 text-muted">
-                                    <i class="bi bi-person-x fs-1"></i>
-                                    <p>Không tìm thấy khách hàng nào.</p>
+                                <div class="text-center mt-5 text-muted opacity-50">
+                                    <i class="bi bi-search display-4"></i>
+                                    <p class="mt-2 small">Nhập thông tin để tìm kiếm</p>
                                 </div>
                             {% endif %}
-                        {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -245,14 +184,16 @@
     </div>
 
     <div id="calendarViewSection" style="display: none;">
-        <div class="card card-box p-3 shadow-sm">
-            <div id='calendar'></div>
+        <div class="card card-box shadow-sm">
+            <div class="card-body p-2">
+                <div id='calendar'></div>
+            </div>
         </div>
     </div>
 
 </div>
 
-<div class="modal fade" id="walkinModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="walkinModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header bg-warning text-dark">
@@ -262,39 +203,22 @@
       <form action="{% url 'reception_walkin' %}" method="POST">
           {% csrf_token %}
           <div class="modal-body">
-              <div class="alert alert-warning small mb-3">Hệ thống tự tạo hồ sơ nếu SĐT chưa tồn tại.</div>
-              <div class="mb-3">
-                  <label class="form-label fw-bold">Họ Tên <span class="text-danger">*</span></label>
-                  <input type="text" name="name" class="form-control" required>
-              </div>
-              <div class="mb-3">
-                  <label class="form-label fw-bold">SĐT <span class="text-danger">*</span></label>
-                  <input type="text" name="phone" class="form-control" required>
-              </div>
+              <div class="alert alert-warning small mb-3 p-2"><i class="bi bi-info-circle me-1"></i> Hệ thống sẽ tạo hồ sơ mới nếu SĐT chưa có.</div>
+              <div class="mb-3"><label class="form-label fw-bold small">Họ Tên *</label><input type="text" name="name" class="form-control" required></div>
+              <div class="mb-3"><label class="form-label fw-bold small">SĐT *</label><input type="text" name="phone" class="form-control" required></div>
               <div class="row mb-3">
-                  <div class="col-md-4">
-                      <label class="form-label fw-bold">Tuổi</label>
-                      <input type="number" name="age" class="form-control" placeholder="25">
-                  </div>
-                  <div class="col-md-8">
-                      <label class="form-label fw-bold">Tỉnh Thành</label>
-                      <input class="form-control" list="provinceOptions" name="city" placeholder="Chọn tỉnh...">
-                  </div>
+                  <div class="col-4"><label class="form-label fw-bold small">Tuổi</label><input type="number" name="age" class="form-control"></div>
+                  <div class="col-8"><label class="form-label fw-bold small">Tỉnh Thành</label><input class="form-control" list="provinceOptions" name="city"></div>
               </div>
-              <div class="mb-3">
-                  <label class="form-label fw-bold">Giờ đến</label>
-                  <input type="datetime-local" name="appointment_date" class="form-control" required>
-              </div>
+              <div class="mb-3"><label class="form-label fw-bold small">Giờ đến</label><input type="datetime-local" name="appointment_date" class="form-control" required></div>
           </div>
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-warning fw-bold text-dark">TẠO & CHECK-IN</button>
-          </div>
+          <div class="modal-footer"><button type="submit" class="btn btn-warning fw-bold w-100">TẠO & CHECK-IN NGAY</button></div>
       </form>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="receptionBookingModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="receptionBookingModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header bg-teal text-white">
@@ -305,120 +229,93 @@
           {% csrf_token %}
           <div class="modal-body">
               <input type="hidden" name="customer_id" id="modalBookingCustomerId">
-              <div class="mb-3">
-                  <label class="form-label">Khách hàng:</label>
-                  <input type="text" class="form-control fw-bold bg-light" id="modalBookingCustomerName" readonly>
-              </div>
-              <div class="mb-3">
-                  <label class="form-label fw-bold">Giờ hẹn</label>
-                  <input type="datetime-local" name="appointment_date" class="form-control" required>
-              </div>
+              <div class="mb-3"><label class="form-label small text-muted">Khách hàng</label><input type="text" class="form-control fw-bold" id="modalBookingCustomerName" readonly></div>
+              <div class="mb-3"><label class="form-label fw-bold small">Giờ hẹn</label><input type="datetime-local" name="appointment_date" class="form-control" required></div>
           </div>
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-primary bg-teal border-0">Xác nhận</button>
-          </div>
+          <div class="modal-footer"><button type="submit" class="btn btn-primary bg-teal border-0 w-100 fw-bold">XÁC NHẬN HẸN</button></div>
       </form>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="finishModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="finishModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-success text-white">
-        <h5 class="modal-title fw-bold"><i class="bi bi-clipboard-check me-2"></i>CHỐT CA TƯ VẤN</h5>
+        <h5 class="modal-title fw-bold">CHỐT CA TƯ VẤN</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form action="{% url 'reception_finish' %}" method="POST">
           {% csrf_token %}
           <div class="modal-body bg-light">
               <input type="hidden" name="appointment_id" id="finishApptId">
-              <div class="alert alert-info d-flex align-items-center py-2">
-                  <i class="bi bi-person-bounding-box fs-4 me-3"></i>
+              <div class="alert alert-success bg-white border-success d-flex align-items-center mb-3">
+                  <i class="bi bi-person-check-fill fs-3 me-3 text-success"></i>
                   <div><strong id="finishCustomerName" class="fs-5">Tên Khách</strong></div>
               </div>
 
-              <div class="card mb-3">
-                  <div class="card-header fw-bold bg-white text-primary small">1. NHÂN SỰ PHỤ TRÁCH</div>
+              <div class="card mb-3 border-0 shadow-sm">
+                  <div class="card-header bg-white fw-bold text-primary small border-bottom">1. NHÂN SỰ PHỤ TRÁCH</div>
                   <div class="card-body row g-2">
                       <div class="col-md-4">
-                          <label class="form-label small fw-bold text-muted">Bác sĩ khám</label>
+                          <label class="small text-muted">Bác sĩ</label>
                           <select name="doctor_id" class="form-select form-select-sm">
                               <option value="">-- Chọn --</option>
-                              {% for doc in doctors %}
-                                <option value="{{ doc.id }}">BS. {{ doc.last_name }} {{ doc.first_name }}</option>
-                              {% endfor %}
+                              {% for doc in doctors %}<option value="{{ doc.id }}">BS. {{ doc.last_name }} {{ doc.first_name }}</option>{% endfor %}
                           </select>
                       </div>
                       <div class="col-md-4">
-                          <label class="form-label small fw-bold text-muted">Kỹ thuật viên</label>
+                          <label class="small text-muted">Kỹ thuật viên</label>
                           <select name="technician_id" class="form-select form-select-sm">
                               <option value="">-- Chọn --</option>
-                              {% for tech in technicians %}
-                                <option value="{{ tech.id }}">KTV. {{ tech.last_name }} {{ tech.first_name }}</option>
-                              {% endfor %}
+                              {% for tech in technicians %}<option value="{{ tech.id }}">KTV. {{ tech.last_name }} {{ tech.first_name }}</option>{% endfor %}
                           </select>
                       </div>
                       <div class="col-md-4">
-                          <label class="form-label small fw-bold text-muted">Sale tư vấn</label>
+                          <label class="small text-muted">Sale tư vấn</label>
                           <select name="consultant_id" class="form-select form-select-sm">
                               <option value="">-- Chọn --</option>
-                              {% for sale in consultants %}
-                                <option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>
-                              {% endfor %}
+                              {% for sale in consultants %}<option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>{% endfor %}
                           </select>
                       </div>
                   </div>
               </div>
 
-              <div class="card">
-                  <div class="card-header fw-bold bg-white text-danger small">2. KẾT QUẢ GIAO DỊCH</div>
+              <div class="card border-0 shadow-sm">
+                  <div class="card-header bg-white fw-bold text-danger small border-bottom">2. KẾT QUẢ GIAO DỊCH</div>
                   <div class="card-body">
                       <div class="mb-3 text-center">
                           <div class="btn-group w-100" role="group">
                               <input type="radio" class="btn-check" name="result_status" id="success" value="buy" checked onclick="toggleOrderForm(true)">
-                              <label class="btn btn-outline-success fw-bold" for="success">CHỐT ĐƠN</label>
+                              <label class="btn btn-outline-success fw-bold" for="success">THÀNH CÔNG</label>
                               <input type="radio" class="btn-check" name="result_status" id="fail" value="no_buy" onclick="toggleOrderForm(false)">
-                              <label class="btn btn-outline-secondary fw-bold" for="fail">KHÁCH TỪ CHỐI</label>
+                              <label class="btn btn-outline-secondary fw-bold" for="fail">THẤT BẠI</label>
                           </div>
                       </div>
 
                       <div id="orderInfoBlock" class="p-3 bg-success bg-opacity-10 border border-success rounded">
                           <div class="mb-2">
-                              <label class="form-label fw-bold small">Dịch vụ / Liệu trình</label>
+                              <label class="form-label fw-bold small">Dịch vụ</label>
                               <select name="service_id" id="serviceSelect" class="form-select" onchange="updatePrice()">
                                   <option value="" data-price="0">-- Chọn dịch vụ --</option>
-                                  {% for sv in services %}
-                                    <option value="{{ sv.id }}" data-price="{{ sv.price|floatformat:0 }}">{{ sv.name }}</option>
-                                  {% endfor %}
+                                  {% for sv in services %}<option value="{{ sv.id }}" data-price="{{ sv.price|floatformat:0 }}">{{ sv.name }}</option>{% endfor %}
                               </select>
                           </div>
-                          
                           <div class="row g-2">
-                              <div class="col-4">
-                                  <label class="form-label small text-muted">Giá gốc</label>
-                                  <input type="number" name="original_price" id="originalPrice" class="form-control form-control-sm" readonly>
-                              </div>
-                              <div class="col-4">
-                                  <label class="form-label small text-muted">Giảm giá</label>
-                                  <input type="number" name="discount" id="discountInput" class="form-control form-control-sm" placeholder="0" oninput="calculateFinal()">
-                              </div>
-                              <div class="col-4">
-                                  <label class="form-label small fw-bold text-danger">THỰC THU</label>
-                                  <input type="number" name="total_amount" id="finalPrice" class="form-control form-control-sm fw-bold text-danger" readonly>
-                              </div>
+                              <div class="col-4"><label class="small text-muted">Giá gốc</label><input type="number" name="original_price" id="originalPrice" class="form-control form-control-sm" readonly></div>
+                              <div class="col-4"><label class="small text-muted">Giảm giá</label><input type="number" name="discount" id="discountInput" class="form-control form-control-sm" placeholder="0" oninput="calculateFinal()"></div>
+                              <div class="col-4"><label class="small fw-bold text-danger">THỰC THU</label><input type="number" name="total_amount" id="finalPrice" class="form-control form-control-sm fw-bold text-danger" readonly></div>
                           </div>
                       </div>
 
                       <div id="rejectionInfoBlock" class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded" style="display: none;">
-                          <textarea name="rejection_reason" id="rejectReason" class="form-control" rows="2" placeholder="Nhập lý do từ chối..."></textarea>
+                          <textarea name="rejection_reason" id="rejectReason" class="form-control" rows="2" placeholder="Lý do khách từ chối..."></textarea>
                       </div>
                   </div>
               </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="submit" class="btn btn-success fw-bold">LƯU & HOÀN TẤT</button>
+            <button type="submit" class="btn btn-success fw-bold w-100">LƯU & HOÀN TẤT</button>
           </div>
       </form>
     </div>
@@ -426,42 +323,35 @@
 </div>
 
 <div class="modal fade" id="eventDetailModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-sm">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Chi tiết lịch hẹn</h5>
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title mb-0">Chi tiết lịch hẹn</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <h4 class="fw-bold text-primary mb-1" id="popupCustomerName">Tên khách</h4>
-                <p class="text-muted mb-3" id="popupPhone">SĐT</p>
-                
-                <div class="p-3 bg-light rounded border mb-3">
-                    <div class="row">
-                        <div class="col-6 small text-muted">Giờ hẹn:</div>
-                        <div class="col-6 fw-bold text-end" id="popupTime">--:--</div>
-                        <div class="col-6 small text-muted mt-2">Trạng thái:</div>
-                        <div class="col-6 fw-bold text-end mt-2" id="popupStatus">--</div>
-                        <div class="col-6 small text-muted mt-2">Bác sĩ:</div>
-                        <div class="col-6 text-end mt-2" id="popupDoctor">--</div>
-                    </div>
-                </div>
-
-                <div class="d-grid gap-2" id="popupActions">
-                    </div>
+                <h5 class="fw-bold text-primary mb-1" id="popupCustomerName">Tên khách</h5>
+                <p class="text-muted small mb-3" id="popupPhone">SĐT</p>
+                <ul class="list-unstyled small mb-3 bg-light p-2 rounded">
+                    <li class="d-flex justify-content-between mb-1"><span>Giờ:</span> <strong id="popupTime">--:--</strong></li>
+                    <li class="d-flex justify-content-between mb-1"><span>Trạng thái:</span> <strong id="popupStatus">--</strong></li>
+                    <li class="d-flex justify-content-between"><span>Bác sĩ:</span> <strong id="popupDoctor">--</strong></li>
+                </ul>
+                <div class="d-grid" id="popupActions"></div>
             </div>
         </div>
     </div>
 </div>
 
 <datalist id="provinceOptions">
-    <option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng">
-    <option value="Hải Phòng"><option value="Cần Thơ"><option value="Bình Dương"><option value="Đồng Nai">
+    <option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng"><option value="Cần Thơ"><option value="Bình Dương">
 </datalist>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    // --- XỬ LÝ CÁC MODAL CŨ ---
+    // --- MODAL HANDLERS ---
     var bookingModal = document.getElementById('receptionBookingModal');
     if (bookingModal) {
         bookingModal.addEventListener('show.bs.modal', function (event) {
@@ -475,7 +365,7 @@
     if (finishModal) {
         finishModal.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
-            if (button) { // Nếu mở từ nút bấm
+            if (button) { 
                 document.getElementById('finishApptId').value = button.getAttribute('data-id');
                 document.getElementById('finishCustomerName').innerText = button.getAttribute('data-name');
             }
@@ -483,147 +373,86 @@
     }
 
     function toggleOrderForm(isBuy) {
-        var orderBlock = document.getElementById('orderInfoBlock');
-        var rejectBlock = document.getElementById('rejectionInfoBlock');
-        if (isBuy) {
-            orderBlock.style.display = 'block';
-            rejectBlock.style.display = 'none';
-            document.getElementById('serviceSelect').required = true;
-            document.getElementById('finalPrice').required = true;
-        } else {
-            orderBlock.style.display = 'none';
-            rejectBlock.style.display = 'block';
-            document.getElementById('serviceSelect').required = false;
-            document.getElementById('finalPrice').required = false;
-        }
+        document.getElementById('orderInfoBlock').style.display = isBuy ? 'block' : 'none';
+        document.getElementById('rejectionInfoBlock').style.display = isBuy ? 'none' : 'block';
+        document.getElementById('serviceSelect').required = isBuy;
+        document.getElementById('finalPrice').required = isBuy;
     }
 
     function updatePrice() {
         var select = document.getElementById('serviceSelect');
-        var originalInput = document.getElementById('originalPrice');
-        var selectedOption = select.options[select.selectedIndex];
-        var price = selectedOption.getAttribute('data-price');
-        
-        if (price) {
-            originalInput.value = price;
-            document.getElementById('discountInput').value = 0;
-            calculateFinal();
-        } else {
-            originalInput.value = 0;
-            calculateFinal();
-        }
+        var price = select.options[select.selectedIndex].getAttribute('data-price');
+        document.getElementById('originalPrice').value = price || 0;
+        document.getElementById('discountInput').value = 0;
+        calculateFinal();
     }
 
     function calculateFinal() {
         var original = parseFloat(document.getElementById('originalPrice').value) || 0;
         var discount = parseFloat(document.getElementById('discountInput').value) || 0;
-        var final = original - discount;
-        if (final < 0) final = 0;
-        document.getElementById('finalPrice').value = final;
+        document.getElementById('finalPrice').value = Math.max(0, original - discount);
     }
 
-    // --- XỬ LÝ FULLCALENDAR & CHUYỂN ĐỔI GIAO DIỆN ---
-    let calendarEl = document.getElementById('calendar');
+    // --- FULLCALENDAR ---
     let calendar;
-
     function initCalendar() {
-        if (calendar) return; // Đã init rồi thì thôi
-
+        if (calendar) return;
+        var calendarEl = document.getElementById('calendar');
         calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
             locale: 'vi',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            },
-            slotMinTime: "08:00:00",
-            slotMaxTime: "20:00:00",
-            allDaySlot: false,
-            height: 'auto',
-            buttonText: {
-                today: 'Hôm nay',
-                month: 'Tháng',
-                week: 'Tuần',
-                day: 'Ngày'
-            },
-            events: '/api/calendar/appointments/', // Gọi API lấy dữ liệu
-            eventClick: function(info) {
-                showEventPopup(info.event);
-            }
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+            slotMinTime: "08:00:00", slotMaxTime: "20:00:00", allDaySlot: false, height: 'auto',
+            events: '/api/calendar/appointments/',
+            eventClick: function(info) { showEventPopup(info.event); }
         });
         calendar.render();
     }
 
     function switchView(viewName) {
-        const listSection = document.getElementById('listViewSection');
-        const calendarSection = document.getElementById('calendarViewSection');
-        const btnList = document.getElementById('btnListView');
-        const btnCal = document.getElementById('btnCalendarView');
-        const dateFilter = document.getElementById('dateFilterBlock');
-
         if (viewName === 'list') {
-            listSection.style.display = 'block';
-            calendarSection.style.display = 'none';
-            btnList.classList.add('active', 'text-primary'); btnList.classList.remove('text-secondary');
-            btnCal.classList.remove('active', 'text-primary'); btnCal.classList.add('text-secondary');
-            dateFilter.style.display = 'flex'; // Hiện lọc ngày
+            document.getElementById('listViewSection').style.display = 'block';
+            document.getElementById('calendarViewSection').style.display = 'none';
+            document.getElementById('dateFilterBlock').style.display = 'flex';
+            document.getElementById('btnListView').classList.add('active', 'text-primary');
+            document.getElementById('btnCalendarView').classList.remove('active', 'text-primary');
         } else {
-            listSection.style.display = 'none';
-            calendarSection.style.display = 'block';
-            btnCal.classList.add('active', 'text-primary'); btnCal.classList.remove('text-secondary');
-            btnList.classList.remove('active', 'text-primary'); btnList.classList.add('text-secondary');
-            dateFilter.style.display = 'none'; // Ẩn lọc ngày (vì lịch có nav riêng)
-            
-            // Init calendar khi hiển thị
-            setTimeout(() => {
-                initCalendar();
-                calendar.updateSize(); 
-            }, 100);
+            document.getElementById('listViewSection').style.display = 'none';
+            document.getElementById('calendarViewSection').style.display = 'block';
+            document.getElementById('dateFilterBlock').style.display = 'none';
+            document.getElementById('btnCalendarView').classList.add('active', 'text-primary');
+            document.getElementById('btnListView').classList.remove('active', 'text-primary');
+            setTimeout(() => { initCalendar(); calendar.updateSize(); }, 100);
         }
     }
 
     function showEventPopup(event) {
-        // Điền dữ liệu vào modal xem nhanh
         document.getElementById('popupCustomerName').innerText = event.extendedProps.customerName;
         document.getElementById('popupPhone').innerText = event.extendedProps.phone;
         document.getElementById('popupTime').innerText = event.start.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
         document.getElementById('popupStatus').innerText = event.extendedProps.status;
         document.getElementById('popupDoctor').innerText = event.extendedProps.doctor;
 
-        // Tạo nút hành động tùy trạng thái
         const actionsDiv = document.getElementById('popupActions');
-        actionsDiv.innerHTML = ''; // Xóa nút cũ
-        const statusCode = event.extendedProps.statusCode;
-        const eventId = event.id;
-        const customerName = event.extendedProps.customerName;
-
-        if (statusCode === 'SCHEDULED') {
-            actionsDiv.innerHTML = `<a href="/reception/checkin/${eventId}/" class="btn btn-warning fw-bold"><i class="bi bi-box-arrow-in-right me-2"></i>CHECK-IN KHÁCH ĐẾN</a>`;
-        } else if (statusCode === 'ARRIVED') {
+        actionsDiv.innerHTML = '';
+        
+        if (event.extendedProps.statusCode === 'SCHEDULED') {
+            actionsDiv.innerHTML = `<a href="/reception/checkin/${event.id}/" class="btn btn-warning fw-bold w-100">CHECK-IN</a>`;
+        } else if (event.extendedProps.statusCode === 'ARRIVED') {
             const btn = document.createElement('button');
-            btn.className = 'btn btn-success fw-bold';
-            btn.innerHTML = '<i class="bi bi-clipboard-check me-2"></i>CHỐT CA TƯ VẤN';
+            btn.className = 'btn btn-success fw-bold w-100';
+            btn.innerText = 'CHỐT CA';
             btn.onclick = function() {
-                // Đóng popup nhỏ
-                var myModalEl = document.getElementById('eventDetailModal');
-                var modal = bootstrap.Modal.getInstance(myModalEl);
-                modal.hide();
-
-                // Mở modal chốt ca & điền dữ liệu
-                document.getElementById('finishApptId').value = eventId;
-                document.getElementById('finishCustomerName').innerText = customerName;
-                var finishModalInstance = new bootstrap.Modal(document.getElementById('finishModal'));
-                finishModalInstance.show();
+                bootstrap.Modal.getInstance(document.getElementById('eventDetailModal')).hide();
+                document.getElementById('finishApptId').value = event.id;
+                document.getElementById('finishCustomerName').innerText = event.extendedProps.customerName;
+                new bootstrap.Modal(document.getElementById('finishModal')).show();
             };
             actionsDiv.appendChild(btn);
         } else {
-            actionsDiv.innerHTML = '<button class="btn btn-secondary" disabled>Đã hoàn thành / Hủy</button>';
+            actionsDiv.innerHTML = '<button class="btn btn-light border w-100" disabled>Đã hoàn thành</button>';
         }
-
-        var myModal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
-        myModal.show();
+        new bootstrap.Modal(document.getElementById('eventDetailModal')).show();
     }
 </script>
-</body>
-</html>
+{% endblock %}
