@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}CEO Dashboard - V-Medical{% endblock %}
+{% block title %}Dashboard Giám Đốc - V-Medical{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -17,7 +17,6 @@
     .kpi-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; font-weight: 600; display: inline-block; }
     .bg-soft-success { background-color: rgba(25, 135, 84, 0.1); color: #198754; }
     .bg-soft-danger { background-color: rgba(220, 53, 69, 0.1); color: #dc3545; }
-    .bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); color: #0d6efd; }
     
     .icon-shape {
         width: 45px; height: 45px; border-radius: 10px;
@@ -26,36 +25,43 @@
     }
     
     .table-top-staff td { padding: 12px 15px; }
-    .rank-1 { color: #ffc107; } /* Vàng */
-    .rank-2 { color: #adb5bd; } /* Bạc */
-    .rank-3 { color: #cd7f32; } /* Đồng */
+    
+    .rank-1 { color: #ffc107; }
+    .rank-2 { color: #adb5bd; } 
+    .rank-3 { color: #cd7f32; }
 </style>
 {% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-end mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
         <div>
             <h6 class="text-muted mb-1 text-uppercase fw-bold">Tổng quan điều hành</h6>
             <h3 class="fw-bold text-dark mb-0">Dashboard Giám Đốc</h3>
         </div>
-        <div class="bg-white px-3 py-2 rounded-pill shadow-sm border fw-bold text-primary">
-            <i class="bi bi-calendar-check me-2"></i> {% now "d/m/Y" %}
+        
+        <div class="bg-white p-2 rounded shadow-sm">
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <span class="small fw-bold text-muted text-uppercase px-1">Xem từ:</span>
+                <input type="date" name="date_start" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" style="width: 130px;" value="{{ date_start }}">
+                <span class="small fw-bold text-muted">-</span>
+                <input type="date" name="date_end" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" style="width: 130px;" value="{{ date_end }}">
+                <button type="submit" class="btn btn-primary btn-sm fw-bold"><i class="bi bi-funnel-fill"></i> Lọc</button>
+            </form>
         </div>
     </div>
 
     <div class="row g-4 mb-4">
         <div class="col-md-6 col-xl-3">
             <div class="kpi-card-pro border-bottom border-4 border-success">
-                <div class="kpi-label">Doanh Thu Tháng Này</div>
-                <div class="kpi-value">{{ revenue_this_month|intcomma }} <span class="fs-6 text-muted">đ</span></div>
+                <div class="kpi-label">Doanh Thu Trong Kỳ</div>
+                <div class="kpi-value">{{ revenue_current|intcomma }} <span class="fs-6 text-muted">đ</span></div>
                 
                 {% if growth_rate >= 0 %}
                     <span class="kpi-badge bg-soft-success"><i class="bi bi-arrow-up-right"></i> +{{ growth_rate|floatformat:1 }}%</span>
-                    <span class="small text-muted ms-1">so với tháng trước</span>
                 {% else %}
                     <span class="kpi-badge bg-soft-danger"><i class="bi bi-arrow-down-right"></i> {{ growth_rate|floatformat:1 }}%</span>
-                    <span class="small text-muted ms-1">so với tháng trước</span>
                 {% endif %}
+                <span class="small text-muted ms-1">so với kỳ trước</span>
                 
                 <div class="icon-shape bg-success text-success"><i class="bi bi-currency-dollar"></i></div>
             </div>
@@ -63,16 +69,16 @@
 
         <div class="col-md-6 col-xl-3">
             <div class="kpi-card-pro border-bottom border-4 border-primary">
-                <div class="kpi-label">Khách Mới Trong Tháng</div>
-                <div class="kpi-value">{{ new_leads_month }} <span class="fs-6 text-muted">khách</span></div>
-                <span class="small text-muted">Nguồn data tiềm năng</span>
+                <div class="kpi-label">Data Khách Mới</div>
+                <div class="kpi-value">{{ leads_total }} <span class="fs-6 text-muted">khách</span></div>
+                <span class="small text-muted">Lead mới tạo trong kỳ</span>
                 <div class="icon-shape bg-primary text-primary"><i class="bi bi-person-plus-fill"></i></div>
             </div>
         </div>
 
         <div class="col-md-6 col-xl-3">
             <div class="kpi-card-pro border-bottom border-4 border-warning">
-                <div class="kpi-label">Tỷ Lệ Khách Đến (Hôm nay)</div>
+                <div class="kpi-label">Tỷ Lệ Khách Đến</div>
                 <div class="kpi-value">{{ arrival_rate|floatformat:0 }}%</div>
                 <div class="progress mt-2" style="height: 6px;">
                     <div class="progress-bar bg-warning" role="progressbar" style="width: {{ arrival_rate }}%"></div>
@@ -83,9 +89,9 @@
 
         <div class="col-md-6 col-xl-3">
             <div class="kpi-card-pro border-bottom border-4 border-info">
-                <div class="kpi-label">Tổng Lịch Hẹn (Hôm nay)</div>
-                <div class="kpi-value">{{ appts_today_total }} <span class="fs-6 text-muted">lịch</span></div>
-                <span class="small text-muted">Cần tối ưu lấp đầy</span>
+                <div class="kpi-label">Tổng Lịch Hẹn</div>
+                <div class="kpi-value">{{ appts_total }} <span class="fs-6 text-muted">lịch</span></div>
+                <span class="small text-muted">Đã đến: <strong>{{ appts_arrived }}</strong> khách</span>
                 <div class="icon-shape bg-info text-info"><i class="bi bi-calendar-week-fill"></i></div>
             </div>
         </div>
@@ -95,7 +101,7 @@
         <div class="col-lg-8">
             <div class="card card-box h-100">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold m-0 text-primary"><i class="bi bi-graph-up me-2"></i>XU HƯỚNG DOANH THU (30 NGÀY)</h6>
+                    <h6 class="fw-bold m-0 text-primary"><i class="bi bi-graph-up me-2"></i>BIỂU ĐỒ DOANH THU</h6>
                 </div>
                 <div class="card-body">
                     <div style="height: 320px;">
@@ -123,7 +129,7 @@
         <div class="col-lg-6">
             <div class="card card-box h-100">
                 <div class="card-header bg-white py-3">
-                    <h6 class="fw-bold m-0 text-warning"><i class="bi bi-trophy-fill me-2"></i>TOP SALE XUẤT SẮC (THÁNG NÀY)</h6>
+                    <h6 class="fw-bold m-0 text-warning"><i class="bi bi-trophy-fill me-2"></i>TOP SALE XUẤT SẮC</h6>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-top-staff">
@@ -157,7 +163,7 @@
                                 <td class="text-end pe-4 fw-bold text-success">{{ sale.total|intcomma }} đ</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="3" class="text-center py-4 text-muted">Chưa có dữ liệu tháng này.</td></tr>
+                            <tr><td colspan="3" class="text-center py-4 text-muted">Chưa có dữ liệu trong kỳ này.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -168,8 +174,8 @@
         <div class="col-lg-6">
             <div class="card card-box h-100">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold m-0 text-info"><i class="bi bi-clock-history me-2"></i>GIAO DỊCH VỪA QUA</h6>
-                    <a href="{% url 'sales_report' %}" class="btn btn-sm btn-light text-primary fw-bold">Xem tất cả</a>
+                    <h6 class="fw-bold m-0 text-info"><i class="bi bi-clock-history me-2"></i>GIAO DỊCH TRONG KỲ</h6>
+                    <a href="{% url 'sales_report' %}" class="btn btn-sm btn-light text-primary fw-bold">Chi tiết</a>
                 </div>
                 <div class="list-group list-group-flush">
                     {% for order in recent_orders %}
@@ -206,7 +212,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Revenue Trend Chart
             const labels = JSON.parse(document.getElementById('j-labels').textContent);
             const data = JSON.parse(document.getElementById('j-data').textContent);
             
@@ -223,7 +228,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [5] } }, x: { grid: { display: false } } } }
             });
 
-            // 2. Service Pie Chart
             const svLabels = JSON.parse(document.getElementById('j-sv-labels').textContent);
             const svData = JSON.parse(document.getElementById('j-sv-data').textContent);
             
