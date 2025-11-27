@@ -106,8 +106,15 @@
                         {% for customer in page_obj %}
                         <tr>
                             <td class="ps-4">
-                                <a href="{% url 'customer_detail' customer.pk %}" class="fw-bold text-decoration-none text-dark">
+                                <a href="{% url 'customer_detail' customer.pk %}" class="fw-bold text-decoration-none text-dark d-flex align-items-center">
                                     {{ customer.name }}
+                                    {% if customer.ranking == 'DIAMOND' %}
+                                        <i class="bi bi-gem text-info ms-2" title="Thành viên Kim Cương" style="font-size: 0.9rem;"></i>
+                                    {% elif customer.ranking == 'GOLD' %}
+                                        <i class="bi bi-star-fill text-warning ms-2" title="Thành viên Vàng" style="font-size: 0.9rem;"></i>
+                                    {% elif customer.ranking == 'SILVER' %}
+                                        <i class="bi bi-star-half text-secondary ms-2" title="Thành viên Bạc" style="font-size: 0.9rem;"></i>
+                                    {% endif %}
                                 </a>
                             </td>
                             <td class="text-primary fw-bold">{{ customer.phone }}</td>

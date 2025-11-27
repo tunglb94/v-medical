@@ -47,9 +47,6 @@
         .timeline-item { border-left: 2px solid #e3e6f0; padding-left: 15px; padding-bottom: 15px; position: relative; }
         .timeline-item::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: #bdc3c7; }
         .timeline-item.success::before { background: #1cc88a; }
-        
-        /* Automation Badges */
-        .badge-notify { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;}
     </style>
 </head>
 <body>
@@ -129,7 +126,16 @@
                         <a href="?id={{ customer.id }}&type={{ filter_type }}&q={{ search_query }}" 
                            class="list-group-item list-group-item-action {% if selected_customer.id == customer.id %}active{% endif %}">
                             <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                <span class="fw-bold text-truncate" style="max-width: 140px;">{{ customer.name }}</span>
+                                <div class="d-flex align-items-center text-truncate" style="max-width: 140px;">
+                                    <span class="fw-bold me-1">{{ customer.name }}</span>
+                                    {% if customer.ranking == 'DIAMOND' %}
+                                        <i class="bi bi-gem text-info" title="Kim Cương" style="font-size: 0.8rem;"></i>
+                                    {% elif customer.ranking == 'GOLD' %}
+                                        <i class="bi bi-star-fill text-warning" title="Vàng" style="font-size: 0.8rem;"></i>
+                                    {% elif customer.ranking == 'SILVER' %}
+                                        <i class="bi bi-star-half text-secondary" title="Bạc" style="font-size: 0.8rem;"></i>
+                                    {% endif %}
+                                </div>
                                 <span class="badge bg-light text-secondary border fw-normal" style="font-size: 0.7rem;">
                                     {{ customer.created_at|date:"d/m" }}
                                 </span>
@@ -177,6 +183,13 @@
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <h4 class="fw-bold text-dark mb-0">
                                     <i class="bi bi-person-circle me-2 text-primary"></i>{{ selected_customer.name }}
+                                    {% if selected_customer.ranking == 'DIAMOND' %}
+                                        <span class="badge bg-info text-white ms-2 small" style="font-size: 0.5em; vertical-align: middle;"><i class="bi bi-gem"></i> DIAMOND</span>
+                                    {% elif selected_customer.ranking == 'GOLD' %}
+                                        <span class="badge bg-warning text-dark ms-2 small" style="font-size: 0.5em; vertical-align: middle;"><i class="bi bi-star-fill"></i> GOLD</span>
+                                    {% elif selected_customer.ranking == 'SILVER' %}
+                                        <span class="badge bg-secondary text-white ms-2 small" style="font-size: 0.5em; vertical-align: middle;"><i class="bi bi-star-half"></i> SILVER</span>
+                                    {% endif %}
                                 </h4>
                                 <div>
                                     {% if selected_customer.dob %}

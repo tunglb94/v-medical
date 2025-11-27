@@ -141,7 +141,16 @@
                                                 {{ app.appointment_date|date:"H:i" }}
                                             </td>
                                             <td>
-                                                <div class="fw-bold">{{ app.customer.name }}</div>
+                                                <div class="fw-bold d-flex align-items-center">
+                                                    {{ app.customer.name }}
+                                                    {% if app.customer.ranking == 'DIAMOND' %}
+                                                        <i class="bi bi-gem text-info ms-1" title="Kim Cương"></i>
+                                                    {% elif app.customer.ranking == 'GOLD' %}
+                                                        <i class="bi bi-star-fill text-warning ms-1" title="Vàng"></i>
+                                                    {% elif app.customer.ranking == 'SILVER' %}
+                                                        <i class="bi bi-star-half text-secondary ms-1" title="Bạc"></i>
+                                                    {% endif %}
+                                                </div>
                                                 <div class="small text-muted">{{ app.customer.phone }}</div>
                                             </td>
                                             <td>
