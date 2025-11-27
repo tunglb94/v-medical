@@ -60,8 +60,8 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show shadow-sm" role="alert">
+                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
@@ -207,7 +207,7 @@
                                 data-comments="{{ stat.comments }}"
                                 data-inboxes="{{ stat.inboxes }}"
                                 data-leads="{{ stat.leads }}"
-                                data-appointments="{{ stat.appointments }}"> 
+                                data-appointments="{{ stat.appointments }}">
                                 <i class="bi bi-pencil-fill"></i>
                             </button>
 
@@ -233,28 +233,30 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        function getData(id) { return JSON.parse(document.getElementById(id).textContent); }
-        const ctx = document.getElementById('marketingChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: getData('j-dates'),
-                datasets: [
-                    { label: 'Leads', data: getData('j-leads'), type: 'bar', backgroundColor: 'rgba(13, 110, 253, 0.7)', order: 2, yAxisID: 'y', borderRadius: 4 },
-                    { label: 'CPL (VNĐ)', data: getData('j-cpl'), type: 'line', borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', borderWidth: 3, pointRadius: 4, fill: false, tension: 0.3, order: 1, yAxisID: 'y1' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Số lượng Leads', color: '#0d6efd' } },
-                    y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Chi phí CPL', color: '#dc3545' } }
+        if(document.getElementById('j-dates')) {
+            function getData(id) { return JSON.parse(document.getElementById(id).textContent); }
+            const ctx = document.getElementById('marketingChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: getData('j-dates'),
+                    datasets: [
+                        { label: 'Leads', data: getData('j-leads'), type: 'bar', backgroundColor: 'rgba(13, 110, 253, 0.7)', order: 2, yAxisID: 'y', borderRadius: 4 },
+                        { label: 'CPL (VNĐ)', data: getData('j-cpl'), type: 'line', borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', borderWidth: 3, pointRadius: 4, fill: false, tension: 0.3, order: 1, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Số lượng Leads', color: '#0d6efd' } },
+                        y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Chi phí CPL', color: '#dc3545' } }
+                    }
                 }
-            }
-        });
+            });
+        }
     });
 
-    // --- HÀM XỬ LÝ SỬA BÁO CÁO (ĐÃ FIX) ---
+    // --- HÀM XỬ LÝ SỬA BÁO CÁO ---
     function editReport(button) {
         // 1. Mở form
         var collapseElement = document.getElementById('inputForm');
@@ -266,7 +268,7 @@
         var comments = button.getAttribute('data-comments');
         var inboxes = button.getAttribute('data-inboxes');
         var leads = button.getAttribute('data-leads');
-        var appointments = button.getAttribute('data-appointments'); // Đã thêm
+        var appointments = button.getAttribute('data-appointments');
 
         // 3. Điền vào form
         document.querySelector('[name="report_date"]').value = date;
@@ -274,7 +276,7 @@
         document.querySelector('[name="comments"]').value = comments;
         document.querySelector('[name="inboxes"]').value = inboxes;
         document.querySelector('[name="leads"]').value = leads;
-        document.querySelector('[name="appointments"]').value = appointments; // Đã thêm
+        document.querySelector('[name="appointments"]').value = appointments;
 
         // 4. Cuộn lên đầu & Đổi nút
         collapseElement.scrollIntoView({ behavior: 'smooth' });
@@ -283,7 +285,7 @@
         btnSave.innerHTML = "<i class='bi bi-pencil-square me-1'></i> CẬP NHẬT";
     }
 
-    // --- HÀM RESET FORM (Về trạng thái thêm mới) ---
+    // --- HÀM RESET FORM ---
     function resetForm() {
         document.getElementById('marketingForm').reset();
         var btnSave = document.getElementById('btnSave');

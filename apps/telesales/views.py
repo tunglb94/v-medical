@@ -20,7 +20,7 @@ def telesale_dashboard(request):
     # --- LỌC DỮ LIỆU ---
     customers = Customer.objects.all()
 
-    # 1. Tìm kiếm theo SĐT hoặc Tên
+    # 1. Tìm kiếm
     search_query = request.GET.get('q', '')
     if search_query:
         customers = customers.filter(
@@ -28,26 +28,27 @@ def telesale_dashboard(request):
         )
 
     # 2. Lọc Khách Mới / Khách Cũ
-    # Mặc định chọn 'new' (Khách hôm nay) để ưu tiên gọi
     filter_type = request.GET.get('type', 'new') 
-    
     if filter_type == 'new':
-        # Khách mới: Có ngày tạo là hôm nay
         customers = customers.filter(created_at__date=today)
     elif filter_type == 'old':
-        # Khách cũ: Có ngày tạo nhỏ hơn hôm nay
         customers = customers.exclude(created_at__date=today)
     
-    # Sắp xếp: Mới nhất lên đầu
     customers = customers.order_by('-created_at')
 
-    # --- XỬ LÝ CHỌN KHÁCH ---
+    # --- XỬ LÝ CHỌN KHÁCH (FIX LỖI ID RÁC) ---
     selected_customer = None
     call_history = []
     
     customer_id = request.GET.get('id')
     if customer_id:
-        selected_customer = get_object_or_404(Customer, id=customer_id)
+        try:
+            # Chỉ lấy ID nếu là số hợp lệ
+            clean_id = int(float(str(customer_id).replace(',', '.')))
+            selected_customer = get_object_or_404(Customer, id=clean_id)
+        except (ValueError, TypeError, Customer.DoesNotExist):
+            # Nếu ID rác (vd: 1.389, text...), bỏ qua không chọn khách nào
+            pass
     elif customers.exists():
         selected_customer = customers.first()
 
