@@ -1,353 +1,295 @@
 {% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>V-Medical - Telesale Dashboard</title>
+    <title>Marketing Dashboard - V-Medical</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #f2f4f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #7f8c8d; }
-
-        .card-custom { 
-            border: none; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-            background: white;
-            height: 100%;
-            min-height: 88vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        @media (min-width: 992px) {
-            .card-custom { height: 88vh; overflow: hidden; }
-            .customer-list { overflow-y: auto; flex-grow: 1; }
-        }
-
-        @media (max-width: 991px) {
-            .customer-list { max-height: 300px; overflow-y: auto; }
-            .col-lg-3 { margin-bottom: 20px; }
-            .flex-grow-1.overflow-hidden { flex-direction: column; overflow: visible !important; }
-            .w-50 { width: 100% !important; }
-            .border-end { border-right: none !important; border-bottom: 1px solid #dee2e6; }
-        }
-
-        .list-group-item { border: none; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s; padding: 15px; }
-        .list-group-item:hover { background-color: #f8f9fa; padding-left: 20px; }
-        .list-group-item.active { background-color: #eef2ff; color: #000; border-left: 4px solid #4e73df; }
-        .form-label { font-size: 0.8rem; font-weight: 700; color: #858796; text-transform: uppercase; margin-bottom: 5px; }
-        .form-control:read-only { background-color: #eaecf4; border: 1px solid #d1d3e2; color: #5a5c69; }
-        .timeline-item { border-left: 2px solid #e3e6f0; padding-left: 15px; padding-bottom: 15px; position: relative; }
-        .timeline-item::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: #bdc3c7; }
-        .timeline-item.success::before { background: #1cc88a; }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .kpi-card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s; background: white; }
+        .kpi-card:hover { transform: translateY(-5px); }
+        .trend-up { color: #198754; font-weight: bold; font-size: 0.85rem; }
+        .trend-down { color: #dc3545; font-weight: bold; font-size: 0.85rem; }
+        .table-hover tbody tr:hover { background-color: #f8f9fa; }
+        .fw-bolder { font-weight: 800 !important; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow px-3 mb-3">
-  <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 mb-4 shadow-sm">
+  <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
       <img src="{% static 'images/logo.png' %}" alt="Logo" height="40" class="d-inline-block align-text-top me-2 bg-white rounded p-1">
-      V-MEDICAL TELESALE
+      MARKETING CENTER
   </a>
-  
-  <div class="ms-auto text-white d-flex align-items-center">
+  <div class="ms-auto d-flex gap-2 text-white align-items-center">
       <div class="d-none d-md-flex gap-2 me-3">
-          <a href="{% url 'reception_home' %}" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-calendar-check me-1"></i> Lễ tân</a>
-          <a href="{% url 'customer_list' %}" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-people me-1"></i> Khách hàng</a>
-          <a href="{% url 'sales_report' %}" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-graph-up me-1"></i> Báo cáo</a>
+          <a href="/" class="btn btn-sm btn-outline-light">Telesale</a>
+          <a href="{% url 'reception_home' %}" class="btn btn-sm btn-outline-light">Lễ tân</a>
+          <a href="{% url 'sales_report' %}" class="btn btn-sm btn-outline-light">Doanh thu</a>
       </div>
-      <div class="me-3 text-end border-start ps-3">
-          <div class="fw-bold">{{ request.user.username }}</div>
-          <small class="opacity-75">Telesale</small>
-      </div>
-      <a href="{% url 'logout' %}" class="btn btn-sm btn-danger border-0 shadow-sm"><i class="bi bi-box-arrow-right"></i></a>
+      <div class="vr bg-secondary mx-2"></div>
+      <div class="fw-bold me-3">{{ request.user.username }}</div>
+      <a href="{% url 'logout' %}" class="btn btn-sm btn-danger"><i class="bi bi-power"></i></a>
   </div>
 </nav>
 
-<div class="container-fluid px-3">
-    <div class="row g-3">
+<div class="container-fluid px-4 pb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <form method="GET" class="d-flex gap-2 bg-white p-2 rounded shadow-sm">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light border-0 fw-bold">Từ</span>
+                <input type="date" name="date_start" class="form-control border-0" value="{{ date_start }}">
+            </div>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light border-0 fw-bold">Đến</span>
+                <input type="date" name="date_end" class="form-control border-0" value="{{ date_end }}">
+            </div>
+            <button class="btn btn-sm btn-dark px-3"><i class="bi bi-filter"></i> Lọc</button>
+        </form>
         
-        <div class="col-12 col-lg-3">
-            <div class="card card-custom">
+        <button class="btn btn-primary fw-bold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#inputForm" onclick="resetForm()">
+            <i class="bi bi-pencil-square me-2"></i> NHẬP BÁO CÁO NGÀY
+        </button>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="collapse mb-4" id="inputForm">
+        <div class="card border-0 shadow-sm border-top border-primary border-4">
+            <div class="card-body bg-light">
+                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-clipboard-data me-2"></i>NHẬP / CHỈNH SỬA SỐ LIỆU</h6>
                 
-                <div class="p-3 border-bottom bg-white rounded-top">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="fw-bold text-primary mb-0">DANH SÁCH KHÁCH</h6>
-                        <button type="button" class="btn btn-sm btn-outline-primary border-0" data-bs-toggle="modal" data-bs-target="#addCustomerModal" title="Thêm thủ công">
-                            <i class="bi bi-plus-circle-fill fs-5"></i>
+                <form method="POST" class="row g-3 align-items-end" id="marketingForm">
+                    {% csrf_token %}
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Ngày báo cáo</label>
+                        {{ form.report_date }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Ngân sách (VNĐ)</label>
+                        {{ form.spend_amount }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Số Comment</label>
+                        {{ form.comments }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Số Inbox</label>
+                        {{ form.inboxes }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-primary mb-1">SĐT (Leads)</label>
+                        {{ form.leads }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-success mb-1">Lịch hẹn</label>
+                        {{ form.appointments }}
+                    </div>
+                    <div class="col-12 text-end mt-3">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-toggle="collapse" data-bs-target="#inputForm">Đóng</button>
+                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm" id="btnSave">
+                            <i class="bi bi-save me-1"></i> LƯU BÁO CÁO
                         </button>
                     </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-                    <form method="GET" id="filterForm">
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="text" name="q" class="form-control" placeholder="Nhập SĐT, Tên..." value="{{ search_query }}">
-                            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
-                        </div>
-
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="type" id="filterNew" value="new" 
-                                   {% if filter_type == 'new' %}checked{% endif %} 
-                                   onchange="this.form.submit()">
-                            <label class="btn btn-outline-success btn-sm fw-bold" for="filterNew">
-                                <i class="bi bi-star-fill me-1"></i> MỚI (Hôm nay)
-                            </label>
-
-                            <input type="radio" class="btn-check" name="type" id="filterOld" value="old" 
-                                   {% if filter_type == 'old' %}checked{% endif %} 
-                                   onchange="this.form.submit()">
-                            <label class="btn btn-outline-secondary btn-sm fw-bold" for="filterOld">
-                                <i class="bi bi-archive-fill me-1"></i> DATA CŨ
-                            </label>
-                        </div>
-                    </form>
-                </div>
-                
-                <div class="list-group list-group-flush customer-list">
-                    {% for customer in customers %}
-                        <a href="?id={{ customer.id }}&type={{ filter_type }}&q={{ search_query }}" 
-                           class="list-group-item list-group-item-action {% if selected_customer.id == customer.id %}active{% endif %}">
-                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                <span class="fw-bold text-truncate" style="max-width: 140px;">{{ customer.name }}</span>
-                                <span class="badge bg-light text-secondary border fw-normal" style="font-size: 0.7rem;">
-                                    {{ customer.created_at|date:"d/m" }}
-                                </span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted"><i class="bi bi-telephone-fill me-1" style="font-size: 0.7rem;"></i>{{ customer.phone }}</small>
-                                {% if customer.source == 'FACEBOOK' %}
-                                    <i class="bi bi-facebook text-primary" title="Facebook"></i>
-                                {% elif customer.source == 'GOOGLE' %}
-                                    <i class="bi bi-google text-danger" title="Google"></i>
-                                {% endif %}
-                            </div>
-                        </a>
-                    {% empty %}
-                        <div class="text-center p-5 text-muted">
-                            <i class="bi bi-inbox display-6 opacity-25"></i>
-                            <p class="small mt-2 mb-0">Không tìm thấy khách nào</p>
-                            {% if filter_type == 'new' %}
-                                <a href="?type=old" class="small text-primary text-decoration-none">Thử tìm ở Data Cũ?</a>
-                            {% else %}
-                                <a href="?type=new" class="small text-primary text-decoration-none">Thử tìm ở Data Mới?</a>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card kpi-card h-100 border-start border-5 border-primary">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Ngân Sách</div>
+                    <h4 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted fw-normal">đ</span></h4>
                 </div>
             </div>
         </div>
+        <div class="col-md-2">
+            <div class="card kpi-card h-100 border-start border-5 border-warning">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Leads</div>
+                    <h4 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }} <span class="fs-6 text-muted fw-normal">số</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100 border-start border-5 border-danger">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Giá CPL Trung Bình</div>
+                    <h4 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/số</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card kpi-card h-100 border-start border-5 border-info">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Giá Hẹn TB (CPA)</div>
+                    <h4 class="fw-bold text-info mb-0">{{ avg_cpa|floatformat:0|intcomma }} <span class="fs-6 text-muted fw-normal">đ/lịch</span></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card kpi-card h-100 border-start border-5 border-success">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase mb-1">Tổng Lịch Hẹn</div>
+                    <h4 class="fw-bold text-success mb-0">{{ totals.sum_appts }} <span class="fs-6 text-muted fw-normal">lịch</span></h4>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        <div class="col-12 col-lg-9">
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show py-2 shadow-sm" role="alert">
-                        <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white fw-bold py-3 border-bottom"><i class="bi bi-graph-up me-2 text-primary"></i>XU HƯỚNG HIỆU QUẢ (LEADS vs CPL)</div>
+        <div class="card-body"><div style="height: 350px;"><canvas id="marketingChart"></canvas></div></div>
+    </div>
 
-            <div class="card card-custom">
-                <div class="card-body p-0 d-flex flex-column">
-                    {% if selected_customer %}
-                        <div class="p-4 border-bottom bg-white">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h4 class="fw-bold text-dark mb-0">
-                                    <i class="bi bi-person-circle me-2 text-primary"></i>{{ selected_customer.name }}
-                                </h4>
-                                <span class="badge bg-secondary">ID: #{{ selected_customer.id }}</span>
-                            </div>
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center border-bottom">
+            <span><i class="bi bi-table me-2 text-success"></i>CHI TIẾT THEO NGÀY</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light text-secondary small text-uppercase">
+                    <tr>
+                        <th class="text-start ps-4 py-3">Ngày</th>
+                        <th class="text-end">Ngân sách</th>
+                        <th>Tương tác</th>
+                        <th>SĐT (Leads)</th>
+                        <th class="text-end">Giá CPL</th>
+                        <th class="text-end text-info">Giá Hẹn (CPA)</th>
+                        <th>Lịch hẹn</th>
+                        <th>Tỷ lệ chốt</th>
+                        <th>Thao tác</th> </tr>
+                </thead>
+                <tbody>
+                    {% for stat in stats %}
+                    <tr>
+                        <td class="text-start ps-4 fw-bold text-primary">{{ stat.report_date|date:"d/m/Y" }}</td>
+                        <td class="text-end">{{ stat.spend_amount|intcomma }} đ</td>
+                        <td>{{ stat.total_interactions }}</td>
+                        
+                        <td class="fw-bolder" style="font-size: 1.1rem;">
+                            {{ stat.leads }}
+                            <br>
+                            {% if stat.trend_lead > 0 %}<span class="trend-up"><i class="bi bi-caret-up-fill"></i> {{ stat.trend_lead|floatformat:0 }}%</span>
+                            {% elif stat.trend_lead < 0 %}<span class="trend-down"><i class="bi bi-caret-down-fill"></i> {{ stat.trend_lead|floatformat:0 }}%</span>
+                            {% else %}<span class="text-muted small">-</span>{% endif %}
+                        </td>
 
-                            <form>
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label">Số điện thoại</label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="text" class="form-control fw-bold text-primary" value="{{ selected_customer.phone }}" readonly>
-                                            <a href="tel:{{ selected_customer.phone }}" class="btn btn-primary"><i class="bi bi-telephone-fill"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-2">
-                                        <label class="form-label">Tuổi</label>
-                                        <input type="text" class="form-control form-control-sm" value="{{ selected_customer.age|default:'--' }}" readonly>
-                                    </div>
-                                    <div class="col-6 col-md-2">
-                                        <label class="form-label">Tỉnh Thành</label>
-                                        <input type="text" class="form-control form-control-sm" value="{{ selected_customer.city|default:'--' }}" readonly>
-                                    </div>
-                                    <div class="col-6 col-md-2">
-                                        <label class="form-label">Nguồn</label>
-                                        <input type="text" class="form-control form-control-sm" value="{{ selected_customer.get_source_display }}" readonly>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label">Vấn đề da</label>
-                                        <input type="text" class="form-control form-control-sm text-danger fw-bold" value="{{ selected_customer.get_skin_condition_display }}" readonly>
-                                    </div>
-                                </div>
-                                {% if selected_customer.address %}
-                                <div class="mt-2 small text-muted">
-                                    <i class="bi bi-geo-alt-fill me-1"></i> Địa chỉ: {{ selected_customer.address }}
-                                </div>
-                                {% endif %}
-                                {% if selected_customer.note_telesale %}
-                                <div class="mt-2 p-2 bg-warning bg-opacity-10 border border-warning rounded small text-dark" style="max-height: 100px; overflow-y: auto;">
-                                    <i class="bi bi-sticky-fill me-1 text-warning"></i> <strong>Ghi chú Data:</strong> {{ selected_customer.note_telesale }}
-                                </div>
-                                {% endif %}
+                        <td class="text-end fw-bold text-danger">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
+                        <td class="text-end fw-bold text-info">{{ stat.cost_per_appointment|floatformat:0|intcomma }}</td>
+                        <td class="fw-bold text-success">{{ stat.appointments }}</td>
+                        <td>
+                            {% if stat.conversion_rate_appt >= 50 %}<span class="badge bg-success rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
+                            {% elif stat.conversion_rate_appt >= 30 %}<span class="badge bg-warning text-dark rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
+                            {% else %}<span class="badge bg-danger rounded-pill">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>{% endif %}
+                        </td>
+                        
+                        <td>
+                            <button class="btn btn-sm btn-warning shadow-sm" title="Sửa"
+                                onclick="editReport(this)"
+                                data-date="{{ stat.report_date|date:'Y-m-d' }}"
+                                data-spend="{{ stat.spend_amount|stringformat:'d' }}" 
+                                data-comments="{{ stat.comments }}"
+                                data-inboxes="{{ stat.inboxes }}"
+                                data-leads="{{ stat.leads }}"
+                                data-appointments="{{ stat.appointments }}"> <i class="bi bi-pencil-fill"></i>
+                            </button>
+
+                            <form action="{% url 'delete_marketing_report' stat.id %}" method="POST" class="d-inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa báo cáo ngày {{ stat.report_date }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Xóa"><i class="bi bi-trash-fill"></i></button>
                             </form>
-                        </div>
-
-                        <div class="d-flex flex-grow-1 overflow-hidden">
-                            <div class="w-50 border-end p-4 overflow-auto bg-light">
-                                <h6 class="fw-bold text-secondary mb-3 small text-uppercase"><i class="bi bi-clock-history me-2"></i>Lịch sử chăm sóc</h6>
-                                {% if call_history %}
-                                    <div class="ps-2">
-                                    {% for log in call_history %}
-                                        <div class="timeline-item {% if log.status == 'BOOKED' %}success{% endif %}">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span class="fw-bold small">{{ log.caller.username|default:"Hệ thống" }}</span>
-                                                <small class="text-muted" style="font-size: 0.7rem;">{{ log.call_time|date:"d/m H:i" }}</small>
-                                            </div>
-                                            <div class="mb-1">
-                                                <span class="badge rounded-pill border {% if log.status == 'BOOKED' %}bg-success text-white border-success{% elif log.status == 'NO_ANSWER' %}bg-white text-secondary{% else %}bg-warning bg-opacity-25 text-dark border-warning{% endif %}">
-                                                    {{ log.get_status_display }}
-                                                </span>
-                                            </div>
-                                            <p class="mb-0 small text-secondary fst-italic bg-white p-2 rounded border shadow-sm">{{ log.note }}</p>
-                                        </div>
-                                    {% endfor %}
-                                    </div>
-                                {% else %}
-                                    <div class="text-center text-muted mt-5 opacity-50">
-                                        <i class="bi bi-chat-square-dots display-6"></i>
-                                        <p class="small mt-2">Chưa có lịch sử tương tác</p>
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <div class="w-50 p-4 bg-white d-flex flex-column">
-                                <h6 class="fw-bold text-primary mb-3 small text-uppercase"><i class="bi bi-pencil-square me-2"></i>Ghi nhận cuộc gọi mới</h6>
-                                <form method="POST" class="d-flex flex-column flex-grow-1">
-                                    {% csrf_token %}
-                                    <div class="mb-3">
-                                        <label class="form-label small text-muted mb-1">Nhân viên thực hiện:</label>
-                                        <select name="telesale_id" class="form-select form-select-sm fw-bold text-primary">
-                                            {% for staff in staff_users %}
-                                                <option value="{{ staff.id }}" {% if staff.id == request.user.id %}selected{% endif %}>{{ staff.username }} {% if staff.first_name %}- {{ staff.first_name }}{% endif %}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="mb-3 flex-grow-1">
-                                        <textarea name="note" class="form-control h-100" placeholder="Nhập nội dung trao đổi với khách..." style="resize: none;" required></textarea>
-                                    </div>
-                                    <div class="mb-3 bg-light p-2 rounded border">
-                                        <label class="form-label small fw-bold text-primary mb-1"><i class="bi bi-clock"></i> Chọn giờ hẹn (Nếu đặt lịch):</label>
-                                        <input type="datetime-local" name="appointment_date" class="form-control form-control-sm fw-bold text-primary">
-                                    </div>
-                                    <div class="d-grid gap-2">
-                                        <button type="submit" name="status" value="BOOKED" class="btn btn-success fw-bold py-2"><i class="bi bi-calendar-check me-2"></i> ĐẶT LỊCH HẸN</button>
-                                        <div class="row g-2">
-                                            <div class="col-6"><button type="submit" name="status" value="CALLING" class="btn btn-warning w-100 text-dark fw-bold"><i class="bi bi-arrow-repeat"></i> Gọi lại sau</button></div>
-                                            <div class="col-6"><button type="submit" name="status" value="NO_ANSWER" class="btn btn-light border w-100"><i class="bi bi-telephone-x"></i> Ko nghe</button></div>
-                                        </div>
-                                        <button type="submit" name="status" value="NOT_INTERESTED" class="btn btn-outline-danger btn-sm border-0">Khách không có nhu cầu / Sai số</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted bg-light">
-                            <i class="bi bi-arrow-left-circle display-4 mb-3 text-primary opacity-25"></i>
-                            <h5>Chọn khách hàng để bắt đầu</h5>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="10" class="py-5 text-muted">Chưa có dữ liệu báo cáo nào.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
+
 </div>
 
-<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2"></i>Thêm Data Khách Mới</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      
-      <form action="{% url 'add_customer' %}" method="POST">
-          {% csrf_token %}
-          <div class="modal-body bg-light">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold text-dark">Họ và Tên <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" required placeholder="Nguyễn Văn A">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-bold text-dark">Số điện thoại <span class="text-danger">*</span></label>
-                    <input type="text" name="phone" class="form-control" required placeholder="09xx...">
-                </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label text-dark fw-bold">Ngày sinh</label>
-                    <input type="date" name="dob" class="form-control">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label text-dark">Nguồn Data</label>
-                    <select name="source" class="form-select">
-                        <option value="FACEBOOK">Facebook Ads</option>
-                        <option value="GOOGLE">Google Ads</option>
-                        <option value="TIKTOK">Tiktok</option>
-                        <option value="SEO">SEO Website</option>
-                        <option value="REFERRAL">Bạn giới thiệu</option>
-                        <option value="OTHER">Khác</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold text-dark">Tỉnh/Thành phố</label>
-                    <input class="form-control" list="provinceOptions" name="city" placeholder="Nhập tên tỉnh...">
-                    <datalist id="provinceOptions">
-                        <option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Cần Thơ">
-                        <option value="Bình Dương"><option value="Đồng Nai"><option value="Long An"><option value="Tiền Giang">
-                    </datalist>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label text-dark">Địa chỉ chi tiết</label>
-                    <input type="text" name="address" class="form-control" placeholder="Số nhà, tên đường, phường/xã...">
-                </div>
-            </div>
-            <div class="mb-3">
-                <label class="form-label text-dark">Tình trạng da</label>
-                <select name="skin_condition" class="form-select">
-                    <option value="ACNE">Mụn viêm/ẩn</option>
-                    <option value="PIGMENTATION">Nám/Tàn nhang</option>
-                    <option value="SCAR">Sẹo rỗ</option>
-                    <option value="AGING">Lão hóa</option>
-                    <option value="OTHER">Khác</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label text-dark">Ghi chú Data</label>
-                <textarea name="note_telesale" class="form-control" rows="2" placeholder="Note từ Marketing..."></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-            <button type="submit" class="btn btn-primary fw-bold">Lưu Khách Mới</button>
-          </div>
-      </form>
-    </div>
-  </div>
-</div>
+{{ chart_dates|json_script:"j-dates" }}
+{{ chart_cpl|json_script:"j-cpl" }}
+{{ chart_leads|json_script:"j-leads" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function getData(id) { return JSON.parse(document.getElementById(id).textContent); }
+        const ctx = document.getElementById('marketingChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: getData('j-dates'),
+                datasets: [
+                    { label: 'Leads', data: getData('j-leads'), type: 'bar', backgroundColor: 'rgba(13, 110, 253, 0.7)', order: 2, yAxisID: 'y', borderRadius: 4 },
+                    { label: 'CPL (VNĐ)', data: getData('j-cpl'), type: 'line', borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', borderWidth: 3, pointRadius: 4, fill: false, tension: 0.3, order: 1, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Số lượng Leads', color: '#0d6efd' } },
+                    y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Chi phí CPL', color: '#dc3545' } }
+                }
+            }
+        });
+    });
+
+    // --- HÀM XỬ LÝ SỬA BÁO CÁO (ĐÃ SỬA) ---
+    function editReport(button) {
+        // 1. Mở form
+        var collapseElement = document.getElementById('inputForm');
+        var bsCollapse = new bootstrap.Collapse(collapseElement, { show: true });
+
+        // 2. Lấy dữ liệu từ data-attributes
+        var date = button.getAttribute('data-date');
+        var spend = button.getAttribute('data-spend'); 
+        var comments = button.getAttribute('data-comments');
+        var inboxes = button.getAttribute('data-inboxes');
+        var leads = button.getAttribute('data-leads');
+        var appointments = button.getAttribute('data-appointments'); // <--- MỚI THÊM
+
+        // 3. Điền vào form
+        document.querySelector('[name="report_date"]').value = date;
+        document.querySelector('[name="spend_amount"]').value = spend;
+        document.querySelector('[name="comments"]').value = comments;
+        document.querySelector('[name="inboxes"]').value = inboxes;
+        document.querySelector('[name="leads"]').value = leads;
+        document.querySelector('[name="appointments"]').value = appointments; // <--- MỚI THÊM
+
+        // 4. Cuộn lên đầu & Đổi nút
+        collapseElement.scrollIntoView({ behavior: 'smooth' });
+        var btnSave = document.getElementById('btnSave');
+        btnSave.className = "btn btn-warning fw-bold px-4 shadow-sm";
+        btnSave.innerHTML = "<i class='bi bi-pencil-square me-1'></i> CẬP NHẬT";
+    }
+
+    // --- HÀM RESET FORM (Về trạng thái thêm mới) ---
+    function resetForm() {
+        document.getElementById('marketingForm').reset();
+        var btnSave = document.getElementById('btnSave');
+        btnSave.className = "btn btn-success fw-bold px-4 shadow-sm";
+        btnSave.innerHTML = "<i class='bi bi-save me-1'></i> LƯU BÁO CÁO";
+    }
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
