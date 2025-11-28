@@ -8,7 +8,8 @@ class User(AbstractUser):
         RECEPTIONIST = "RECEPTIONIST", "Lễ tân"
         DOCTOR = "DOCTOR", "Bác sĩ"
         CONSULTANT = "CONSULTANT", "Sale Tư vấn"
-        TECHNICIAN = "TECHNICIAN", "Kỹ thuật viên" # <--- MỚI THÊM
+        TECHNICIAN = "TECHNICIAN", "Kỹ thuật viên" 
+        MARKETING = "MARKETING", "Nhân viên Marketing"
 
     role = models.CharField(max_length=50, choices=Role.choices, default=Role.ADMIN, verbose_name="Vai trò")
     phone = models.CharField(max_length=15, blank=True, null=True, verbose_name="Số điện thoại")

@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lịch làm việc Marketing{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Tùy chỉnh FullCalendar */
+    .fc-event { cursor: pointer; border: none; padding: 2px 4px; font-size: 0.85rem; }
+    .fc-day-today { background-color: rgba(52, 152, 219, 0.05) !important; }
+    
+    .task-card { transition: transform 0.2s; border-left: 4px solid transparent; }
+    .task-card:hover { transform: translateX(5px); }
+    .task-card.overdue { border-left-color: #dc3545; background-color: #fff5f5; }
+    .task-card.today { border-left-color: #ffc107; background-color: #fff3cd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row h-100 g-3">
+    <div class="col-lg-4 d-flex flex-column" style="height: calc(100vh - 40px);">
+        <div class="card card-box mb-3">
+            <div class="card-header bg-white fw-bold text-primary py-3">
+                <i class="bi bi-plus-circle me-2"></i>GIAO VIỆC MỚI
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-2">{{ form.title }}</div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">{{ form.category }}</div>
+                        <div class="col-6">{{ form.pic }}</div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="small text-muted">Bắt đầu</label>
+                            {{ form.start_date }}
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted text-danger fw-bold">Deadline</label>
+                            {{ form.deadline }}
+                        </div>
+                    </div>
+                    <div class="mb-3">{{ form.note }}</div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">LƯU CÔNG VIỆC</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card card-box flex-grow-1 overflow-hidden d-flex flex-column">
+            <div class="card-header bg-danger text-white fw-bold py-2">
+                <i class="bi bi-bell-fill me-2"></i>NHẮC NHỞ DEADLINE
+            </div>
+            <div class="card-body p-0 overflow-auto bg-light">
+                {% if tasks_urgent %}
+                    <div class="list-group list-group-flush">
+                        {% for task in tasks_urgent %}
+                        <div class="list-group-item task-card p-3 {% if task.is_overdue %}overdue{% else %}today{% endif %}">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <h6 class="mb-1 fw-bold">{{ task.title }}</h6>
+                                <span class="badge {% if task.category == 'DESIGN' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                    {{ task.get_category_display }}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 small">
+                                <div>
+                                    <i class="bi bi-person-circle me-1"></i> {{ task.pic.username|default:"--" }}
+                                </div>
+                                <div class="{% if task.is_overdue %}text-danger fw-bold{% else %}text-dark{% endif %}">
+                                    <i class="bi bi-clock me-1"></i> {{ task.deadline|date:"d/m" }}
+                                </div>
+                            </div>
+                            {% if task.is_overdue %}
+                                <div class="small text-danger mt-1 fst-italic">⚠️ Đã quá hạn!</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-check-circle display-4 text-success"></i>
+                        <p class="mt-2">Không có việc gấp!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card card-box h-100">
+            <div class="card-body p-3">
+                <div id="calendar" style="height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="taskDetailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalTitle">Chi tiết công việc</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>PIC:</strong> <span id="modalPic"></span></p>
+                <p><strong>Trạng thái:</strong> <span id="modalStatus"></span></p>
+                <p><strong>Ghi chú:</strong></p>
+                <div class="bg-light p-2 rounded border" id="modalNote"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'vi',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,listWeek'
+            },
+            events: '{% url "api_marketing_tasks" %}', // Gọi API lấy dữ liệu
+            eventClick: function(info) {
+                // Hiển thị modal chi tiết khi click vào task trên lịch
+                document.getElementById('modalTitle').innerText = info.event.title;
+                document.getElementById('modalPic').innerText = info.event.extendedProps.pic;
+                document.getElementById('modalStatus').innerText = info.event.extendedProps.status;
+                document.getElementById('modalNote').innerText = info.event.extendedProps.note || "Không có ghi chú";
+                
+                var modal = new bootstrap.Modal(document.getElementById('taskDetailModal'));
+                modal.show();
+            }
+        });
+        calendar.render();
+    });
+</script>
+{% endblock %}

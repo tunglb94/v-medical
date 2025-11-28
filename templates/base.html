@@ -76,7 +76,7 @@
             .mobile-nav-toggle { display: block; }
         }
 
-        /* Utility Classes cho các trang con */
+        /* Utility Classes */
         .card-box { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: white; }
     </style>
     {% block extra_css %}{% endblock %}
@@ -132,9 +132,17 @@
             </a>
         </li>
         
+        <li class="menu-header">Marketing Center</li>
+
         <li>
             <a href="{% url 'marketing_dashboard' %}" class="{% if request.resolver_match.url_name == 'marketing_dashboard' %}active{% endif %}">
-                <i class="bi bi-megaphone-fill"></i> <span>Marketing & Chi Phí</span>
+                <i class="bi bi-megaphone-fill"></i> <span>Báo cáo Ads</span>
+            </a>
+        </li>
+        
+        <li>
+            <a href="{% url 'marketing_workspace' %}" class="{% if 'workspace' in request.path %}active{% endif %}">
+                <i class="bi bi-kanban-fill"></i> <span>Lịch Team & Task</span>
             </a>
         </li>
     </ul>
