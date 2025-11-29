@@ -11,9 +11,10 @@ from apps.bookings.models import Appointment
 from apps.sales.models import Order
 from apps.authentication.decorators import allowed_users
 
-# 1. DANH SÁCH KHÁCH HÀNG (CHỈ LỄ TÂN)
+# 1. DANH SÁCH KHÁCH HÀNG
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST']) 
+# --- SỬA DÒNG DƯỚI: THÊM 'ADMIN', 'TELESALE' VÀO ---
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE']) 
 def customer_list(request):
     # Lấy tham số lọc
     query = request.GET.get('q', '')
@@ -53,9 +54,10 @@ def customer_list(request):
     }
     return render(request, 'customers/customer_list.html', context)
 
-# 2. HỒ SƠ CHI TIẾT (CHỈ LỄ TÂN)
+# 2. HỒ SƠ CHI TIẾT
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST'])
+# --- SỬA DÒNG DƯỚI: THÊM 'ADMIN', 'TELESALE' VÀO ---
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
 def customer_detail(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     
@@ -82,7 +84,7 @@ def customer_detail(request, pk):
     }
     return render(request, 'customers/customer_detail.html', context)
 
-# 3. XÓA KHÁCH (CHỈ ADMIN)
+# 3. XÓA KHÁCH (CHỈ ADMIN GIỮ NGUYÊN)
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def customer_delete(request, pk):
