@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card card-box shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold m-0 text-primary">{{ title }}</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Tên đăng nhập *</label>
+                            {{ form.username }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Mật khẩu</label>
+                            {{ form.password }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Họ đệm</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Tên *</label>
+                            {{ form.first_name }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Vai trò (Phân quyền) *</label>
+                        {{ form.role }}
+                        <div class="form-text small text-muted">
+                            <i class="bi bi-info-circle"></i> Vai trò quyết định các Tab được hiển thị trên Menu.
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Số điện thoại</label>
+                            {{ form.phone }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Email</label>
+                            {{ form.email }}
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        {{ form.is_active }}
+                        <label class="form-check-label">Đang hoạt động (Cho phép đăng nhập)</label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary fw-bold py-2">LƯU THÔNG TIN</button>
+                        <a href="{% url 'staff_list' %}" class="btn btn-light border">Hủy bỏ</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

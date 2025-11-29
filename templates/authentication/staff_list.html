@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quản Lý Nhân Sự{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold text-dark mb-0">DANH SÁCH NHÂN SỰ</h4>
+    <a href="{% url 'staff_create' %}" class="btn btn-primary fw-bold shadow-sm">
+        <i class="bi bi-person-plus-fill me-2"></i>Thêm Nhân Viên
+    </a>
+</div>
+
+<div class="card card-box">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small text-uppercase">
+                <tr>
+                    <th class="ps-4">Nhân viên</th>
+                    <th>Vai trò (Role)</th>
+                    <th>Liên hệ</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end pe-4">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in staffs %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3 fw-bold" style="width:40px; height:40px;">
+                                {{ user.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark">{{ user.first_name }} {{ user.last_name }}</div>
+                                <div class="small text-muted">@{{ user.username }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if user.role == 'ADMIN' %}<span class="badge bg-danger">Quản trị viên</span>
+                        {% elif user.role == 'TELESALE' %}<span class="badge bg-warning text-dark">Telesale</span>
+                        {% elif user.role == 'RECEPTIONIST' %}<span class="badge bg-info text-dark">Lễ tân</span>
+                        {% elif user.role == 'DOCTOR' %}<span class="badge bg-success">Bác sĩ</span>
+                        {% elif user.role == 'MARKETING' %}<span class="badge bg-primary">Marketing</span>
+                        {% else %}<span class="badge bg-secondary">{{ user.get_role_display }}</span>{% endif %}
+                    </td>
+                    <td class="small">
+                        <div><i class="bi bi-telephone me-1"></i> {{ user.phone|default:"--" }}</div>
+                        <div><i class="bi bi-envelope me-1"></i> {{ user.email|default:"--" }}</div>
+                    </td>
+                    <td>
+                        {% if user.is_active %}
+                            <span class="badge bg-success-subtle text-success border border-success"><i class="bi bi-check-circle me-1"></i>Hoạt động</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger"><i class="bi bi-ban me-1"></i>Đã khóa</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        <a href="{% url 'staff_edit' user.pk %}" class="btn btn-sm btn-light text-primary border"><i class="bi bi-pencil-square"></i></a>
+                        {% if not user.is_superuser %}
+                            <a href="{% url 'staff_delete' user.pk %}" class="btn btn-sm btn-light text-danger border" onclick="return confirm('Xóa nhân viên này?');"><i class="bi bi-trash"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
