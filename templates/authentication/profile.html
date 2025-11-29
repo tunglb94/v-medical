@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Hồ Sơ Cá Nhân{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h4 class="fw-bold text-dark mb-0">HỒ SƠ CỦA TÔI</h4>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card card-box h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h6 class="m-0 fw-bold text-primary"><i class="bi bi-person-vcard me-2"></i>THÔNG TIN CÁ NHÂN</h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 100px; height: 100px;">
+                        <span class="display-4 fw-bold text-secondary">{{ request.user.username|slice:":1"|upper }}</span>
+                    </div>
+                    <h5 class="fw-bold">{{ request.user.last_name }} {{ request.user.first_name }}</h5>
+                    <div class="badge bg-info text-dark">{{ request.user.get_role_display }}</div>
+                    <div class="text-muted small mt-1">@{{ request.user.username }}</div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Họ đệm</label>
+                            {{ profile_form.last_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Tên</label>
+                            {{ profile_form.first_name }}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Email</label>
+                            {{ profile_form.email }}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Số điện thoại</label>
+                            {{ profile_form.phone }}
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" name="btn_profile" class="btn btn-primary fw-bold">
+                            <i class="bi bi-save me-2"></i>LƯU THAY ĐỔI
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-box h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h6 class="m-0 fw-bold text-danger"><i class="bi bi-shield-lock me-2"></i>ĐỔI MẬT KHẨU</h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-warning small mb-4">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Mật khẩu nên có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số để đảm bảo an toàn.
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    {% for field in password_form %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div class="form-text small text-muted">{{ field.help_text|safe }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" name="btn_password" class="btn btn-danger fw-bold">
+                            <i class="bi bi-key me-2"></i>CẬP NHẬT MẬT KHẨU
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

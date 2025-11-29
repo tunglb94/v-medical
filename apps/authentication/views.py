@@ -1,14 +1,21 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib.auth import authenticate, login, logout, get_user_model, update_session_auth_hash
 from django.contrib import messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from apps.authentication.decorators import allowed_users
-from .forms import StaffForm
+from .forms import StaffForm, ProfileUpdateForm, CustomPasswordChangeForm
 
 User = get_user_model()
 
-# --- 1. HÀM ĐĂNG NHẬP ---
+# --- 1. AUTHENTICATION (ĐĂNG NHẬP / ĐĂNG XUẤT / ROOT) ---
+
+def root_view(request):
+    """Trang chủ điều hướng (Cổng chính)"""
+    if request.user.is_authenticated:
+        return redirect_based_on_role(request.user)
+    return redirect('login')
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect_based_on_role(request.user)
@@ -29,44 +36,28 @@ def login_view(request):
 
     return render(request, 'authentication/login.html', {'form': form})
 
-# --- 2. HÀM ĐĂNG XUẤT ---
 def logout_view(request):
     logout(request)
     messages.success(request, "Đã đăng xuất.")
     return redirect('login')
 
-# --- 3. LOGIC ĐIỀU HƯỚNG THÔNG MINH ---
 def redirect_based_on_role(user):
-    """
-    Hàm này quyết định user được đi đâu.
-    """
+    """Điều hướng user đến trang phù hợp với vai trò"""
     if user.role == 'ADMIN' or user.is_superuser:
         return redirect('admin_dashboard')
-    
-    elif user.role == 'MARKETING': # <--- THÊM MARKETING
+    elif user.role == 'MARKETING':
         return redirect('marketing_dashboard')
-    
     elif user.role == 'RECEPTIONIST':
         return redirect('reception_home')
-    
     elif user.role == 'TELESALE':
-        return redirect('telesale_home') # <--- Đổi 'home' thành 'telesale_home'
+        return redirect('telesale_home') # Đã sửa thành telesale_home
     
-    # Mặc định cho các vai trò khác (Bác sĩ, KTV...) vào trang Lễ tân xem lịch
+    # Bác sĩ, KTV... mặc định vào Lịch hẹn
     return redirect('reception_home')
 
-# --- 4. TRANG CHỦ ẢO (ROUTER) --- <--- MỚI THÊM
-def root_view(request):
-    """
-    Khi truy cập '/', hàm này sẽ chạy.
-    Nếu chưa đăng nhập -> về Login.
-    Nếu rồi -> Điều hướng theo vai trò.
-    """
-    if request.user.is_authenticated:
-        return redirect_based_on_role(request.user)
-    return redirect('login')
 
-# ... (Các hàm Quản lý nhân sự staff_list, staff_create_update... giữ nguyên như cũ) ...
+# --- 2. QUẢN LÝ NHÂN SỰ (CHỈ ADMIN) ---
+
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def staff_list(request):
@@ -87,7 +78,7 @@ def staff_create_update(request, pk=None):
         form = StaffForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Đã lưu thông tin nhân viên: {form.cleaned_data['username']}")
+            messages.success(request, f"Đã lưu thông tin: {form.cleaned_data['username']}")
             return redirect('staff_list')
     else:
         form = StaffForm(instance=user)
@@ -104,3 +95,41 @@ def staff_delete(request, pk):
         user.delete()
         messages.success(request, "Đã xóa nhân viên.")
     return redirect('staff_list')
+
+
+# --- 3. HỒ SƠ CÁ NHÂN (TẤT CẢ USER) ---
+
+@login_required(login_url='/auth/login/')
+def user_profile(request):
+    user = request.user
+    
+    profile_form = ProfileUpdateForm(instance=user)
+    password_form = CustomPasswordChangeForm(user=user)
+
+    if request.method == 'POST':
+        # Cập nhật thông tin
+        if 'btn_profile' in request.POST:
+            profile_form = ProfileUpdateForm(request.POST, instance=user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Đã cập nhật thông tin cá nhân!")
+                return redirect('user_profile')
+            else:
+                messages.error(request, "Lỗi cập nhật thông tin.")
+
+        # Đổi mật khẩu
+        elif 'btn_password' in request.POST:
+            password_form = CustomPasswordChangeForm(user=user, data=request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                update_session_auth_hash(request, password_form.user) # Giữ đăng nhập
+                messages.success(request, "Đổi mật khẩu thành công!")
+                return redirect('user_profile')
+            else:
+                messages.error(request, "Mật khẩu không hợp lệ.")
+
+    context = {
+        'profile_form': profile_form,
+        'password_form': password_form
+    }
+    return render(request, 'authentication/profile.html', context)
