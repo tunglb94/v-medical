@@ -121,8 +121,14 @@
                         <label class="form-label fw-bold small text-muted">Headline (Tiêu đề)</label>
                         {{ form.ad_headline }}
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Nội dung Post</label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-bold small text-muted m-0">Nội dung bài Post</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openAiModal()">
+                                <i class="bi bi-stars text-warning me-1"></i>Viết bằng AI
+                            </button>
+                        </div>
                         {{ form.post_content }}
                     </div>
 
@@ -150,15 +156,39 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="aiModal" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning bg-opacity-25">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-stars text-warning me-2"></i>Trợ lý AI Content</h5>
+                <button type="button" class="btn-close" onclick="closeAiModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Nhập yêu cầu của bạn:</label>
+                    <textarea class="form-control" id="aiPrompt" rows="3" placeholder="VD: Viết bài quảng cáo dịch vụ trị nám, giảm giá 30%, giọng hài hước..."></textarea>
+                </div>
+                <div id="aiLoading" class="text-center d-none text-primary mb-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div> Đang viết, chờ xíu...
+                </div>
+                <button type="button" class="btn btn-primary w-100 fw-bold" onclick="generateContent()">
+                    <i class="bi bi-magic me-2"></i>TẠO NỘI DUNG
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Chuyển JS xuống đây để đảm bảo Bootstrap đã load xong
-    var adModal;
+    var adModal, aiModal;
     
     document.addEventListener('DOMContentLoaded', function() {
         adModal = new bootstrap.Modal(document.getElementById('adModal'));
+        aiModal = new bootstrap.Modal(document.getElementById('aiModal'));
     });
 
     function openModal() {
@@ -175,25 +205,63 @@
         document.getElementById('adId').value = id;
         document.getElementById('modalTitle').innerText = "CẬP NHẬT CONTENT";
         
-        // Điền dữ liệu (dùng try-catch để tránh lỗi nếu dữ liệu trống)
         try {
             document.querySelector('[name="ad_headline"]').value = parts[0].trim();
             document.querySelector('[name="post_content"]').value = parts[1].trim();
             document.querySelector('[name="link_video"]').value = parts[2].trim();
             document.querySelector('[name="link_thumb"]').value = parts[3].trim();
             document.querySelector('[name="result_note"]').value = parts[4].trim();
-            
-            // Dropdown (cần check nếu có giá trị)
             if(parts[5].trim()) document.querySelector('[name="content_creator"]').value = parts[5].trim();
             if(parts[6].trim()) document.querySelector('[name="editor"]').value = parts[6].trim();
             if(parts[7].trim()) document.querySelector('[name="marketer"]').value = parts[7].trim();
-            
             document.querySelector('[name="title"]').value = parts[8].trim();
-        } catch(e) {
-            console.log("Lỗi điền form: ", e);
-        }
+        } catch(e) { console.log(e); }
 
         adModal.show();
+    }
+
+    // --- AI FUNCTIONS ---
+    function openAiModal() {
+        aiModal.show();
+    }
+
+    function closeAiModal() {
+        aiModal.hide();
+    }
+
+    function generateContent() {
+        var prompt = document.getElementById('aiPrompt').value;
+        if (!prompt) {
+            alert("Vui lòng nhập yêu cầu!");
+            return;
+        }
+
+        document.getElementById('aiLoading').classList.remove('d-none');
+        
+        // Gọi API Backend
+        var formData = new FormData();
+        formData.append('prompt', prompt);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('{% url "api_generate_ads" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('aiLoading').classList.add('d-none');
+            if (data.success) {
+                // Điền nội dung vào Form chính
+                document.querySelector('[name="post_content"]').value = data.content;
+                aiModal.hide(); // Đóng modal AI
+            } else {
+                alert("Lỗi AI: " + data.error);
+            }
+        })
+        .catch(error => {
+            document.getElementById('aiLoading').classList.add('d-none');
+            alert("Lỗi kết nối: " + error);
+        });
     }
 </script>
 {% endblock %}

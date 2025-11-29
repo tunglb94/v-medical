@@ -5,6 +5,10 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum, Q
 from django.http import JsonResponse
+from django.conf import settings # Import settings để lấy Key
+
+# Import thư viện AI
+import google.generativeai as genai
 
 from .models import DailyCampaignStat, MarketingTask, ContentAd
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -128,7 +132,7 @@ def get_marketing_tasks_api(request):
         })
     return JsonResponse(events, safe=False)
 
-# --- 3. QUẢN LÝ CONTENT ADS (MỚI) ---
+# --- 3. QUẢN LÝ CONTENT ADS ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR']) 
 def content_ads_list(request):
@@ -169,3 +173,37 @@ def content_ads_delete(request, pk):
         ad.delete()
         messages.success(request, "Đã xóa bài Content Ads.")
     return redirect('content_ads_list')
+
+# --- 4. API GỌI GEMINI (MỚI THÊM) ---
+@login_required(login_url='/auth/login/')
+def generate_ad_content_api(request):
+    if request.method == 'POST':
+        prompt = request.POST.get('prompt')
+        if not prompt:
+            return JsonResponse({'success': False, 'error': 'Vui lòng nhập yêu cầu.'})
+        
+        try:
+            # Cấu hình Gemini
+            genai.configure(api_key=getattr(settings, 'GEMINI_API_KEY', ''))
+            model = genai.GenerativeModel('gemini-1.5-flash') # Dùng bản Flash cho nhanh và rẻ
+            
+            # Prompt bổ sung để AI viết đúng chuẩn Ads
+            full_prompt = f"""
+            Bạn là một chuyên gia Copywriter cho Thẩm mỹ viện. Hãy viết một bài quảng cáo Facebook hấp dẫn dựa trên yêu cầu sau:
+            "{prompt}"
+            
+            Yêu cầu:
+            - Có tiêu đề giật tít (Headline).
+            - Dùng icon sinh động.
+            - Chia đoạn rõ ràng, dễ đọc.
+            - Có lời kêu gọi hành động (CTA) cuối bài.
+            - Giọng văn: Thân thiện, chuyên nghiệp, đánh trúng nỗi đau khách hàng.
+            """
+            
+            response = model.generate_content(full_prompt)
+            return JsonResponse({'success': True, 'content': response.text})
+        
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+            
+    return JsonResponse({'success': False, 'error': 'Invalid request'})

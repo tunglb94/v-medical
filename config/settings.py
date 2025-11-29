@@ -150,3 +150,6 @@ JAZZMIN_UI_TWEAKS = {
         "warning": "btn-warning", "danger": "btn-danger", "success": "btn-success"
     }
 }
+
+# CẤU HÌNH GEMINI AI
+GEMINI_API_KEY = "AIzaSyBNd2qk0JpoM8Z_VrtEag1Isrw_pjutI14"
