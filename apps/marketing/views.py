@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum, Q
 from django.http import JsonResponse
-from django.conf import settings # Import settings để lấy Key
+from django.conf import settings 
 
 # Import thư viện AI
 import google.generativeai as genai
@@ -174,7 +174,7 @@ def content_ads_delete(request, pk):
         messages.success(request, "Đã xóa bài Content Ads.")
     return redirect('content_ads_list')
 
-# --- 4. API GỌI GEMINI (MỚI THÊM) ---
+# --- 4. API GỌI GEMINI (ĐÃ SỬA LỖI MODEL) ---
 @login_required(login_url='/auth/login/')
 def generate_ad_content_api(request):
     if request.method == 'POST':
@@ -184,10 +184,15 @@ def generate_ad_content_api(request):
         
         try:
             # Cấu hình Gemini
-            genai.configure(api_key=getattr(settings, 'GEMINI_API_KEY', ''))
-            model = genai.GenerativeModel('gemini-1.5-flash') # Dùng bản Flash cho nhanh và rẻ
+            api_key = getattr(settings, 'GEMINI_API_KEY', None)
+            if not api_key:
+                return JsonResponse({'success': False, 'error': 'Chưa cấu hình GEMINI_API_KEY trong settings.py'})
+
+            genai.configure(api_key=api_key)
             
-            # Prompt bổ sung để AI viết đúng chuẩn Ads
+            # --- SỬ DỤNG MODEL GEMINI-PRO (ỔN ĐỊNH HƠN) ---
+            model = genai.GenerativeModel('gemini-pro') 
+            
             full_prompt = f"""
             Bạn là một chuyên gia Copywriter cho Thẩm mỹ viện. Hãy viết một bài quảng cáo Facebook hấp dẫn dựa trên yêu cầu sau:
             "{prompt}"
