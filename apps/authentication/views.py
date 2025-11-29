@@ -8,11 +8,11 @@ from .forms import StaffForm
 
 User = get_user_model()
 
-# ... (Giữ nguyên login_view, logout_view, redirect_based_on_role cũ) ...
-# ... BẮT ĐẦU ĐOẠN CODE CŨ ...
+# --- 1. HÀM ĐĂNG NHẬP ---
 def login_view(request):
     if request.user.is_authenticated:
         return redirect_based_on_role(request.user)
+
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -26,22 +26,47 @@ def login_view(request):
             messages.error(request, "Vui lòng kiểm tra lại thông tin.")
     else:
         form = AuthenticationForm()
+
     return render(request, 'authentication/login.html', {'form': form})
 
+# --- 2. HÀM ĐĂNG XUẤT ---
 def logout_view(request):
     logout(request)
     messages.success(request, "Đã đăng xuất.")
     return redirect('login')
 
+# --- 3. LOGIC ĐIỀU HƯỚNG THÔNG MINH ---
 def redirect_based_on_role(user):
-    if user.role == 'ADMIN' or user.is_superuser: return redirect('admin_dashboard')
-    elif user.role == 'RECEPTIONIST': return redirect('reception_home')
-    elif user.role == 'TELESALE': return redirect('home')
-    return redirect('home')
-# ... KẾT THÚC ĐOẠN CODE CŨ ...
+    """
+    Hàm này quyết định user được đi đâu.
+    """
+    if user.role == 'ADMIN' or user.is_superuser:
+        return redirect('admin_dashboard')
+    
+    elif user.role == 'MARKETING': # <--- THÊM MARKETING
+        return redirect('marketing_dashboard')
+    
+    elif user.role == 'RECEPTIONIST':
+        return redirect('reception_home')
+    
+    elif user.role == 'TELESALE':
+        return redirect('telesale_home') # <--- Đổi 'home' thành 'telesale_home'
+    
+    # Mặc định cho các vai trò khác (Bác sĩ, KTV...) vào trang Lễ tân xem lịch
+    return redirect('reception_home')
 
-# --- PHẦN MỚI: QUẢN LÝ NHÂN SỰ ---
+# --- 4. TRANG CHỦ ẢO (ROUTER) --- <--- MỚI THÊM
+def root_view(request):
+    """
+    Khi truy cập '/', hàm này sẽ chạy.
+    Nếu chưa đăng nhập -> về Login.
+    Nếu rồi -> Điều hướng theo vai trò.
+    """
+    if request.user.is_authenticated:
+        return redirect_based_on_role(request.user)
+    return redirect('login')
 
+# ... (Các hàm Quản lý nhân sự staff_list, staff_create_update... giữ nguyên như cũ) ...
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def staff_list(request):
