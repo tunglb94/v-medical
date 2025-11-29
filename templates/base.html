@@ -13,43 +13,72 @@
     <style>
         :root {
             --sidebar-width: 260px;
-            --primary-color: #2c3e50; /* Màu nền Menu */
+            --primary-color: #2c3e50;
             --active-color: #3498db;
             --bg-color: #f3f4f6;
         }
         
-        body { background-color: var(--bg-color); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        body { 
+            background-color: var(--bg-color); 
+            font-family: 'Segoe UI', sans-serif; 
+            overflow-x: hidden; 
+            margin: 0;
+        }
         
-        /* --- SIDEBAR STYLES (FIX LỖI) --- */
+        /* --- SIDEBAR STYLES --- */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
-            background-color: #2c3e50 !important; /* Bắt buộc có màu nền */
+            background-color: var(--primary-color) !important; /* Màu nền cố định */
             color: #ecf0f1;
             position: fixed;
-            top: 0; left: 0;
-            display: flex; flex-direction: column;
-            z-index: 1050; /* Cao hơn Navbar mặc định của Bootstrap (1030) */
+            top: 0; 
+            left: 0;
+            display: flex; 
+            flex-direction: column;
+            z-index: 1050;
             box-shadow: 4px 0 10px rgba(0,0,0,0.1);
             transition: transform 0.3s ease-in-out;
-            overflow-y: auto; /* Cho phép cuộn nếu menu dài */
+            overflow-y: auto;
         }
         
         .sidebar-brand {
-            padding: 20px; text-align: center;
+            padding: 20px; 
+            text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            background-color: #1a252f; /* Màu nền đậm hơn cho Logo */
+            background-color: #1a252f;
         }
-        .sidebar-brand img { height: 45px; object-fit: contain; background: white; padding: 5px; border-radius: 8px; margin-bottom: 8px; }
-        .sidebar-brand h6 { font-weight: 800; letter-spacing: 1px; margin: 0; color: #fff; font-size: 1.1rem; }
+        .sidebar-brand img { 
+            height: 45px; 
+            object-fit: contain; 
+            background: white; 
+            padding: 5px; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+        }
+        .sidebar-brand h6 { 
+            font-weight: 800; 
+            letter-spacing: 1px; 
+            margin: 0; 
+            color: #fff; 
+            font-size: 1.1rem; 
+        }
         
-        .sidebar-menu { padding: 15px 0; flex-grow: 1; list-style: none; margin: 0; }
+        .sidebar-menu { 
+            padding: 15px 0; 
+            flex-grow: 1; 
+            list-style: none; 
+            margin: 0; 
+        }
         .sidebar-menu li { margin-bottom: 2px; }
         .sidebar-menu li a {
-            display: flex; align-items: center;
+            display: flex; 
+            align-items: center;
             padding: 12px 25px;
-            color: #bdc3c7; text-decoration: none;
-            font-weight: 500; transition: all 0.2s;
+            color: #bdc3c7; 
+            text-decoration: none;
+            font-weight: 500; 
+            transition: all 0.2s;
             border-left: 4px solid transparent;
         }
         .sidebar-menu li a:hover, .sidebar-menu li a.active {
@@ -57,49 +86,78 @@
             color: #fff;
             border-left-color: var(--active-color);
         }
-        .sidebar-menu li a i { margin-right: 15px; font-size: 1.2rem; width: 25px; text-align: center; }
-        .menu-header { font-size: 0.75rem; text-transform: uppercase; color: #95a5a6; padding: 15px 25px 5px; font-weight: bold; letter-spacing: 0.5px; }
+        .sidebar-menu li a i { 
+            margin-right: 15px; 
+            font-size: 1.2rem; 
+            width: 25px; 
+            text-align: center; 
+        }
+        .menu-header { 
+            font-size: 0.75rem; 
+            text-transform: uppercase; 
+            color: #95a5a6; 
+            padding: 15px 25px 5px; 
+            font-weight: bold; 
+            letter-spacing: 0.5px; 
+        }
         
-        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background-color: #1a252f; }
+        .sidebar-footer { 
+            padding: 20px; 
+            border-top: 1px solid rgba(255,255,255,0.1); 
+            background-color: #1a252f; 
+        }
         
         /* --- MAIN CONTENT --- */
         .main-content { 
-            margin-left: var(--sidebar-width); 
+            margin-left: var(--sidebar-width); /* Đẩy nội dung sang phải bằng chiều rộng menu */
             padding: 20px; 
             transition: margin-left 0.3s ease-in-out; 
             min-height: 100vh; 
-            width: calc(100% - var(--sidebar-width));
+            width: auto; /* Tự động lấp đầy phần còn lại */
         }
         
-        /* --- MOBILE & TABLET RESPONSIVE (< 992px) --- */
+        /* --- MOBILE & TABLET (< 992px) --- */
         .mobile-nav-toggle {
             display: none; 
-            position: fixed; top: 15px; right: 15px; z-index: 1100;
-            background: var(--primary-color); color: white; border: none; border-radius: 5px; padding: 8px 12px;
+            position: fixed; 
+            top: 15px; 
+            right: 15px; 
+            z-index: 1100;
+            background: var(--primary-color); 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            padding: 8px 12px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
-        /* Lớp phủ đen khi mở menu trên mobile */
         .sidebar-overlay {
             display: none;
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 1040;
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); 
+            z-index: 1040;
         }
         .sidebar-overlay.active { display: block; }
 
         @media (max-width: 992px) {
-            .sidebar { transform: translateX(-100%); } /* Ẩn menu sang trái */
-            .sidebar.show { transform: translateX(0); } /* Hiện menu */
+            .sidebar { transform: translateX(-100%); } /* Mặc định ẩn trên mobile */
+            .sidebar.show { transform: translateX(0); } /* Hiện khi có class show */
             
             .main-content { 
-                margin-left: 0; 
-                width: 100%; 
+                margin-left: 0; /* Nội dung tràn màn hình trên mobile */
             }
             
             .mobile-nav-toggle { display: block; }
         }
 
-        .card-box { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: white; }
+        .card-box { 
+            border: none; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+            background: white; 
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -138,7 +196,7 @@
 
         {% if request.user.role in 'ADMIN,TELESALE' %}
         <li>
-            <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+            <a href="{% url 'telesale_home' %}" class="{% if request.resolver_match.url_name == 'telesale_home' %}active{% endif %}">
                 <i class="bi bi-headset"></i> <span>Telesale Center</span>
             </a>
         </li>
@@ -160,7 +218,7 @@
         </li>
         {% endif %}
 
-        {% if request.user.role in 'ADMIN,MARKETING' %}
+        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR' %}
         <li class="menu-header">Tài chính & Marketing</li>
         {% endif %}
 
@@ -176,6 +234,14 @@
         <li>
             <a href="{% url 'marketing_dashboard' %}" class="{% if request.resolver_match.url_name == 'marketing_dashboard' %}active{% endif %}">
                 <i class="bi bi-megaphone-fill"></i> <span>Báo Cáo Ads</span>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR' %}
+        <li>
+            <a href="{% url 'content_ads_list' %}" class="{% if 'content-ads' in request.path %}active{% endif %}">
+                <i class="bi bi-collection-play-fill"></i> <span>Kho Content & Ads</span>
             </a>
         </li>
         <li>
