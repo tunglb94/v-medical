@@ -51,7 +51,7 @@
                 </div>
                 {% endif %}
 
-                <div class="d-flex gap-2 mb-3 text-secondary small">
+                <div class="d-flex gap-2 mb-3 text-secondary small flex-wrap">
                     <span class="badge bg-info bg-opacity-10 text-info border border-info" title="Content"><i class="bi bi-pen-fill"></i> {{ ad.content_creator.username|default:"--" }}</span>
                     <span class="badge bg-warning bg-opacity-10 text-warning border border-warning" title="Editor"><i class="bi bi-film"></i> {{ ad.editor.username|default:"--" }}</span>
                     <span class="badge bg-primary bg-opacity-10 text-primary border border-primary" title="Marketer"><i class="bi bi-graph-up-arrow"></i> {{ ad.marketer.username|default:"--" }}</span>
@@ -150,37 +150,50 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    var modal = new bootstrap.Modal(document.getElementById('adModal'));
+    // Chuyển JS xuống đây để đảm bảo Bootstrap đã load xong
+    var adModal;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        adModal = new bootstrap.Modal(document.getElementById('adModal'));
+    });
 
     function openModal() {
         document.getElementById('adId').value = '';
         document.getElementById('modalTitle').innerText = "THÊM CONTENT MỚI";
         document.querySelector('form').reset();
-        modal.show();
+        adModal.show();
     }
 
     function editAd(id) {
-        // Lấy dữ liệu từ div ẩn (cách đơn giản không cần gọi API)
         var dataString = document.getElementById('data-' + id).innerText;
         var parts = dataString.split('|||');
         
         document.getElementById('adId').value = id;
         document.getElementById('modalTitle').innerText = "CẬP NHẬT CONTENT";
         
-        // Điền dữ liệu
-        document.querySelector('[name="ad_headline"]').value = parts[0].trim();
-        document.querySelector('[name="post_content"]').value = parts[1].trim();
-        document.querySelector('[name="link_video"]').value = parts[2].trim();
-        document.querySelector('[name="link_thumb"]').value = parts[3].trim();
-        document.querySelector('[name="result_note"]').value = parts[4].trim();
-        document.querySelector('[name="content_creator"]').value = parts[5].trim();
-        document.querySelector('[name="editor"]').value = parts[6].trim();
-        document.querySelector('[name="marketer"]').value = parts[7].trim();
-        document.querySelector('[name="title"]').value = parts[8].trim();
+        // Điền dữ liệu (dùng try-catch để tránh lỗi nếu dữ liệu trống)
+        try {
+            document.querySelector('[name="ad_headline"]').value = parts[0].trim();
+            document.querySelector('[name="post_content"]').value = parts[1].trim();
+            document.querySelector('[name="link_video"]').value = parts[2].trim();
+            document.querySelector('[name="link_thumb"]').value = parts[3].trim();
+            document.querySelector('[name="result_note"]').value = parts[4].trim();
+            
+            // Dropdown (cần check nếu có giá trị)
+            if(parts[5].trim()) document.querySelector('[name="content_creator"]').value = parts[5].trim();
+            if(parts[6].trim()) document.querySelector('[name="editor"]').value = parts[6].trim();
+            if(parts[7].trim()) document.querySelector('[name="marketer"]').value = parts[7].trim();
+            
+            document.querySelector('[name="title"]').value = parts[8].trim();
+        } catch(e) {
+            console.log("Lỗi điền form: ", e);
+        }
 
-        modal.show();
+        adModal.show();
     }
 </script>
 {% endblock %}
