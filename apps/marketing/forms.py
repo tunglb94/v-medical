@@ -1,13 +1,16 @@
 from django import forms
 from .models import DailyCampaignStat, MarketingTask
 
-# --- FORM CŨ ---
 class DailyStatForm(forms.ModelForm):
     class Meta:
         model = DailyCampaignStat
-        fields = ['report_date', 'spend_amount', 'comments', 'inboxes', 'leads', 'appointments']
+        fields = ['report_date', 'marketer', 'service', 'spend_amount', 'comments', 'inboxes', 'leads', 'appointments']
         widgets = {
             'report_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control fw-bold'}),
+            # Nhập text tự do
+            'marketer': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tên người chạy...'}),
+            'service': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tên dịch vụ...'}),
+            
             'spend_amount': forms.NumberInput(attrs={'class': 'form-control text-danger fw-bold', 'placeholder': '0'}),
             'comments': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0'}),
             'inboxes': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0'}),
@@ -15,7 +18,6 @@ class DailyStatForm(forms.ModelForm):
             'appointments': forms.NumberInput(attrs={'class': 'form-control text-success fw-bold', 'placeholder': '0'}),
         }
 
-# --- FORM MỚI: TASK ---
 class MarketingTaskForm(forms.ModelForm):
     class Meta:
         model = MarketingTask
