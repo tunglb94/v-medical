@@ -6,8 +6,8 @@ from django.conf.urls.static import static
 # Import views từ Authentication (để lấy root_view)
 from apps.authentication.views import root_view
 
-# Import views từ Telesales
-from apps.telesales.views import telesale_dashboard, add_customer_manual
+# Import views từ Telesales (THÊM telesale_report VÀO ĐÂY)
+from apps.telesales.views import telesale_dashboard, add_customer_manual, telesale_report
 
 # Import views từ Bookings
 from apps.bookings.views import (
@@ -22,7 +22,7 @@ from apps.sales.views import (
 
 urlpatterns = [
     # --- 0. TRANG CHỦ ĐIỀU HƯỚNG ---
-    path('', root_view, name='root'), # <--- MỚI: Cổng chính để điều hướng
+    path('', root_view, name='root'), 
 
     # --- 1. ADMIN DJANGO ---
     path('admin/', admin.site.urls),
@@ -33,9 +33,10 @@ urlpatterns = [
     # --- 3. DASHBOARD ---
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
-    # --- 4. TELESALE (Đã đổi URL) ---
-    path('telesale/', telesale_dashboard, name='telesale_home'), # <--- ĐỔI NAME & PATH
+    # --- 4. TELESALE ---
+    path('telesale/', telesale_dashboard, name='telesale_home'),
     path('add-customer/', add_customer_manual, name='add_customer'),
+    path('telesale/report/', telesale_report, name='telesale_report'), # <--- ĐÃ THÊM DÒNG NÀY ĐỂ SỬA LỖI
     
     # --- 5. RECEPTION (LỄ TÂN) ---
     path('reception/', reception_dashboard, name='reception_home'),
@@ -54,6 +55,7 @@ urlpatterns = [
     # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 
     path('marketing/', include('apps.marketing.urls')),
+    path('hr/', include('apps.hr.urls')),
 ]
 
 if settings.DEBUG:

@@ -11,12 +11,9 @@ from apps.bookings.models import Appointment
 from apps.sales.models import Order
 from apps.authentication.decorators import allowed_users
 
-# 1. DANH SÁCH KHÁCH HÀNG
 @login_required(login_url='/auth/login/')
-# --- SỬA DÒNG DƯỚI: THÊM 'ADMIN', 'TELESALE' VÀO ---
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE']) 
 def customer_list(request):
-    # Lấy tham số lọc
     query = request.GET.get('q', '')
     source_filter = request.GET.get('source', '')
     skin_filter = request.GET.get('skin', '')
@@ -26,20 +23,14 @@ def customer_list(request):
 
     customers = Customer.objects.all().order_by('-created_at')
     
-    if query:
-        customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query))
-    if source_filter:
-        customers = customers.filter(source=source_filter)
-    if skin_filter:
-        customers = customers.filter(skin_condition=skin_filter)
-    if city_filter:
-        customers = customers.filter(city__icontains=city_filter)
-    if date_from and date_to:
-        customers = customers.filter(created_at__date__range=[date_from, date_to])
+    if query: customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query))
+    if source_filter: customers = customers.filter(source=source_filter)
+    if skin_filter: customers = customers.filter(skin_condition=skin_filter)
+    if city_filter: customers = customers.filter(city__icontains=city_filter)
+    if date_from and date_to: customers = customers.filter(created_at__date__range=[date_from, date_to])
 
-    # Dữ liệu dropdown
     source_choices = Customer.Source.choices
-    skin_choices = Customer.SkinIssue.choices
+    skin_choices = Customer.SkinIssue.choices # <--- QUAY VỀ SkinIssue
     cities = Customer.objects.values_list('city', flat=True).distinct().exclude(city__isnull=True)
 
     total_count = customers.count()
@@ -54,13 +45,10 @@ def customer_list(request):
     }
     return render(request, 'customers/customer_list.html', context)
 
-# 2. HỒ SƠ CHI TIẾT
 @login_required(login_url='/auth/login/')
-# --- SỬA DÒNG DƯỚI: THÊM 'ADMIN', 'TELESALE' VÀO ---
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
 def customer_detail(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
-    
     call_logs = CallLog.objects.filter(customer=customer).order_by('-call_time')
     appointments = Appointment.objects.filter(customer=customer).order_by('-appointment_date')
     orders = Order.objects.filter(customer=customer).order_by('-created_at')
@@ -84,7 +72,6 @@ def customer_detail(request, pk):
     }
     return render(request, 'customers/customer_detail.html', context)
 
-# 3. XÓA KHÁCH (CHỈ ADMIN GIỮ NGUYÊN)
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def customer_delete(request, pk):

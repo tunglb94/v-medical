@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Báo Cáo Telesale{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold text-dark m-0">BÁO CÁO HIỆU SUẤT TELESALE</h4>
+    <a href="{% url 'telesale_home' %}" class="btn btn-light border fw-bold"><i class="bi bi-arrow-left me-2"></i>Quay lại</a>
+</div>
+
+<div class="card card-box mb-4">
+    <div class="card-body py-3">
+        <form method="GET" class="d-flex align-items-center gap-3">
+            <span class="fw-bold text-muted text-uppercase small">Thời gian:</span>
+            <input type="date" name="date_start" class="form-control form-control-sm" style="width: 150px;" value="{{ date_start }}">
+            <span class="fw-bold">-</span>
+            <input type="date" name="date_end" class="form-control form-control-sm" style="width: 150px;" value="{{ date_end }}">
+            <button class="btn btn-primary btn-sm fw-bold"><i class="bi bi-filter"></i> Xem dữ liệu</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card card-box bg-primary text-white p-4 h-100">
+            <div class="opacity-75 text-uppercase small fw-bold mb-1">Tổng Data Mới</div>
+            <h2 class="fw-bold mb-0">{{ total_leads }}</h2>
+        </div>
+    </div>
+    <div class="col-md-9">
+        <div class="card card-box h-100 p-3">
+            <h6 class="fw-bold text-muted small mb-3">HIỆU SUẤT LÀM VIỆC CHI TIẾT</h6>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light small text-secondary">
+                        <tr>
+                            <th>Nhân viên</th>
+                            <th class="text-center">Được chia (Data)</th>
+                            <th class="text-center">Tổng cuộc gọi</th>
+                            <th class="text-center text-success">Chốt hẹn</th>
+                            <th class="text-end">Tỷ lệ chốt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in performance_data %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-primary">{{ staff.fullname }}</div>
+                                <div class="small text-muted">{{ staff.username }}</div>
+                            </td>
+                            <td class="text-center fw-bold">{{ staff.assigned }}</td>
+                            <td class="text-center">
+                                {{ staff.total_calls }}
+                                {% if staff.total_calls == 0 and staff.assigned > 0 %}
+                                    <i class="bi bi-exclamation-circle-fill text-danger ms-1" title="Cần nhắc nhở gọi điện!"></i>
+                                {% endif %}
+                            </td>
+                            <td class="text-center fw-bold text-success">{{ staff.booked }}</td>
+                            <td class="text-end">
+                                {% if staff.rate >= 20 %}
+                                    <span class="badge bg-success">{{ staff.rate }}%</span>
+                                {% elif staff.rate >= 10 %}
+                                    <span class="badge bg-warning text-dark">{{ staff.rate }}%</span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">{{ staff.rate }}%</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dữ liệu làm việc trong khoảng thời gian này.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card card-box h-100">
+            <div class="card-header bg-white fw-bold py-3 border-bottom">Nguồn Data</div>
+            <div class="card-body"><canvas id="sourceChart" height="250"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-box h-100">
+            <div class="card-header bg-white fw-bold py-3 border-bottom">Kết Quả Cuộc Gọi</div>
+            <div class="card-body overflow-auto" style="max-height: 300px;">
+                <ul class="list-group list-group-flush">
+                    {% for item in status_data_list %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ item.label }}</span>
+                        <span class="badge bg-primary rounded-pill">{{ item.value }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-box h-100">
+            <div class="card-header bg-white fw-bold py-3 border-bottom">Chân Dung Khách Hàng</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted mb-2">Độ tuổi</label>
+                    <div class="progress-stacked" style="height: 25px;">
+                        {% for k, v in age_groups.items %}
+                            {% if v > 0 %}
+                            <div class="progress" role="progressbar" style="width: 20%; flex-grow: 1;" title="{{ k }}: {{ v }}">
+                                <div class="progress-bar {% cycle 'bg-info' 'bg-success' 'bg-warning' 'bg-danger' %} text-dark">{{ k }}</div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted mb-2">Giới tính</label>
+                    <div class="d-flex gap-3">
+                        {% for item in gender_stats %}
+                            <div class="border rounded p-2 flex-fill text-center">
+                                <div class="fw-bold">{{ item.gender }}</div>
+                                <div class="fs-5 text-primary">{{ item.count }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <hr>
+                <div>
+                    <label class="small fw-bold text-muted mb-2">Top Tỉnh Thành</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for city in city_stats %}
+                        <span class="badge bg-light text-dark border">{{ city.city|default:"Chưa rõ" }}: {{ city.count }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ source_labels|json_script:"j-src-labels" }}
+{{ source_data|json_script:"j-src-data" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const srcLabels = JSON.parse(document.getElementById('j-src-labels').textContent);
+        const srcData = JSON.parse(document.getElementById('j-src-data').textContent);
+
+        new Chart(document.getElementById('sourceChart'), {
+            type: 'doughnut',
+            data: {
+                labels: srcLabels,
+                datasets: [{
+                    data: srcData,
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    });
+</script>
+{% endblock %}

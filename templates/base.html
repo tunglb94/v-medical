@@ -13,18 +13,18 @@
     <style>
         :root {
             --sidebar-width: 260px;
-            --primary-color: #2c3e50; /* Màu nền Menu */
+            --primary-color: #2c3e50;
             --active-color: #3498db;
             --bg-color: #f3f4f6;
         }
         
         body { background-color: var(--bg-color); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; margin: 0; }
         
-        /* --- SIDEBAR STYLES (Đã fix) --- */
+        /* --- SIDEBAR STYLES --- */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
-            background-color: var(--primary-color) !important; /* Bắt buộc có màu nền */
+            background-color: var(--primary-color) !important;
             color: #ecf0f1;
             position: fixed;
             top: 0; left: 0;
@@ -38,7 +38,7 @@
         .sidebar-brand {
             padding: 20px; text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            background-color: #1a252f; /* Màu nền đậm hơn cho Logo */
+            background-color: #1a252f;
         }
         .sidebar-brand img { height: 45px; object-fit: contain; background: white; padding: 5px; border-radius: 8px; margin-bottom: 8px; }
         .sidebar-brand h6 { font-weight: 800; letter-spacing: 1px; margin: 0; color: #fff; font-size: 1.1rem; }
@@ -71,7 +71,7 @@
             width: auto;
         }
         
-        /* --- MOBILE & TABLET (< 992px) --- */
+        /* --- MOBILE & TABLET --- */
         .mobile-nav-toggle {
             display: none; 
             position: fixed; top: 15px; right: 15px; z-index: 1100;
@@ -186,9 +186,28 @@
             </a>
         </li>
         {% endif %}
-    </ul>
+
+        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+        <li class="menu-header">Nhân sự (HRM)</li>
+        <li>
+            <a href="{% url 'payroll_dashboard' %}" class="{% if 'payroll' in request.path %}active{% endif %}">
+                <i class="bi bi-cash-coin"></i> <span>Tính Lương</span>
+            </a>
+        </li>
+        {% endif %}
+        
+        <li>
+            <a href="{% url 'attendance_list' %}" class="{% if 'attendance' in request.path %}active{% endif %}">
+                <i class="bi bi-clock-history"></i> <span>Bảng Công</span>
+            </a>
+        </li>
+        </ul>
     
     <div class="sidebar-footer">
+        <a href="{% url 'toggle_attendance' %}" class="btn btn-outline-warning w-100 fw-bold btn-sm mb-3 text-white border-warning">
+            <i class="bi bi-fingerprint me-1"></i> Check-in / Out
+        </a>
+
         <a href="{% url 'user_profile' %}" class="text-decoration-none" title="Sửa hồ sơ">
             <div class="d-flex align-items-center mb-3 px-2 py-2 rounded" style="background: rgba(255,255,255,0.05);">
                 <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center me-2" style="width:35px; height:35px;">
