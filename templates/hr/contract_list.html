@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Cấu hình Lương & Hợp đồng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold text-dark">QUẢN LÝ HỢP ĐỒNG NHÂN SỰ</h4>
+    <button class="btn btn-primary fw-bold shadow-sm" onclick="openAddModal()">
+        <i class="bi bi-plus-lg me-2"></i>Thêm Hợp Đồng
+    </button>
+</div>
+
+<div class="card card-box shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small">
+                <tr>
+                    <th class="ps-4">Nhân viên</th>
+                    <th class="text-end">Lương cứng (VNĐ)</th>
+                    <th class="text-end">Phụ cấp (VNĐ)</th>
+                    <th class="text-center">% Hoa hồng</th>
+                    <th class="text-center">Ngày bắt đầu</th>
+                    <th class="text-end pe-4">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in contracts %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold text-primary">{{ item.user.last_name }} {{ item.user.first_name }}</div>
+                        <div class="small text-muted">{{ item.user.get_role_display }}</div>
+                    </td>
+                    <td class="text-end fw-bold">{{ item.base_salary|intcomma }}</td>
+                    <td class="text-end">{{ item.allowance|intcomma }}</td>
+                    <td class="text-center text-success fw-bold">{{ item.commission_rate }}%</td>
+                    <td class="text-center text-muted">{{ item.start_date|date:"d/m/Y" }}</td>
+                    <td class="text-end pe-4">
+                        <button class="btn btn-sm btn-outline-dark" 
+                                onclick="openEditModal('{{ item.user.id }}', '{{ item.base_salary }}', '{{ item.allowance }}', '{{ item.commission_rate }}', '{{ item.start_date|date:'Y-m-d' }}', '{{ item.user.username }}')">
+                            <i class="bi bi-pencil-square"></i> Sửa
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center py-5 text-muted">Chưa có dữ liệu. Hãy thêm hợp đồng mới.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="contractModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalTitle">Thiết lập Lương</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="userIdInput">
+                    
+                    <div class="mb-3" id="userSelectDiv">
+                        <label class="form-label fw-bold">Chọn nhân viên <span class="text-danger">*</span></label>
+                        <select class="form-select" id="userSelect" onchange="document.getElementById('userIdInput').value = this.value">
+                            <option value="">-- Chọn nhân viên --</option>
+                            {% for u in users_without_contract %}
+                            <option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }} ({{ u.get_role_display }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="userNameDisplay" style="display:none;">
+                        <label class="form-label fw-bold">Nhân viên</label>
+                        <input type="text" class="form-control bg-light" id="userNameText" disabled>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Lương cứng (VNĐ)</label>
+                            <input type="number" name="base_salary" id="baseSalary" class="form-control fw-bold" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Phụ cấp cố định</label>
+                            <input type="number" name="allowance" id="allowance" class="form-control" value="0">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">% Hoa hồng doanh số</label>
+                            <div class="input-group">
+                                <input type="number" step="0.1" name="commission_rate" id="commissionRate" class="form-control text-success fw-bold" value="0">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Ngày bắt đầu</label>
+                            <input type="date" name="start_date" id="startDate" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Lưu Thiết Lập</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const contractModal = new bootstrap.Modal(document.getElementById('contractModal'));
+
+    function openAddModal() {
+        document.getElementById('modalTitle').innerText = "Thêm Hợp Đồng Mới";
+        document.getElementById('userSelectDiv').style.display = 'block';
+        document.getElementById('userNameDisplay').style.display = 'none';
+        
+        // Reset form
+        document.getElementById('userIdInput').value = '';
+        document.getElementById('userSelect').value = '';
+        document.getElementById('baseSalary').value = '';
+        document.getElementById('allowance').value = '0';
+        document.getElementById('commissionRate').value = '0';
+        document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+        
+        contractModal.show();
+    }
+
+    function openEditModal(userId, salary, allow, rate, date, name) {
+        document.getElementById('modalTitle').innerText = "Cập Nhật Hợp Đồng";
+        document.getElementById('userSelectDiv').style.display = 'none';
+        document.getElementById('userNameDisplay').style.display = 'block';
+        
+        // Fill data
+        document.getElementById('userIdInput').value = userId;
+        document.getElementById('userNameText').value = name;
+        document.getElementById('baseSalary').value = parseInt(salary);
+        document.getElementById('allowance').value = parseInt(allow);
+        document.getElementById('commissionRate').value = rate;
+        document.getElementById('startDate').value = date;
+        
+        contractModal.show();
+    }
+</script>
+{% endblock %}

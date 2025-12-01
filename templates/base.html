@@ -189,6 +189,13 @@
 
         {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
         <li class="menu-header">Nhân sự (HRM)</li>
+        
+        <li>
+            <a href="{% url 'contract_management' %}" class="{% if 'contracts' in request.path %}active{% endif %}">
+                <i class="bi bi-file-earmark-person-fill"></i> <span>Hợp Đồng & Lương</span>
+            </a>
+        </li>
+
         <li>
             <a href="{% url 'payroll_dashboard' %}" class="{% if 'payroll' in request.path %}active{% endif %}">
                 <i class="bi bi-cash-coin"></i> <span>Tính Lương</span>
