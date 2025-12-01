@@ -110,9 +110,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    const contractModal = new bootstrap.Modal(document.getElementById('contractModal'));
+    // Khởi tạo Modal sau khi trang và Bootstrap đã load xong
+    let contractModal;
+    document.addEventListener('DOMContentLoaded', function() {
+        contractModal = new bootstrap.Modal(document.getElementById('contractModal'));
+    });
 
     function openAddModal() {
         document.getElementById('modalTitle').innerText = "Thêm Hợp Đồng Mới";
@@ -121,13 +127,15 @@
         
         // Reset form
         document.getElementById('userIdInput').value = '';
-        document.getElementById('userSelect').value = '';
+        const userSelect = document.getElementById('userSelect');
+        if(userSelect) userSelect.value = '';
+        
         document.getElementById('baseSalary').value = '';
         document.getElementById('allowance').value = '0';
         document.getElementById('commissionRate').value = '0';
         document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
         
-        contractModal.show();
+        if(contractModal) contractModal.show();
     }
 
     function openEditModal(userId, salary, allow, rate, date, name) {
@@ -143,7 +151,7 @@
         document.getElementById('commissionRate').value = rate;
         document.getElementById('startDate').value = date;
         
-        contractModal.show();
+        if(contractModal) contractModal.show();
     }
 </script>
 {% endblock %}
