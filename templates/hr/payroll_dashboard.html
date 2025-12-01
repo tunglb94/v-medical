@@ -48,7 +48,7 @@
                         <div class="small text-muted">{{ slip.user.get_role_display }}</div>
                     </td>
                     <td class="text-end">{{ slip.base_salary_lock|intcomma }}</td>
-                    <td class="text-center fw-bold">{{ slip.actual_work_days|floatform:1 }}</td>
+                    <td class="text-center fw-bold">{{ slip.actual_work_days|floatformat:1 }}</td>
                     
                     <td class="text-end text-primary">
                         {{ slip.sales_revenue|intcomma }}
