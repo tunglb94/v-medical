@@ -11,14 +11,17 @@ class DailyStatForm(forms.ModelForm):
         model = DailyCampaignStat
         fields = '__all__'
         widgets = {
-            'report_date': forms.DateInput(attrs={'type': 'date'}),
+            'report_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}),
+            'marketer': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'service': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'spend_amount': forms.NumberInput(attrs={'class': 'form-control form-control-sm fw-bold'}),
+            'comments': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
+            'inboxes': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
+            'leads': forms.NumberInput(attrs={'class': 'form-control form-control-sm fw-bold'}),
+            'appointments': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
         }
 
 class MarketingTaskForm(forms.ModelForm):
     class Meta:
         model = MarketingTask
         fields = '__all__'
-        widgets = {
-            'start_date': forms.DateInput(attrs={'type': 'date'}),
-            'deadline': forms.DateInput(attrs={'type': 'date'}),
-        }
