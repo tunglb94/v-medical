@@ -35,13 +35,13 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light text-secondary small">
                 <tr>
-                    <th class="ps-3">Tiêu đề / Dịch vụ</th>
+                    <th class="ps-3" style="width: 30%;">Tiêu đề / Dịch vụ</th>
                     <th>Nền tảng</th>
                     <th>Thời gian</th>
-                    <th>Link Kịch bản</th>
+                    <th>Nhân sự</th>
+                    <th>Link Tài Nguyên</th>
                     <th>Trạng thái</th>
-                    <th class="text-end">Ngân sách</th>
-                    <th class="text-end pe-3">Người tạo</th>
+                    <th class="text-end pe-3">Hành động</th>
                 </tr>
             </thead>
             <tbody>
@@ -69,13 +69,24 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if task.script_link %}
-                            <a href="{{ task.script_link }}" target="_blank" class="btn btn-sm btn-outline-primary border-0">
-                                <i class="bi bi-link-45deg fs-5"></i> Xem Link
-                            </a>
-                        {% else %}
-                            <span class="text-muted small">--</span>
-                        {% endif %}
+                        <div class="small">
+                            {% if task.pic_content %}<div title="Content"><i class="bi bi-pen"></i> {{ task.pic_content.last_name }}</div>{% endif %}
+                            {% if task.pic_design %}<div title="Design"><i class="bi bi-palette"></i> {{ task.pic_design.last_name }}</div>{% endif %}
+                            {% if task.pic_ads %}<div title="Ads"><i class="bi bi-megaphone"></i> {{ task.pic_ads.last_name }}</div>{% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            {% if task.link_source %}
+                                <a href="{{ task.link_source }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Source/Kịch bản"><i class="bi bi-file-text"></i></a>
+                            {% endif %}
+                            {% if task.link_thumb %}
+                                <a href="{{ task.link_thumb }}" target="_blank" class="btn btn-sm btn-outline-info" title="Ảnh Thumb"><i class="bi bi-image"></i></a>
+                            {% endif %}
+                            {% if task.link_final %}
+                                <a href="{{ task.link_final }}" target="_blank" class="btn btn-sm btn-outline-success" title="Link Final"><i class="bi bi-check-circle"></i></a>
+                            {% endif %}
+                        </div>
                     </td>
                     <td>
                         {% if task.status == 'COMPLETED' %}<span class="badge bg-success">Hoàn thành</span>
@@ -84,9 +95,11 @@
                         {% elif task.status == 'WRITING' %}<span class="badge bg-warning text-dark">Đang viết</span>
                         {% else %}<span class="badge bg-light text-dark border">{{ task.get_status_display }}</span>{% endif %}
                     </td>
-                    <td class="text-end fw-bold">{{ task.budget|intcomma }}</td>
                     <td class="text-end pe-3">
-                        <div class="small fw-bold">{{ task.assigned_to.last_name }}</div>
+                        <form method="POST" action="{% url 'content_ads_delete' task.id %}" onsubmit="return confirm('Xóa công việc này?');">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-link text-danger"><i class="bi bi-trash"></i></button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}
@@ -108,20 +121,43 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-6 border-end">
+                            <h6 class="text-primary fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Thông tin chung</h6>
+                            
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Tiêu đề công việc <span class="text-danger">*</span></label>
-                                <input type="text" name="title" class="form-control" placeholder="VD: Bài post khuyến mãi tháng 12..." required>
+                                <label class="form-label fw-bold small">Tiêu đề công việc <span class="text-danger">*</span></label>
+                                <input type="text" name="title" class="form-control" placeholder="VD: Video tiktok khuyến mãi..." required>
                             </div>
                             
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Dịch vụ quảng bá</label>
+                                <label class="form-label fw-bold small">Dịch vụ quảng bá</label>
                                 <select name="service_id" class="form-select">
                                     <option value="">-- Chọn dịch vụ --</option>
                                     {% for sv in services %}
                                         <option value="{{ sv.id }}">{{ sv.name }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label fw-bold small">Nền tảng</label>
+                                    <select name="platform" class="form-select">
+                                        <option value="Facebook">Facebook</option>
+                                        <option value="Tiktok">Tiktok</option>
+                                        <option value="Google">Google Ads</option>
+                                        <option value="Website">Website/SEO</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label fw-bold small">Trạng thái</label>
+                                    <select name="status" class="form-select">
+                                        <option value="PLANNING">Lên kế hoạch</option>
+                                        <option value="WRITING">Đang viết/SX</option>
+                                        <option value="DESIGNING">Đang thiết kế</option>
+                                        <option value="RUNNING">Đang chạy Ads</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="row">
@@ -137,42 +173,54 @@
                         </div>
 
                         <div class="col-md-6">
-                            <div class="row">
-                                <div class="col-6 mb-3">
-                                    <label class="form-label fw-bold">Nền tảng</label>
-                                    <select name="platform" class="form-select">
-                                        <option value="Facebook">Facebook</option>
-                                        <option value="Tiktok">Tiktok</option>
-                                        <option value="Google">Google Ads</option>
-                                        <option value="Website">Website/SEO</option>
+                            <h6 class="text-success fw-bold mb-3"><i class="bi bi-people me-2"></i>Nhân sự thực hiện</h6>
+                            
+                            <div class="mb-2 row align-items-center">
+                                <label class="col-4 col-form-label small">Content:</label>
+                                <div class="col-8">
+                                    <select name="pic_content" class="form-select form-select-sm">
+                                        <option value="">-- Chọn --</option>
+                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>{% endfor %}
                                     </select>
                                 </div>
-                                <div class="col-6 mb-3">
-                                    <label class="form-label fw-bold">Trạng thái</label>
-                                    <select name="status" class="form-select">
-                                        <option value="PLANNING">Lên kế hoạch</option>
-                                        <option value="WRITING">Đang viết/SX</option>
-                                        <option value="DESIGNING">Đang thiết kế</option>
-                                        <option value="RUNNING">Đang chạy Ads</option>
+                            </div>
+                            <div class="mb-2 row align-items-center">
+                                <label class="col-4 col-form-label small">Editor/Design:</label>
+                                <div class="col-8">
+                                    <select name="pic_design" class="form-select form-select-sm">
+                                        <option value="">-- Chọn --</option>
+                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3 row align-items-center">
+                                <label class="col-4 col-form-label small">Chạy Ads:</label>
+                                <div class="col-8">
+                                    <select name="pic_ads" class="form-select form-select-sm">
+                                        <option value="">-- Chọn --</option>
+                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>{% endfor %}
                                     </select>
                                 </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Link Kịch bản / Tài liệu</label>
-                                <input type="url" name="script_link" class="form-control" placeholder="https://docs.google.com/...">
+                            <hr>
+                            <h6 class="text-info fw-bold mb-3"><i class="bi bi-link-45deg me-2"></i>Link Tài nguyên</h6>
+                            
+                            <div class="mb-2">
+                                <input type="url" name="link_source" class="form-control form-control-sm" placeholder="Link Source (Kịch bản/Raw)">
                             </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Ngân sách dự kiến (VNĐ)</label>
-                                <input type="number" name="budget" class="form-control" placeholder="0">
+                            <div class="mb-2">
+                                <input type="url" name="link_thumb" class="form-control form-control-sm" placeholder="Link Ảnh Thumb">
+                            </div>
+                            <div class="mb-2">
+                                <input type="url" name="link_final" class="form-control form-control-sm" placeholder="Link Final (Sản phẩm hoàn thiện)">
                             </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Ghi chú / Nội dung sơ bộ</label>
-                        <textarea name="content" class="form-control" rows="3"></textarea>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">Ghi chú / Nội dung sơ bộ</label>
+                        <textarea name="content" class="form-control" rows="2"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
