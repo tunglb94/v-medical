@@ -54,9 +54,15 @@
                             <span class="badge bg-light text-secondary border fw-normal">{{ customer.created_at|date:"d/m" }}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center small text-muted">
-                            <span>{{ customer.phone }}</span>
-                            {% if customer.gender == 'MALE' %}<i class="bi bi-gender-male text-primary"></i>
-                            {% elif customer.gender == 'FEMALE' %}<i class="bi bi-gender-female text-danger"></i>{% endif %}
+                            <span class="me-1">{{ customer.phone }}</span>
+                            
+                            <span class="badge bg-light text-dark border" title="Sale phụ trách">
+                                {% if customer.assigned_telesale %}
+                                    <i class="bi bi-person-fill text-primary"></i> {{ customer.assigned_telesale.last_name|default:customer.assigned_telesale.username }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </span>
                         </div>
                     </a>
                 {% empty %}
@@ -124,7 +130,7 @@
       <form action="{% url 'add_customer' %}" method="POST">
           {% csrf_token %}
           <div class="modal-body bg-light">
-            <div class="row mb-3"><div class="col-md-6"><label class="form-label fw-bold small">Họ Tên *</label><input type="text" name="name" class="form-control" required></div><div class="col-md-6"><label class="form-label fw-bold small">SĐT *</label><input type="text" name="phone" class="form-control" required></div></div>
+            <div class="row mb-3"><div class="col-md-6"><label class="form-label fw-bold small">Họ Tên *</label><input type="text" name="name" class="form-control" required></div><div class="col-md-6"><label class="form-label fw-bold small">SĐT *</label><input type="text" name="phone" class="form-control" placeholder="Ví dụ: 0912345678" required></div></div>
             <div class="row mb-3"><div class="col-md-4"><label class="form-label fw-bold small">Giới tính</label><select name="gender" class="form-select">{% for code, label in gender_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-4"><label class="form-label fw-bold small">Ngày sinh</label><input type="date" name="dob" class="form-control"></div><div class="col-md-4"><label class="form-label fw-bold small">Tỉnh / Thành</label><input class="form-control" name="city" list="cityOptions"></div></div>
             <div class="mb-3"><label class="form-label fw-bold small">Địa chỉ</label><input type="text" name="address" class="form-control"></div>
             <div class="row mb-3"><div class="col-md-6"><label class="form-label fw-bold small">Nguồn</label><select name="source" class="form-select">{% for code, label in source_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-6"><label class="form-label fw-bold small text-danger">Dịch vụ quan tâm</label><select name="skin_condition" class="form-select">{% for code, label in skin_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div></div>

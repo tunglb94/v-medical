@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Max, Subquery, OuterRef, Count
 from django.utils import timezone
 from datetime import timedelta, date
+import re # <--- Import Regex để check SĐT
 
 from apps.customers.models import Customer
 from apps.telesales.models import CallLog
@@ -20,7 +21,8 @@ def telesale_dashboard(request):
     today = timezone.now().date()
     telesales_list = User.objects.filter(role='TELESALE', is_active=True)
 
-    customers = Customer.objects.all()
+    # Thêm select_related để lấy thông tin Sale nhanh hơn
+    customers = Customer.objects.select_related('assigned_telesale').all()
 
     # Tìm kiếm
     search_query = request.GET.get('q', '')
@@ -125,12 +127,12 @@ def telesale_dashboard(request):
     return render(request, 'telesales/dashboard.html', context)
 
 
-# --- 2. THÊM KHÁCH THỦ CÔNG (ĐÃ SỬA LOGIC TRÙNG SỐ) ---
+# --- 2. THÊM KHÁCH THỦ CÔNG (CÓ CHECK REGEX SĐT) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['TELESALE', 'ADMIN'])
 def add_customer_manual(request):
     if request.method == "POST":
-        phone = request.POST.get('phone')
+        phone = request.POST.get('phone', '').strip() # Xóa khoảng trắng thừa
         name = request.POST.get('name')
         telesale_id = request.POST.get('telesale_id')
         
@@ -138,10 +140,14 @@ def add_customer_manual(request):
             messages.error(request, "Thiếu Tên hoặc SĐT!")
             return redirect('telesale_home')
 
-        # --- KIỂM TRA TRÙNG SỐ ĐIỆN THOẠI ---
+        # --- CHECK ĐỊNH DẠNG SĐT ---
+        if not re.match(r'^0\d{9}$', phone):
+            messages.error(request, f"SĐT '{phone}' không hợp lệ! Phải là 10 số và bắt đầu bằng số 0.")
+            return redirect('telesale_home')
+
+        # --- KIỂM TRA TRÙNG SỐ ---
         existing_customer = Customer.objects.filter(phone=phone).first()
         if existing_customer:
-            # NẾU ĐÃ CÓ -> CHUYỂN HƯỚNG TỚI KHÁCH CŨ (Thay vì về trang chủ)
             messages.warning(request, f"SĐT {phone} đã có trên hệ thống! Đang chuyển tới hồ sơ khách hàng này.")
             return redirect(f'/telesale/?id={existing_customer.id}')
 
@@ -213,7 +219,6 @@ def telesale_report(request):
         booked_calls = sale_logs.filter(status='BOOKED').count()
         rate = (booked_calls / total_calls * 100) if total_calls > 0 else 0
         
-        # Hiển thị nếu có data được chia HOẶC có gọi
         if assigned_count > 0 or total_calls > 0:
             performance_data.append({
                 'fullname': f"{sale.last_name} {sale.first_name}",
