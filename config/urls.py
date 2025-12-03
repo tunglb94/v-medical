@@ -60,6 +60,8 @@ urlpatterns = [
     
     # --- 8. CHAT ---
     path('chat/', include('apps.chat.urls')), 
+
+    path('resources/', include('apps.resources.urls')),
 ]
 
 if settings.DEBUG:

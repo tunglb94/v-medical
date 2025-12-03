@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.marketing', 
     'apps.hr',
     'apps.chat',
+    'apps.resources',
 ]
 
 MIDDLEWARE = [
