@@ -15,7 +15,8 @@ from apps.authentication.models import User
 
 # --- 1. DASHBOARD MARKETING ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'TELESALE'])
+# Đã thêm CONTENT, EDITOR, DESIGNER vào danh sách được xem Dashboard
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'TELESALE', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def marketing_dashboard(request):
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
@@ -25,6 +26,7 @@ def marketing_dashboard(request):
     marketer_query = request.GET.get('marketer', '')
     service_query = request.GET.get('service', '')
     
+    # Xử lý Form thêm/sửa báo cáo
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -38,6 +40,7 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
+    # Lọc dữ liệu
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     if marketer_query:
         stats = stats.filter(marketer__icontains=marketer_query)
@@ -46,6 +49,7 @@ def marketing_dashboard(request):
         
     stats = stats.order_by('-report_date', 'marketer')
     
+    # Tính tổng KPI
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
@@ -54,6 +58,7 @@ def marketing_dashboard(request):
         sum_inboxes=Sum('inboxes')
     )
     
+    # Xử lý số liệu None thành 0
     for key in totals:
         if totals[key] is None: totals[key] = 0
 
@@ -64,6 +69,7 @@ def marketing_dashboard(request):
     avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
     
+    # Dữ liệu biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -97,14 +103,16 @@ def delete_report(request, pk):
 
 # --- 2. QUẢN LÝ CONTENT ADS & LỊCH ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
+# Đã thêm CONTENT, EDITOR, DESIGNER vào danh sách được truy cập
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_list(request):
     services = Service.objects.filter(is_active=True)
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
     
+    # Tối ưu query với select_related
     tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by', 'service')
 
-    # Filter
+    # --- BỘ LỌC (FILTER) ---
     keyword = request.GET.get('keyword', '')
     if keyword:
         tasks = tasks.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
@@ -131,7 +139,7 @@ def content_ads_list(request):
 
     tasks = tasks.order_by('-created_at')
 
-    # Create Task
+    # --- XỬ LÝ TẠO MỚI (POST) ---
     if request.method == 'POST':
         title = request.POST.get('title')
         if title:
@@ -149,6 +157,7 @@ def content_ads_list(request):
                 link_source=request.POST.get('link_source'),
                 link_thumb=request.POST.get('link_thumb'),
                 link_final=request.POST.get('link_final'),
+                # Lưu người tạo task
                 created_by=request.user 
             )
             messages.success(request, "Đã thêm công việc mới!")
@@ -166,12 +175,11 @@ def content_ads_list(request):
     }
     return render(request, 'marketing/content_ads.html', context)
 
-# --- KHÓA CHỨC NĂNG XÓA (Chỉ Admin) ---
 @login_required(login_url='/auth/login/')
 def content_ads_delete(request, pk):
     task = get_object_or_404(MarketingTask, pk=pk)
     
-    # KIỂM TRA QUYỀN: Chỉ Role ADMIN hoặc Superuser mới được xóa
+    # CHỈ CHO PHÉP ADMIN HOẶC SUPERUSER XÓA
     if request.user.role == 'ADMIN' or request.user.is_superuser:
         task.delete()
         messages.success(request, "Đã xóa công việc.")

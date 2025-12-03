@@ -46,8 +46,8 @@ def redirect_based_on_role(user):
     if user.role == 'ADMIN' or user.is_superuser:
         return redirect('admin_dashboard')
     
-    # Gộp tất cả các role thuộc team Marketing vào đây
-    elif user.role in ['MARKETING', 'CONTENT', 'EDITOR']: 
+    # THÊM DESIGNER VÀO DANH SÁCH NÀY
+    elif user.role in ['MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']: 
         return redirect('marketing_dashboard')
         
     elif user.role == 'RECEPTIONIST':
@@ -56,8 +56,6 @@ def redirect_based_on_role(user):
     elif user.role == 'TELESALE':
         return redirect('telesale_home')
     
-    # Nếu không thuộc nhóm nào ở trên (Ví dụ: Bác sĩ, KTV...)
-    # Thay vì chuyển hướng bừa bãi, hãy chuyển đến trang Profile cá nhân cho an toàn
     return redirect('user_profile')
 
 

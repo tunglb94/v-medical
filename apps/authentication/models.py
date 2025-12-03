@@ -10,8 +10,9 @@ class User(AbstractUser):
         CONSULTANT = "CONSULTANT", "Sale Tư vấn"
         TECHNICIAN = "TECHNICIAN", "Kỹ thuật viên"
         MARKETING = "MARKETING", "Marketing (Chạy Ads)"
-        CONTENT = "CONTENT", "Nhân viên Content"  # <--- MỚI
-        EDITOR = "EDITOR", "Nhân viên Editor"    # <--- MỚI
+        CONTENT = "CONTENT", "Nhân viên Content"
+        EDITOR = "EDITOR", "Nhân viên Editor"
+        DESIGNER = "DESIGNER", "Nhân viên Thiết kế" # <--- MỚI THÊM
 
     role = models.CharField(max_length=50, choices=Role.choices, default=Role.ADMIN, verbose_name="Vai trò")
     phone = models.CharField(max_length=15, blank=True, null=True, verbose_name="Số điện thoại")
