@@ -58,7 +58,12 @@
                             
                             <span class="badge bg-light text-dark border" title="Sale phụ trách">
                                 {% if customer.assigned_telesale %}
-                                    <i class="bi bi-person-fill text-primary"></i> {{ customer.assigned_telesale.last_name|default:customer.assigned_telesale.username }}
+                                    <i class="bi bi-person-fill text-primary"></i> 
+                                    {% if customer.assigned_telesale.last_name or customer.assigned_telesale.first_name %}
+                                        {{ customer.assigned_telesale.last_name }} {{ customer.assigned_telesale.first_name }}
+                                    {% else %}
+                                        {{ customer.assigned_telesale.username }}
+                                    {% endif %}
                                 {% else %}
                                     --
                                 {% endif %}
@@ -103,7 +108,7 @@
                             <div class="col-md-2">
                                 <label class="small text-muted fw-bold">Sale nhận data</label>
                                 <input type="text" class="form-control form-control-sm bg-light text-dark fw-bold" 
-                                       value="{{ selected_customer.assigned_telesale.last_name|default:selected_customer.assigned_telesale.username|default:'--' }}" readonly>
+                                       value="{% if selected_customer.assigned_telesale.last_name or selected_customer.assigned_telesale.first_name %}{{ selected_customer.assigned_telesale.last_name }} {{ selected_customer.assigned_telesale.first_name }}{% else %}{{ selected_customer.assigned_telesale.username|default:'--' }}{% endif %}" readonly>
                             </div>
 
                             <div class="col-md-2">
@@ -131,7 +136,13 @@
                             {% for log in call_history %}
                                 <div class="timeline-item {% if log.status == 'BOOKED' %}success{% endif %}">
                                     <div class="d-flex justify-content-between mb-1">
-                                        <span class="fw-bold small">{{ log.caller.last_name|default:log.caller.username }}</span>
+                                        <span class="fw-bold small">
+                                            {% if log.caller.last_name or log.caller.first_name %}
+                                                {{ log.caller.last_name }} {{ log.caller.first_name }}
+                                            {% else %}
+                                                {{ log.caller.username }}
+                                            {% endif %}
+                                        </span>
                                         <small class="text-muted">{{ log.call_time|date:"d/m H:i" }}</small>
                                     </div>
                                     <span class="badge rounded-pill border bg-white text-dark mb-1">{{ log.get_status_display }}</span>
