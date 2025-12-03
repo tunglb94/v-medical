@@ -32,7 +32,8 @@ INSTALLED_APPS = [
     'apps.bookings',
     'apps.sales',
     'apps.marketing', 
-    'apps.hr', # <--- MỚI: App Quản lý Nhân sự & Chấm công
+    'apps.hr',
+    'apps.chat', # <--- MỚI: App Chat Nội bộ
 ]
 
 MIDDLEWARE = [
@@ -125,11 +126,12 @@ JAZZMIN_SETTINGS = {
         "sales.Order": "fas fa-file-invoice-dollar",
         "sales.Service": "fas fa-list-alt",
         "marketing.DailyCampaignStat": "fas fa-chart-line",
-        "hr.EmployeeContract": "fas fa-file-contract", # Icon cho Hợp đồng
-        "hr.Attendance": "fas fa-clock",              # Icon cho Chấm công
-        "hr.SalarySlip": "fas fa-money-check-alt",    # Icon cho Lương
+        "hr.EmployeeContract": "fas fa-file-contract",
+        "hr.Attendance": "fas fa-clock",
+        "hr.SalarySlip": "fas fa-money-check-alt",
+        "chat.Message": "fas fa-comments", # Icon cho Chat (nếu hiện trong Admin)
     },
-    "order_with_respect_to": ["telesales", "customers", "bookings", "sales", "marketing", "hr", "authentication", "auth"],
+    "order_with_respect_to": ["telesales", "customers", "bookings", "sales", "marketing", "hr", "chat", "authentication", "auth"],
 }
 
 JAZZMIN_UI_TWEAKS = {
@@ -155,5 +157,3 @@ JAZZMIN_UI_TWEAKS = {
     }
 }
 
-# CẤU HÌNH GEMINI AI (KEY DEMO)
-GEMINI_API_KEY = "AIzaSyBNd2qk0JpoM8Z_VrtEag1Isrw_pjutI14"

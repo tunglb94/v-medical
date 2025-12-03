@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 # Import views từ Authentication (để lấy root_view)
 from apps.authentication.views import root_view
 
-# Import views từ Telesales (THÊM telesale_report VÀO ĐÂY)
+# Import views từ Telesales
 from apps.telesales.views import telesale_dashboard, add_customer_manual, telesale_report
 
 # Import views từ Bookings
@@ -36,7 +36,7 @@ urlpatterns = [
     # --- 4. TELESALE ---
     path('telesale/', telesale_dashboard, name='telesale_home'),
     path('add-customer/', add_customer_manual, name='add_customer'),
-    path('telesale/report/', telesale_report, name='telesale_report'), # <--- ĐÃ THÊM DÒNG NÀY ĐỂ SỬA LỖI
+    path('telesale/report/', telesale_report, name='telesale_report'),
     
     # --- 5. RECEPTION (LỄ TÂN) ---
     path('reception/', reception_dashboard, name='reception_home'),
@@ -56,6 +56,9 @@ urlpatterns = [
     path('customers/', include('apps.customers.urls')), 
     path('marketing/', include('apps.marketing.urls')),
     path('hr/', include('apps.hr.urls')),
+    
+    # --- 8. CHAT ---
+    path('chat/', include('apps.chat.urls')), # <--- MỚI THÊM
 ]
 
 if settings.DEBUG:
