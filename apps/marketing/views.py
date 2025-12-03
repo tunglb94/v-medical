@@ -11,6 +11,7 @@ from .models import MarketingTask, DailyCampaignStat, ContentAd
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
+from apps.authentication.models import User
 
 # --- 1. DASHBOARD MARKETING ---
 @login_required(login_url='/auth/login/')
