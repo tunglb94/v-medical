@@ -1,39 +1,69 @@
 {% extends 'base.html' %}
-{% block title %}{{ doc.title }}{% endblock %}
+{% load static %}
+
+{% block title %}{{ doc.title }} - Tài liệu Y khoa{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <a href="{% url 'document_list' %}" class="btn btn-light btn-sm mb-3"><i class="bi bi-arrow-left"></i> Quay lại</a>
-        
-        <div class="card card-box shadow-lg">
-            <div class="card-body p-5">
-                <h2 class="fw-bold text-primary mb-3">{{ doc.title }}</h2>
-                <p class="text-muted mb-4">
-                    <span class="badge bg-secondary">{{ doc.get_category_display }}</span>
-                    <span class="ms-2"><i class="bi bi-clock"></i> Cập nhật: {{ doc.updated_at|date:"d/m/Y" }}</span>
-                </p>
-                
-                {% if doc.image %}
-                <div class="text-center mb-4">
-                    <img src="{{ doc.image.url }}" class="img-fluid rounded shadow-sm" style="max-height: 400px;">
-                </div>
-                {% endif %}
-                
-                <hr>
-                
-                <div class="content-body" style="line-height: 1.8; font-size: 1.05rem;">
-                    {{ doc.content|linebreaks }}
-                </div>
+<style>
+    .doc-container { max-width: 900px; margin: 0 auto; }
+    .doc-header { background: linear-gradient(135deg, #2c3e50, #3498db); color: white; padding: 40px; border-radius: 15px 15px 0 0; position: relative; overflow: hidden; }
+    .doc-header::after { content: ''; position: absolute; top: 0; right: 0; width: 150px; height: 100%; background: rgba(255,255,255,0.1); transform: skewX(-20deg); }
+    .doc-body { background: white; padding: 40px; border-radius: 0 0 15px 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+    
+    /* Style cho nội dung bên trong */
+    .content-area h3 { color: #2c3e50; font-weight: 800; margin-top: 30px; margin-bottom: 15px; border-left: 5px solid #3498db; padding-left: 15px; font-size: 1.4rem; }
+    .content-area p { margin-bottom: 15px; line-height: 1.7; color: #444; font-size: 1.05rem; }
+    .content-area ul, .content-area ol { margin-bottom: 20px; padding-left: 25px; }
+    .content-area li { margin-bottom: 8px; line-height: 1.6; }
+    .content-area strong { color: #e74c3c; } /* Highlight từ khóa quan trọng */
+    
+    /* Style bảng trong bài viết */
+    .content-area table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+    .content-area th { background-color: #f1f2f6; padding: 12px; border: 1px solid #dee2e6; color: #333; }
+    .content-area td { padding: 12px; border: 1px solid #dee2e6; }
+    
+    /* Style alert/note */
+    .alert-info { background-color: #e3f2fd; border-color: #b3d7ff; color: #084298; border-radius: 8px; padding: 15px; margin-bottom: 25px; }
+    
+    .doc-meta span { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; }
+    
+    [data-theme="dark"] .doc-body { background-color: #1e1e1e; color: #e0e0e0; }
+    [data-theme="dark"] .content-area h3 { color: #6bb9f0; }
+    [data-theme="dark"] .content-area p { color: #ccc; }
+    [data-theme="dark"] .content-area th { background-color: #333; border-color: #444; color: #fff; }
+    [data-theme="dark"] .content-area td { border-color: #444; }
+    [data-theme="dark"] .alert-info { background-color: #0c2e4e; color: #b6d4fe; border-color: #0d4680; }
+</style>
 
-                {% if doc.attachment %}
-                <div class="mt-5 p-3 bg-light rounded border">
-                    <h6 class="fw-bold"><i class="bi bi-paperclip"></i> Tài liệu đính kèm:</h6>
-                    <a href="{{ doc.attachment.url }}" target="_blank" class="btn btn-primary btn-sm mt-2">
-                        <i class="bi bi-download"></i> Tải xuống file gốc
-                    </a>
-                </div>
-                {% endif %}
+<div class="container py-4">
+    <a href="{% url 'document_list' %}" class="btn btn-outline-secondary btn-sm mb-3 fw-bold">
+        <i class="bi bi-arrow-left me-1"></i> Quay lại kho tài liệu
+    </a>
+    
+    <div class="doc-container">
+        <div class="doc-header">
+            <h1 class="fw-bold mb-3">{{ doc.title }}</h1>
+            <div class="doc-meta d-flex gap-2 align-items-center">
+                <span><i class="bi bi-bookmark-fill me-1"></i> {{ doc.get_category_display }}</span>
+                <span><i class="bi bi-calendar3 me-1"></i> {{ doc.updated_at|date:"d/m/Y" }}</span>
+            </div>
+        </div>
+
+        <div class="doc-body">
+            {% if doc.image_url %}
+            <div class="text-center mb-5">
+                <img src="{{ doc.image_url }}" class="img-fluid rounded shadow-sm border" style="max-height: 450px; width: auto;" alt="Ảnh minh họa">
+                <p class="text-muted small mt-2 fst-italic">Hình ảnh minh họa công nghệ</p>
+            </div>
+            {% endif %}
+
+            <div class="content-area">
+                {{ doc.content|safe }}
+            </div>
+            
+            <hr class="my-5">
+            <div class="text-center">
+                <p class="small text-muted">Tài liệu lưu hành nội bộ V-Medical Clinic. Vui lòng không sao chép ra ngoài.</p>
             </div>
         </div>
     </div>
