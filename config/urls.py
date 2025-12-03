@@ -3,8 +3,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-# Import views từ Authentication (để lấy root_view)
-from apps.authentication.views import root_view
+# Import views từ Authentication (để lấy root_view và global_search)
+from apps.authentication.views import root_view, global_search 
 
 # Import views từ Telesales
 from apps.telesales.views import telesale_dashboard, add_customer_manual, telesale_report
@@ -23,6 +23,7 @@ from apps.sales.views import (
 urlpatterns = [
     # --- 0. TRANG CHỦ ĐIỀU HƯỚNG ---
     path('', root_view, name='root'), 
+    path('search/', global_search, name='global_search'), # <--- MỚI THÊM
 
     # --- 1. ADMIN DJANGO ---
     path('admin/', admin.site.urls),
@@ -58,7 +59,7 @@ urlpatterns = [
     path('hr/', include('apps.hr.urls')),
     
     # --- 8. CHAT ---
-    path('chat/', include('apps.chat.urls')), # <--- MỚI THÊM
+    path('chat/', include('apps.chat.urls')), 
 ]
 
 if settings.DEBUG:

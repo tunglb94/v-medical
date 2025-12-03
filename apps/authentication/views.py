@@ -6,6 +6,11 @@ from django.contrib.auth.decorators import login_required
 from apps.authentication.decorators import allowed_users
 from .forms import StaffForm, ProfileUpdateForm, CustomPasswordChangeForm
 
+# --- IMPORTS CHO TÌM KIẾM TOÀN CỤC ---
+from django.db.models import Q
+from apps.customers.models import Customer
+from apps.bookings.models import Appointment
+
 User = get_user_model()
 
 # --- 1. AUTHENTICATION (ĐĂNG NHẬP / ĐĂNG XUẤT / ROOT) ---
@@ -136,3 +141,37 @@ def user_profile(request):
         'password_form': password_form
     }
     return render(request, 'authentication/profile.html', context)
+
+# --- 4. TÌM KIẾM TOÀN CỤC (GLOBAL SEARCH) ---
+@login_required(login_url='/auth/login/')
+def global_search(request):
+    query = request.GET.get('q', '').strip()
+    results = {
+        'customers': [],
+        'staffs': [],
+        'appointments': []
+    }
+    
+    if query:
+        # 1. Tìm Khách hàng (Tên hoặc SĐT)
+        # Chỉ Marketing/Admin/Telesale/Receptionist mới được tìm khách
+        if request.user.role in ['ADMIN', 'TELESALE', 'RECEPTIONIST', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']:
+            results['customers'] = Customer.objects.filter(
+                Q(name__icontains=query) | Q(phone__icontains=query)
+            )[:10] # Lấy tối đa 10 kết quả
+
+        # 2. Tìm Nhân viên (Tên hoặc Username)
+        results['staffs'] = User.objects.filter(
+            Q(username__icontains=query) | 
+            Q(last_name__icontains=query) | 
+            Q(first_name__icontains=query)
+        ).exclude(is_active=False)[:5]
+
+        # 3. Tìm Lịch hẹn (Theo mã hoặc tên khách) - Chỉ Admin/Lễ tân/BS
+        if request.user.role in ['ADMIN', 'RECEPTIONIST', 'DOCTOR']:
+            results['appointments'] = Appointment.objects.filter(
+                Q(customer__name__icontains=query) |
+                Q(customer__phone__icontains=query)
+            ).select_related('customer')[:10]
+
+    return render(request, 'search_results.html', {'query': query, 'results': results})

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Kết quả tìm kiếm: {{ query }}{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold text-dark mb-4">Kết quả tìm kiếm cho: "<span class="text-primary">{{ query }}</span>"</h4>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card card-box h-100">
+            <div class="card-header bg-white fw-bold text-primary border-bottom">
+                <i class="bi bi-people-fill me-2"></i>KHÁCH HÀNG ({{ results.customers|length }})
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for cus in results.customers %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-bold">{{ cus.name }}</div>
+                        <div class="small text-muted">{{ cus.phone }}</div>
+                    </div>
+                    <a href="{% url 'customer_detail' cus.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Xem</a>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted small fst-italic">Không tìm thấy khách hàng nào.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card card-box h-100">
+            <div class="card-header bg-white fw-bold text-success border-bottom">
+                <i class="bi bi-person-badge-fill me-2"></i>NHÂN SỰ ({{ results.staffs|length }})
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for staff in results.staffs %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-bold">{{ staff.last_name }} {{ staff.first_name }} ({{ staff.username }})</div>
+                        <div class="small text-muted">{{ staff.get_role_display }}</div>
+                    </div>
+                    <span class="badge bg-light text-dark border">Nhân viên</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted small fst-italic">Không tìm thấy nhân viên nào.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    {% if results.appointments %}
+    <div class="col-12">
+        <div class="card card-box">
+            <div class="card-header bg-white fw-bold text-warning border-bottom">
+                <i class="bi bi-calendar-check me-2"></i>LỊCH HẸN LIÊN QUAN
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 small">
+                    <thead>
+                        <tr>
+                            <th>Ngày hẹn</th>
+                            <th>Khách hàng</th>
+                            <th>Dịch vụ</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appt in results.appointments %}
+                        <tr>
+                            <td>{{ appt.appointment_date|date:"d/m/Y H:i" }}</td>
+                            <td class="fw-bold">{{ appt.customer.name }}</td>
+                            <td>{{ appt.customer.get_skin_condition_display }}</td>
+                            <td>{{ appt.get_status_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

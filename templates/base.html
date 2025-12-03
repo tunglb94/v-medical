@@ -11,16 +11,48 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     
     <style>
+        /* --- MÀU SẮC THEME (LIGHT/DARK) --- */
         :root {
             --sidebar-width: 260px;
             --primary-color: #2c3e50;
             --active-color: #3498db;
+            
+            /* Light Mode Default */
             --bg-color: #f3f4f6;
+            --text-color: #333;
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+            --header-bg: #ffffff;
+        }
+
+        /* Dark Mode Variables */
+        [data-theme="dark"] {
+            --primary-color: #1a252f;
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --border-color: #333;
+            --header-bg: #1e1e1e;
         }
         
-        body { background-color: var(--bg-color); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; margin: 0; }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            font-family: 'Segoe UI', sans-serif; 
+            overflow-x: hidden; margin: 0; 
+            transition: background-color 0.3s, color 0.3s;
+        }
         
-        /* --- SIDEBAR STYLES --- */
+        /* CARD BOX - Update màu theo theme */
+        .card-box { 
+            border: 1px solid var(--border-color); 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+            background: var(--card-bg); 
+            color: var(--text-color);
+        }
+        
+        /* SIDEBAR STYLES */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
@@ -38,7 +70,7 @@
         .sidebar-brand {
             padding: 20px; text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            background-color: #1a252f;
+            background-color: rgba(0,0,0,0.2);
         }
         .sidebar-brand img { height: 45px; object-fit: contain; background: white; padding: 5px; border-radius: 8px; margin-bottom: 8px; }
         .sidebar-brand h6 { font-weight: 800; letter-spacing: 1px; margin: 0; color: #fff; font-size: 1.1rem; }
@@ -60,18 +92,46 @@
         .sidebar-menu li a i { margin-right: 15px; font-size: 1.2rem; width: 25px; text-align: center; }
         .menu-header { font-size: 0.75rem; text-transform: uppercase; color: #95a5a6; padding: 15px 25px 5px; font-weight: bold; letter-spacing: 0.5px; }
         
-        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background-color: #1a252f; }
+        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background-color: rgba(0,0,0,0.2); }
         
-        /* --- MAIN CONTENT --- */
+        /* HEADER & MAIN CONTENT */
+        .top-header {
+            position: fixed; top: 0; right: 0; left: var(--sidebar-width);
+            height: 60px; background: var(--header-bg);
+            z-index: 1040; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+            transition: left 0.3s ease-in-out, background-color 0.3s;
+        }
+
         .main-content { 
             margin-left: var(--sidebar-width); 
-            padding: 20px; 
+            padding: 80px 20px 20px 20px; /* Padding top để tránh Header */
             transition: margin-left 0.3s ease-in-out; 
             min-height: 100vh; 
             width: auto;
         }
         
-        /* --- MOBILE & TABLET --- */
+        /* SEARCH BAR */
+        .global-search { position: relative; width: 300px; }
+        .global-search input { 
+            background: var(--bg-color); color: var(--text-color); border: none; 
+            padding-left: 35px; border-radius: 20px; 
+        }
+        .global-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #999; }
+
+        /* DARK MODE TOGGLE */
+        .theme-toggle { cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; }
+        .theme-toggle:hover { background: rgba(0,0,0,0.05); }
+        [data-theme="dark"] .theme-toggle:hover { background: rgba(255,255,255,0.1); }
+
+        /* FIX TABLE COLORS IN DARK MODE */
+        [data-theme="dark"] .table { color: #e0e0e0; border-color: #444; }
+        [data-theme="dark"] .table-hover tbody tr:hover { color: #fff; background-color: rgba(255,255,255,0.05); }
+        [data-theme="dark"] .form-control, [data-theme="dark"] .form-select {
+            background-color: #2d2d2d; border-color: #444; color: #fff;
+        }
+        
+        /* MOBILE & TABLET */
         .mobile-nav-toggle {
             display: none; 
             position: fixed; top: 15px; right: 15px; z-index: 1100;
@@ -89,15 +149,35 @@
         @media (max-width: 992px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.show { transform: translateX(0); }
-            .main-content { margin-left: 0; }
+            .main-content, .top-header { margin-left: 0; left: 0; }
             .mobile-nav-toggle { display: block; }
+            .top-header { padding-right: 60px; } /* Tránh nút toggle */
+            .global-search { width: 180px; }
         }
-
-        .card-box { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: white; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+
+<header class="top-header">
+    <form action="{% url 'global_search' %}" method="GET" class="global-search d-none d-md-block">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Tìm SĐT, Tên khách, Lịch..." value="{{ request.GET.q }}">
+    </form>
+
+    <div class="d-flex align-items-center gap-3">
+        <div class="theme-toggle" onclick="toggleTheme()" title="Chế độ Sáng/Tối">
+            <i class="bi bi-moon-stars-fill fs-5" id="themeIcon"></i>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                {{ request.user.username|slice:":1"|upper }}
+            </div>
+            <span class="d-none d-sm-block small fw-bold">{{ request.user.last_name }}</span>
+        </div>
+    </div>
+</header>
 
 <button class="mobile-nav-toggle" onclick="toggleSidebar()">
     <i class="bi bi-list fs-4"></i>
@@ -189,13 +269,11 @@
 
         {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
         <li class="menu-header">Nhân sự (HRM)</li>
-        
         <li>
             <a href="{% url 'contract_management' %}" class="{% if 'contracts' in request.path %}active{% endif %}">
                 <i class="bi bi-file-earmark-person-fill"></i> <span>Hợp Đồng & Lương</span>
             </a>
         </li>
-
         <li>
             <a href="{% url 'payroll_dashboard' %}" class="{% if 'payroll' in request.path %}active{% endif %}">
                 <i class="bi bi-cash-coin"></i> <span>Tính Lương</span>
@@ -211,9 +289,7 @@
 
         <li class="position-relative">
             <a href="{% url 'chat_home' %}" class="{% if 'chat' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-chat-dots-fill"></i> <span>Chat Nội bộ</span>
-                </div>
+                <div><i class="bi bi-chat-dots-fill"></i> <span>Chat Nội bộ</span></div>
                 <span id="chatBadge" class="badge bg-danger rounded-pill" style="display: none; font-size: 0.7rem;">0</span>
             </a>
         </li>
@@ -260,17 +336,40 @@
         document.getElementById('sidebarOverlay').classList.toggle('active');
     }
 
-    // --- SCRIPT KIỂM TRA TIN NHẮN MỚI (POLLING) ---
+    // --- DARK MODE LOGIC ---
+    function toggleTheme() {
+        const body = document.body;
+        const icon = document.getElementById('themeIcon');
+        
+        if (body.getAttribute('data-theme') === 'dark') {
+            body.removeAttribute('data-theme');
+            icon.className = 'bi bi-moon-stars-fill fs-5';
+            localStorage.setItem('theme', 'light');
+        } else {
+            body.setAttribute('data-theme', 'dark');
+            icon.className = 'bi bi-sun-fill fs-5 text-warning';
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+
+    // Load saved theme
+    (function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('themeIcon').className = 'bi bi-sun-fill fs-5 text-warning';
+            });
+        }
+    })();
+
+    // --- CHAT POLLING ---
     function checkUnreadMessages() {
-        // Chỉ chạy nếu user đã đăng nhập (tránh lỗi 403 ở trang login)
         fetch('/chat/api/unread/')
-            .then(response => {
-                if(response.ok) return response.json();
-                throw new Error('Not logged in or error');
-            })
+            .then(response => { if(response.ok) return response.json(); })
             .then(data => {
                 const badge = document.getElementById('chatBadge');
-                if (badge) {
+                if (badge && data) {
                     if (data.count > 0) {
                         badge.innerText = data.count > 99 ? '99+' : data.count;
                         badge.style.display = 'inline-block';
@@ -279,14 +378,12 @@
                     }
                 }
             })
-            .catch(err => {
-                // Không làm gì nếu lỗi (ví dụ chưa đăng nhập)
-            });
+            .catch(err => {});
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         checkUnreadMessages();
-        setInterval(checkUnreadMessages, 10000); // 10s check 1 lần
+        setInterval(checkUnreadMessages, 10000); 
     });
 </script>
 
