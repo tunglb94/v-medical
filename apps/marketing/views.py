@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 import json
 
-from .models import MarketingTask, DailyCampaignStat
+from .models import MarketingTask, DailyCampaignStat, ContentAd
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm
@@ -22,7 +22,6 @@ def marketing_dashboard(request):
     today = timezone.now().date()
     start_month = today.replace(day=1)
     
-    # Xử lý báo cáo ngày
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -34,16 +33,34 @@ def marketing_dashboard(request):
         else:
             messages.error(request, f"Lỗi: {form.errors}")
     
-    stats = DailyCampaignStat.objects.filter(date__gte=start_month).order_by('-date')
+    stats = DailyCampaignStat.objects.filter(report_date__gte=start_month).order_by('-report_date')
     total_spend = stats.aggregate(Sum('spend_amount'))['spend_amount__sum'] or 0
-    # (Các tính toán khác giữ nguyên như cũ, chỉ update view render)
-    # ...
+    total_conv = stats.aggregate(Sum('conversions'))['conversions__sum'] or 0
+    total_rev = stats.aggregate(Sum('revenue_ads'))['revenue_ads__sum'] or 0
     
-    # MOCK DATA CHO CHART ĐỂ TRÁNH LỖI NẾU CHƯA CÓ DATA
+    cost_per_conv = (total_spend / total_conv) if total_conv > 0 else 0
+    roi = ((total_rev - total_spend) / total_spend * 100) if total_spend > 0 else 0
+
+    # Chart data
+    last_7_days = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+    chart_labels = [d.strftime('%d/%m') for d in last_7_days]
+    chart_spend = []
+    chart_rev = []
+
+    for d in last_7_days:
+        day_stat = DailyCampaignStat.objects.filter(report_date=d).first()
+        chart_spend.append(int(day_stat.spend_amount) if day_stat else 0)
+        chart_rev.append(int(day_stat.revenue_ads) if day_stat else 0)
+
     context = {
         'stats': stats,
         'total_spend': total_spend,
-        # ... (các biến khác)
+        'total_conv': total_conv,
+        'cost_per_conv': cost_per_conv,
+        'roi': roi,
+        'chart_labels': chart_labels,
+        'chart_spend': chart_spend,
+        'chart_rev': chart_rev
     }
     return render(request, 'marketing/dashboard.html', context)
 
@@ -54,14 +71,12 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# --- 2. QUẢN LÝ CONTENT & ADS (CẬP NHẬT) ---
+# --- 2. QUẢN LÝ CONTENT & ADS ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def content_ads_list(request):
     tasks = MarketingTask.objects.all().order_by('-created_at')
     services = Service.objects.filter(is_active=True)
-    
-    # Lấy danh sách nhân viên để chọn trong form
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
 
     if request.method == 'POST':
@@ -73,17 +88,16 @@ def content_ads_list(request):
                 status=request.POST.get('status'),
                 content=request.POST.get('content'),
                 
-                # --- CÁC TRƯỜNG MỚI ---
                 service_id=request.POST.get('service_id') or None,
                 start_date=request.POST.get('start_date') or None,
                 deadline=request.POST.get('deadline') or None,
                 
-                # Nhân sự
+                # Lưu nhân sự
                 pic_content_id=request.POST.get('pic_content') or None,
                 pic_design_id=request.POST.get('pic_design') or None,
                 pic_ads_id=request.POST.get('pic_ads') or None,
                 
-                # Link
+                # Lưu Link
                 link_source=request.POST.get('link_source'),
                 link_thumb=request.POST.get('link_thumb'),
                 link_final=request.POST.get('link_final'),
@@ -94,7 +108,7 @@ def content_ads_list(request):
     context = {
         'tasks': tasks,
         'services': services,
-        'staffs': staffs, # Truyền danh sách nhân viên sang template
+        'staffs': staffs
     }
     return render(request, 'marketing/content_ads.html', context)
 
@@ -105,7 +119,7 @@ def content_ads_delete(request, pk):
     messages.success(request, "Đã xóa công việc.")
     return redirect('content_ads_list')
 
-# --- 3. LỊCH MARKETING (WORKSPACE) ---
+# --- 3. WORKSPACE / CALENDAR ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def marketing_workspace(request):
@@ -116,7 +130,7 @@ def marketing_workspace(request):
 
     for t in tasks:
         if t.start_date:
-            # Hiển thị tên người phụ trách chính (ưu tiên Content -> Design -> Ads)
+            # Hiển thị tên người phụ trách (ưu tiên Content -> Design -> Ads)
             pic_name = t.pic_content.last_name if t.pic_content else (t.pic_design.last_name if t.pic_design else (t.pic_ads.last_name if t.pic_ads else "--"))
             
             evt = {
@@ -149,7 +163,7 @@ def marketing_workspace(request):
     }
     return render(request, 'marketing/workspace.html', context)
 
-# --- API CHO LỊCH ---
+# --- API CALENDAR ---
 @login_required(login_url='/auth/login/')
 def get_marketing_tasks_api(request):
     start_str = request.GET.get('start', '').split('T')[0]

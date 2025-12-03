@@ -11,7 +11,6 @@ class DailyStatForm(forms.ModelForm):
         model = DailyCampaignStat
         fields = '__all__'
         widgets = {
-            # Sửa 'date' thành 'report_date' cho khớp với Model mới
             'report_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
