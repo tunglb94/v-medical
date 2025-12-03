@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum
+from django.db.models import Sum, Q  # <--- Đã thêm Q
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.http import JsonResponse
@@ -11,7 +11,7 @@ from .models import MarketingTask, DailyCampaignStat, ContentAd
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
-from apps.authentication.models import User
+from apps.authentication.models import User # <--- Đã thêm import User để tránh lỗi NameError
 
 # --- 1. DASHBOARD MARKETING ---
 @login_required(login_url='/auth/login/')
@@ -48,7 +48,7 @@ def marketing_dashboard(request):
         
     stats = stats.order_by('-report_date', 'marketer')
     
-    # Tính tổng KPI (Khớp với template: totals.sum_spend, totals.sum_leads...)
+    # Tính tổng KPI
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
@@ -100,14 +100,44 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# --- 2. QUẢN LÝ CONTENT ADS & LỊCH (Giữ nguyên các hàm này) ---
+# --- 2. QUẢN LÝ CONTENT ADS & LỊCH ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def content_ads_list(request):
-    tasks = MarketingTask.objects.all().order_by('-created_at')
+    # 1. LẤY DỮ LIỆU CƠ BẢN
     services = Service.objects.filter(is_active=True)
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
+    
+    # 2. XỬ LÝ LỌC (FILTER) - MỚI
+    tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by')
 
+    # Lọc theo từ khóa (Tiêu đề hoặc Nội dung)
+    keyword = request.GET.get('keyword', '')
+    if keyword:
+        tasks = tasks.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
+
+    # Lọc theo Platform
+    platform = request.GET.get('platform', '')
+    if platform:
+        tasks = tasks.filter(platform=platform)
+
+    # Lọc theo Trạng thái
+    status = request.GET.get('status', '')
+    if status:
+        tasks = tasks.filter(status=status)
+        
+    # Lọc theo Nhân sự (Tham gia bất kỳ vai trò nào)
+    pic_id = request.GET.get('pic_id', '')
+    if pic_id:
+        tasks = tasks.filter(
+            Q(pic_content_id=pic_id) | 
+            Q(pic_design_id=pic_id) | 
+            Q(pic_ads_id=pic_id)
+        )
+
+    tasks = tasks.order_by('-created_at')
+
+    # 3. XỬ LÝ TẠO MỚI (POST)
     if request.method == 'POST':
         title = request.POST.get('title')
         if title:
@@ -119,17 +149,35 @@ def content_ads_list(request):
                 service_id=request.POST.get('service_id') or None,
                 start_date=request.POST.get('start_date') or None,
                 deadline=request.POST.get('deadline') or None,
+                
+                # Lưu nhân sự
                 pic_content_id=request.POST.get('pic_content') or None,
                 pic_design_id=request.POST.get('pic_design') or None,
                 pic_ads_id=request.POST.get('pic_ads') or None,
+                
+                # Lưu link
                 link_source=request.POST.get('link_source'),
                 link_thumb=request.POST.get('link_thumb'),
                 link_final=request.POST.get('link_final'),
+                
+                # Lưu người tạo task (Mới)
+                created_by=request.user 
             )
             messages.success(request, "Đã thêm công việc mới!")
             return redirect('content_ads_list')
 
-    return render(request, 'marketing/content_ads.html', {'tasks': tasks, 'services': services, 'staffs': staffs})
+    # Trả về context để giữ lại giá trị filter trên form
+    context = {
+        'tasks': tasks, 
+        'services': services, 
+        'staffs': staffs,
+        # Truyền lại giá trị lọc
+        'keyword': keyword,
+        'selected_platform': platform,
+        'selected_status': status,
+        'selected_pic': int(pic_id) if pic_id else ''
+    }
+    return render(request, 'marketing/content_ads.html', context)
 
 @login_required(login_url='/auth/login/')
 def content_ads_delete(request, pk):
@@ -171,4 +219,4 @@ def get_marketing_tasks_api(request):
     start = request.GET.get('start', '').split('T')[0]
     end = request.GET.get('end', '').split('T')[0]
     tasks = MarketingTask.objects.filter(start_date__range=[start, end])
-    return JsonResponse([], safe=False) # Placeholder nếu cần dùng FullCalendar AJAX
+    return JsonResponse([], safe=False)

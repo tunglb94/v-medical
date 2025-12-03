@@ -27,6 +27,49 @@
     </div>
 </div>
 
+<div class="card card-box shadow-sm mb-3">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <input type="text" name="keyword" class="form-control form-control-sm" placeholder="Tìm tiêu đề, nội dung..." value="{{ keyword|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <select name="platform" class="form-select form-select-sm">
+                    <option value="">-- Tất cả Nền tảng --</option>
+                    <option value="Facebook" {% if selected_platform == 'Facebook' %}selected{% endif %}>Facebook</option>
+                    <option value="Tiktok" {% if selected_platform == 'Tiktok' %}selected{% endif %}>Tiktok</option>
+                    <option value="Google" {% if selected_platform == 'Google' %}selected{% endif %}>Google Ads</option>
+                    <option value="Website" {% if selected_platform == 'Website' %}selected{% endif %}>Website/SEO</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">-- Tất cả Trạng thái --</option>
+                    <option value="PLANNING" {% if selected_status == 'PLANNING' %}selected{% endif %}>Lên kế hoạch</option>
+                    <option value="WRITING" {% if selected_status == 'WRITING' %}selected{% endif %}>Đang viết/SX</option>
+                    <option value="DESIGNING" {% if selected_status == 'DESIGNING' %}selected{% endif %}>Đang thiết kế</option>
+                    <option value="RUNNING" {% if selected_status == 'RUNNING' %}selected{% endif %}>Đang chạy Ads</option>
+                    <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>Hoàn thành</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="pic_id" class="form-select form-select-sm">
+                    <option value="">-- Nhân sự --</option>
+                    {% for s in staffs %}
+                        <option value="{{ s.id }}" {% if selected_pic == s.id %}selected{% endif %}>{{ s.last_name|default:s.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-secondary w-100"><i class="bi bi-funnel"></i> Lọc dữ liệu</button>
+            </div>
+             <div class="col-md-1">
+                <a href="{% url 'content_ads_list' %}" class="btn btn-sm btn-outline-danger w-100" title="Xóa lọc"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card card-box shadow-sm">
     <div class="card-header bg-white py-3">
         <h6 class="m-0 fw-bold text-primary">Danh sách công việc</h6>
@@ -35,10 +78,10 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light text-secondary small">
                 <tr>
-                    <th class="ps-3" style="width: 30%;">Tiêu đề / Dịch vụ</th>
+                    <th class="ps-3" style="width: 25%;">Tiêu đề / Dịch vụ</th>
                     <th>Nền tảng</th>
                     <th>Thời gian</th>
-                    <th>Nhân sự</th>
+                    <th>Người tạo</th> <th>Nhân sự thực hiện</th>
                     <th>Link Tài Nguyên</th>
                     <th>Trạng thái</th>
                     <th class="text-end pe-3">Hành động</th>
@@ -52,7 +95,7 @@
                         {% if task.service %}
                             <span class="badge bg-info text-dark" style="font-size: 0.7rem;">{{ task.service.name }}</span>
                         {% endif %}
-                        <div class="small text-muted text-truncate" style="max-width: 250px;">{{ task.content|truncatechars:50 }}</div>
+                        <div class="small text-muted text-truncate" style="max-width: 200px;" title="{{ task.content }}">{{ task.content|default:"-" }}</div>
                     </td>
                     <td>
                         {% if task.platform == 'Facebook' %}<span class="badge bg-primary">Facebook</span>
@@ -66,13 +109,32 @@
                         {% endif %}
                         {% if task.deadline %}
                             <div class="small text-danger fw-bold">End: {{ task.deadline|date:"d/m" }}</div>
+                        {% else %}
+                             <div class="small text-muted">--</div>
                         {% endif %}
                     </td>
                     <td>
-                        <div class="small">
-                            {% if task.pic_content %}<div title="Content"><i class="bi bi-pen"></i> {{ task.pic_content.last_name }}</div>{% endif %}
-                            {% if task.pic_design %}<div title="Design"><i class="bi bi-palette"></i> {{ task.pic_design.last_name }}</div>{% endif %}
-                            {% if task.pic_ads %}<div title="Ads"><i class="bi bi-megaphone"></i> {{ task.pic_ads.last_name }}</div>{% endif %}
+                        <div class="small text-muted fst-italic">
+                            <i class="bi bi-person-circle"></i> {{ task.created_by.last_name|default:task.created_by.username|default:"Admin" }}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                            {% if task.pic_content %}
+                                <div title="Content"><i class="bi bi-pen text-success"></i> {{ task.pic_content.last_name|default:task.pic_content.username }}</div>
+                            {% endif %}
+                            
+                            {% if task.pic_design %}
+                                <div title="Design"><i class="bi bi-palette text-warning"></i> {{ task.pic_design.last_name|default:task.pic_design.username }}</div>
+                            {% endif %}
+                            
+                            {% if task.pic_ads %}
+                                <div title="Ads"><i class="bi bi-megaphone text-primary"></i> {{ task.pic_ads.last_name|default:task.pic_ads.username }}</div>
+                            {% endif %}
+
+                            {% if not task.pic_content and not task.pic_design and not task.pic_ads %}
+                                <span class="text-muted">--</span>
+                            {% endif %}
                         </div>
                     </td>
                     <td>
@@ -103,7 +165,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="7" class="text-center py-5 text-muted">Chưa có công việc nào.</td></tr>
+                <tr><td colspan="8" class="text-center py-5 text-muted">Không tìm thấy công việc nào phù hợp.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -180,7 +242,7 @@
                                 <div class="col-8">
                                     <select name="pic_content" class="form-select form-select-sm">
                                         <option value="">-- Chọn --</option>
-                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>{% endfor %}
+                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name|default:u.username }}</option>{% endfor %}
                                     </select>
                                 </div>
                             </div>
@@ -189,7 +251,7 @@
                                 <div class="col-8">
                                     <select name="pic_design" class="form-select form-select-sm">
                                         <option value="">-- Chọn --</option>
-                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>{% endfor %}
+                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name|default:u.username }}</option>{% endfor %}
                                     </select>
                                 </div>
                             </div>
@@ -198,7 +260,7 @@
                                 <div class="col-8">
                                     <select name="pic_ads" class="form-select form-select-sm">
                                         <option value="">-- Chọn --</option>
-                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>{% endfor %}
+                                        {% for u in staffs %}<option value="{{ u.id }}">{{ u.last_name|default:u.username }}</option>{% endfor %}
                                     </select>
                                 </div>
                             </div>

@@ -19,12 +19,15 @@ class MarketingTask(models.Model):
     start_date = models.DateField(null=True, blank=True, verbose_name="Ngày bắt đầu")
     deadline = models.DateField(null=True, blank=True, verbose_name="Deadline")
 
-    # --- NHÂN SỰ THỰC HIỆN (Thay cho assigned_to) ---
+    # --- NHÂN SỰ THỰC HIỆN ---
     pic_content = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks_content', verbose_name="NV Content")
     pic_design = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks_design', verbose_name="NV Dựng/Thiết kế")
     pic_ads = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks_ads', verbose_name="NV Chạy Ads")
 
-    # --- TÀI NGUYÊN (MỚI) ---
+    # --- NGƯỜI TẠO (MỚI THÊM) ---
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_marketing_tasks', verbose_name="Người tạo task")
+
+    # --- TÀI NGUYÊN ---
     link_source = models.URLField(max_length=500, blank=True, null=True, verbose_name="Link Source (Kịch bản/Raw)")
     link_thumb = models.URLField(max_length=500, blank=True, null=True, verbose_name="Link Ảnh Thumb")
     link_final = models.URLField(max_length=500, blank=True, null=True, verbose_name="Link Final (Sản phẩm)")
@@ -33,7 +36,6 @@ class MarketingTask(models.Model):
     platform = models.CharField(max_length=50, default='Facebook', verbose_name="Nền tảng")
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.PLANNING, verbose_name="Trạng thái")
     
-    # Giữ lại budget nhưng để ẩn hoặc mặc định 0 nếu không dùng nữa
     budget = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Ngân sách (Tùy chọn)")
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -72,7 +74,7 @@ class DailyCampaignStat(models.Model):
         verbose_name = "Số liệu Ads hàng ngày"
         verbose_name_plural = "Báo cáo Ads"
 
-# 3. CONTENT ADS (BẮT BUỘC PHẢI CÓ ĐỂ TRÁNH LỖI IMPORT)
+# 3. CONTENT ADS
 class ContentAd(models.Model):
     title = models.CharField(max_length=200, verbose_name="Tiêu đề nội bộ")
     ad_headline = models.CharField(max_length=200, verbose_name="Headline (Giật tít)")
