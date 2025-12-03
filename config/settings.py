@@ -5,15 +5,27 @@ Django settings for crm_clinic_system project.
 from pathlib import Path
 import os
 import sys
+from dotenv import load_dotenv # Thư viện đọc file .env
+
+# Load biến môi trường từ file .env
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Thêm thư mục 'apps' vào đường dẫn hệ thống
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
-SECRET_KEY = 'django-insecure-change-me-please-this-is-just-for-dev'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+# --- 1. CẤU HÌNH BẢO MẬT (Lấy từ .env) ---
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-changeme')
+
+# Mặc định là False cho an toàn, chỉ True nếu trong .env để là True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
+
+allowed_hosts_env = os.getenv('DJANGO_ALLOWED_HOSTS')
+if allowed_hosts_env:
+    ALLOWED_HOSTS = allowed_hosts_env.split(',')
+else:
+    ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -33,7 +45,7 @@ INSTALLED_APPS = [
     'apps.sales',
     'apps.marketing', 
     'apps.hr',
-    'apps.chat', # <--- MỚI: App Chat Nội bộ
+    'apps.chat',
 ]
 
 MIDDLEWARE = [
@@ -66,12 +78,44 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# --- 2. CẤU HÌNH DATABASE (Thông minh) ---
+# Tự động chọn MySQL nếu có cấu hình trong .env, ngược lại dùng SQLite
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+
+if DB_NAME and DB_USER and DB_PASSWORD and DB_HOST:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': '3306',
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
     }
-}
+else:
+    # Fallback về SQLite (giữ nguyên dữ liệu cũ của bạn)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
+# --- 3. CẤU HÌNH EMAIL (SMTP) ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
@@ -93,6 +137,8 @@ NUMBER_GROUPING = 3
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# Cấu hình đường dẫn Static Root cho môi trường Production (PythonAnywhere)
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -103,6 +149,7 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/auth/login/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# --- 4. JAZZMIN SETTINGS (Giao diện Admin) ---
 JAZZMIN_SETTINGS = {
     "site_title": "V-Medical Admin",
     "site_header": "V-Medical System",
@@ -129,7 +176,7 @@ JAZZMIN_SETTINGS = {
         "hr.EmployeeContract": "fas fa-file-contract",
         "hr.Attendance": "fas fa-clock",
         "hr.SalarySlip": "fas fa-money-check-alt",
-        "chat.Message": "fas fa-comments", # Icon cho Chat (nếu hiện trong Admin)
+        "chat.Message": "fas fa-comments",
     },
     "order_with_respect_to": ["telesales", "customers", "bookings", "sales", "marketing", "hr", "chat", "authentication", "auth"],
 }
@@ -156,4 +203,3 @@ JAZZMIN_UI_TWEAKS = {
         "warning": "btn-warning", "danger": "btn-danger", "success": "btn-success"
     }
 }
-
