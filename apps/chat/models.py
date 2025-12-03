@@ -7,6 +7,12 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    
+    # --- MỚI THÊM ---
+    # Tin nhắn cha (để trả lời)
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='replies')
+    # Ghim tin nhắn
+    is_pinned = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Từ {self.sender} đến {self.receiver}: {self.content[:20]}..."

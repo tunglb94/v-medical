@@ -209,9 +209,12 @@
             </a>
         </li>
 
-        <li>
-            <a href="{% url 'chat_home' %}" class="{% if 'chat' in request.path %}active{% endif %}">
-                <i class="bi bi-chat-dots-fill"></i> <span>Chat Nội bộ</span>
+        <li class="position-relative">
+            <a href="{% url 'chat_home' %}" class="{% if 'chat' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-chat-dots-fill"></i> <span>Chat Nội bộ</span>
+                </div>
+                <span id="chatBadge" class="badge bg-danger rounded-pill" style="display: none; font-size: 0.7rem;">0</span>
             </a>
         </li>
     </ul>
@@ -256,6 +259,35 @@
         document.getElementById('sidebarMenu').classList.toggle('show');
         document.getElementById('sidebarOverlay').classList.toggle('active');
     }
+
+    // --- SCRIPT KIỂM TRA TIN NHẮN MỚI (POLLING) ---
+    function checkUnreadMessages() {
+        // Chỉ chạy nếu user đã đăng nhập (tránh lỗi 403 ở trang login)
+        fetch('/chat/api/unread/')
+            .then(response => {
+                if(response.ok) return response.json();
+                throw new Error('Not logged in or error');
+            })
+            .then(data => {
+                const badge = document.getElementById('chatBadge');
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.innerText = data.count > 99 ? '99+' : data.count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            })
+            .catch(err => {
+                // Không làm gì nếu lỗi (ví dụ chưa đăng nhập)
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        checkUnreadMessages();
+        setInterval(checkUnreadMessages, 10000); // 10s check 1 lần
+    });
 </script>
 
 {% block extra_js %}{% endblock %}

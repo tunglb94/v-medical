@@ -27,13 +27,21 @@
     
     .messages-area { flex: 1; padding: 20px; overflow-y: auto; background-color: #f4f6f8; display: flex; flex-direction: column; gap: 8px; }
     
-    .message { max-width: 75%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; }
+    .message { max-width: 75%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; cursor: pointer; }
+    .message:hover { opacity: 0.9; }
     .message.sent { align-self: flex-end; background: #3498db; color: white; border-bottom-right-radius: 2px; }
     .message.received { align-self: flex-start; background: white; border: 1px solid #dee2e6; border-bottom-left-radius: 2px; color: #333; }
     
     .msg-meta { font-size: 0.7rem; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; opacity: 0.8; }
     .message.received .msg-meta { justify-content: flex-start; opacity: 0.6; }
     
+    /* STYLE CHO PHẦN REPLY */
+    .reply-preview { display: none; background: #f8f9fa; padding: 10px 15px; border-left: 4px solid #3498db; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+    .reply-content-box { color: #666; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
+    
+    .reply-quote { display: block; margin-bottom: 5px; padding: 5px 8px; background: rgba(0,0,0,0.1); border-left: 3px solid rgba(255,255,255,0.5); border-radius: 4px; font-size: 0.8rem; opacity: 0.9; }
+    .message.received .reply-quote { background: #f1f2f6; border-left: 3px solid #3498db; color: #555; }
+
     .input-area { padding: 15px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; align-items: center; }
     
     /* CỘT PHẢI: THÔNG TIN & LINK (Ẩn hiện) */
@@ -93,6 +101,17 @@
             </div>
         </div>
 
+        <div id="replyPreview" class="reply-preview" style="display: none;">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-reply-fill text-primary me-2 fs-5"></i>
+                <div>
+                    <strong class="d-block small text-dark" id="replyTargetName">Trả lời...</strong>
+                    <span id="replyTargetContent" class="reply-content-box">Nội dung tin nhắn...</span>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-link text-danger" onclick="cancelReply()"><i class="bi bi-x-lg"></i></button>
+        </div>
+
         <div class="input-area" id="inputArea" style="display: none;">
             <input type="text" id="msgInput" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Nhập tin nhắn (Enter để gửi)..." onkeypress="handleEnter(event)">
             <button class="btn btn-primary rounded-circle" style="width: 40px; height: 40px;" onclick="sendMessage()">
@@ -114,7 +133,7 @@
 <script>
     let currentReceiverId = null;
     let pollInterval = null;
-    let allMessages = []; // Lưu tạm tin nhắn để tìm kiếm
+    let replyingToId = null; // ID tin nhắn đang trả lời
 
     // 1. CHỌN USER ĐỂ CHAT
     function selectUser(userId, userName) {
@@ -122,42 +141,34 @@
         document.getElementById('chatTitle').innerText = userName;
         document.getElementById('inputArea').style.display = 'flex';
         document.getElementById('headerActions').style.setProperty('display', 'flex', 'important');
+        cancelReply(); 
         
-        // Active highlight
         document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
 
         loadMessages();
         
-        // Polling: Cập nhật tin mới mỗi 3s
         if (pollInterval) clearInterval(pollInterval);
         pollInterval = setInterval(loadMessages, 3000);
     }
 
-    // 2. TẢI TIN NHẮN & XỬ LÝ LINK, ĐÃ XEM
+    // 2. TẢI TIN NHẮN
     function loadMessages() {
         if (!currentReceiverId) return;
-        
-        // Lấy giá trị tìm kiếm hiện tại để giữ lại highlight
         const searchText = document.getElementById('msgSearch').value.toLowerCase();
 
         fetch(`/chat/api/get/${currentReceiverId}/`)
             .then(response => response.json())
             .then(data => {
-                // Nếu dữ liệu không đổi và đang không tìm kiếm thì không render lại (để tránh giật)
-                // (Ở đây làm đơn giản là render lại hết)
-                
                 const box = document.getElementById('messagesBox');
-                // Kiểm tra xem user có đang cuộn lên xem lịch sử không
                 const isAtBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 100;
                 
                 box.innerHTML = '';
                 const linkContainer = document.getElementById('linkList');
-                linkContainer.innerHTML = ''; // Reset list link
+                linkContainer.innerHTML = ''; 
                 let hasLink = false;
 
                 data.forEach(msg => {
-                    // Xử lý nội dung (Convert Link thành thẻ <a>)
                     let contentHtml = msg.content;
                     
                     // Regex tìm URL
@@ -167,20 +178,15 @@
                     if (links) {
                         hasLink = true;
                         links.forEach(link => {
-                            // Tạo link trong tin nhắn
-                            contentHtml = contentHtml.replace(link, `<a href="${link}" target="_blank" class="text-white text-decoration-underline">${link}</a>`);
-                            
-                            // Thêm vào Kho Link bên phải
+                            contentHtml = contentHtml.replace(link, `<a href="${link}" target="_blank" class="text-decoration-underline">${link}</a>`);
                             const linkItem = document.createElement('a');
-                            linkItem.href = link;
-                            linkItem.target = "_blank";
-                            linkItem.className = "link-item";
+                            linkItem.href = link; linkItem.target = "_blank"; linkItem.className = "link-item";
                             linkItem.innerHTML = `<i class="bi bi-globe link-icon"></i> ${link}`;
                             linkContainer.appendChild(linkItem);
                         });
                     }
                     
-                    // Highlight nếu đang tìm kiếm
+                    // Highlight tìm kiếm
                     if (searchText && contentHtml.toLowerCase().includes(searchText)) {
                         contentHtml = contentHtml.replace(new RegExp(searchText, "gi"), (match) => `<span class="highlight">${match}</span>`);
                     }
@@ -188,20 +194,27 @@
                     // Trạng thái đã xem
                     let statusHtml = '';
                     if (msg.is_me) {
-                        contentHtml = contentHtml.replace(/class="text-white/g, 'class="text-white'); // Fix màu link nếu là mình gửi
                         statusHtml = msg.is_read 
                             ? '<i class="bi bi-check2-all text-info" title="Đã xem"></i>' 
                             : '<i class="bi bi-check2 text-light" title="Đã gửi"></i>';
-                    } else {
-                        // Link người khác gửi thì màu xanh
-                        contentHtml = contentHtml.replace(/class="text-white/g, 'class="text-primary'); 
+                    }
+
+                    // Xử lý Reply
+                    let replyHtml = '';
+                    if (msg.parent) {
+                        replyHtml = `<div class="reply-quote">
+                            <strong><i class="bi bi-reply-fill"></i> ${msg.parent.sender}</strong>: 
+                            ${msg.parent.content}
+                        </div>`;
                     }
 
                     const div = document.createElement('div');
                     div.className = `message ${msg.is_me ? 'sent' : 'received'}`;
-                    // Nếu là mình gửi thì màu chữ trắng, link trắng. Người khác gửi thì màu đen.
-                    
+                    div.title = "Bấm đúp để trả lời";
+                    div.ondblclick = () => startReply(msg.id, msg.is_me ? 'Tôi' : 'Đối phương', msg.content);
+
                     div.innerHTML = `
+                        ${replyHtml}
                         ${contentHtml} 
                         <div class="msg-meta">
                             ${msg.time} ${statusHtml}
@@ -214,11 +227,22 @@
                     linkContainer.innerHTML = '<div class="text-center text-muted small mt-3">Không có link nào.</div>';
                 }
 
-                // Tự động cuộn xuống nếu đang ở dưới cùng
-                if (isAtBottom || box.scrollTop === 0) {
-                    box.scrollTop = box.scrollHeight;
-                }
+                if (isAtBottom || box.scrollTop === 0) box.scrollTop = box.scrollHeight;
             });
+    }
+
+    // --- LOGIC TRẢ LỜI ---
+    function startReply(msgId, senderName, content) {
+        replyingToId = msgId;
+        document.getElementById('replyTargetName').innerText = `Trả lời ${senderName}`;
+        document.getElementById('replyTargetContent').innerText = content;
+        document.getElementById('replyPreview').style.display = 'flex';
+        document.getElementById('msgInput').focus();
+    }
+
+    function cancelReply() {
+        replyingToId = null;
+        document.getElementById('replyPreview').style.display = 'none';
     }
 
     // 3. GỬI TIN NHẮN
@@ -230,19 +254,31 @@
         fetch('/chat/api/send/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-            body: JSON.stringify({ 'receiver_id': currentReceiverId, 'content': content })
+            body: JSON.stringify({ 
+                'receiver_id': currentReceiverId, 
+                'content': content,
+                'parent_id': replyingToId 
+            })
         }).then(res => {
             if (res.ok) {
                 input.value = '';
-                loadMessages(); // Load lại ngay
+                cancelReply();
+                loadMessages(); 
             }
         });
     }
 
-    function handleEnter(e) {
-        if (e.key === 'Enter') sendMessage();
+    function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
+
+    function filterUsers() {
+        const query = document.getElementById('userSearch').value.toLowerCase();
+        document.querySelectorAll('.user-item').forEach(item => {
+            const name = item.getAttribute('data-name').toLowerCase();
+            item.style.display = name.includes(query) ? 'flex' : 'none';
+        });
     }
 
-    // 4. TÌM KIẾM USER (Lọc danh sách bên trái)
-    function filterUsers() {
-        const query = document.getElementById('userSearch').
+    function searchMessages() { loadMessages(); }
+    function toggleInfoPanel() { document.getElementById('infoPanel').classList.toggle('open'); }
+</script>
+{% endblock %}
