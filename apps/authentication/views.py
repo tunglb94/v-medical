@@ -45,15 +45,20 @@ def redirect_based_on_role(user):
     """Điều hướng user đến trang phù hợp với vai trò"""
     if user.role == 'ADMIN' or user.is_superuser:
         return redirect('admin_dashboard')
-    elif user.role == 'MARKETING':
+    
+    # Gộp tất cả các role thuộc team Marketing vào đây
+    elif user.role in ['MARKETING', 'CONTENT', 'EDITOR']: 
         return redirect('marketing_dashboard')
+        
     elif user.role == 'RECEPTIONIST':
         return redirect('reception_home')
+        
     elif user.role == 'TELESALE':
-        return redirect('telesale_home') # Đã sửa thành telesale_home
+        return redirect('telesale_home')
     
-    # Bác sĩ, KTV... mặc định vào Lịch hẹn
-    return redirect('reception_home')
+    # Nếu không thuộc nhóm nào ở trên (Ví dụ: Bác sĩ, KTV...)
+    # Thay vì chuyển hướng bừa bãi, hãy chuyển đến trang Profile cá nhân cho an toàn
+    return redirect('user_profile')
 
 
 # --- 2. QUẢN LÝ NHÂN SỰ (CHỈ ADMIN) ---
