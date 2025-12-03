@@ -1,253 +1,136 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db.models import Sum
+from datetime import datetime, timedelta
 from django.utils import timezone
-from datetime import timedelta
-from django.db.models import Sum, Q
-from django.http import JsonResponse
-from django.conf import settings 
+import json
 
-# Import thư viện AI
-import google.generativeai as genai
-
-from .models import DailyCampaignStat, MarketingTask, ContentAd
-from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
+from .models import MarketingTask, DailyCampaignStat
+from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 
 # --- 1. DASHBOARD MARKETING ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'TELESALE', 'MARKETING'])
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING'])
 def marketing_dashboard(request):
     today = timezone.now().date()
-    start_of_month = today.replace(day=1)
+    start_month = today.replace(day=1)
     
-    date_start = request.GET.get('date_start', str(start_of_month))
-    date_end = request.GET.get('date_end', str(today))
-    marketer_query = request.GET.get('marketer', '')
-    service_query = request.GET.get('service', '')
+    stats = DailyCampaignStat.objects.filter(date__gte=start_month)
+    total_spend = stats.aggregate(Sum('spend'))['spend__sum'] or 0
+    total_conv = stats.aggregate(Sum('conversions'))['conversions__sum'] or 0
+    total_rev = stats.aggregate(Sum('revenue_ads'))['revenue_ads__sum'] or 0
     
-    if request.method == 'POST':
-        stat_id = request.POST.get('stat_id')
-        instance = None
-        if stat_id:
-            instance = get_object_or_404(DailyCampaignStat, id=stat_id)
-            
-        form = DailyStatForm(request.POST, instance=instance)
-        if form.is_valid():
-            form.save()
-            action = "cập nhật" if instance else "thêm mới"
-            messages.success(request, f"Đã {action} báo cáo thành công!")
-            return redirect('marketing_dashboard')
-        else:
-            messages.error(request, f"Lỗi nhập liệu: {form.errors.as_text()}")
-    else:
-        form = DailyStatForm(initial={'report_date': today})
+    cost_per_conv = (total_spend / total_conv) if total_conv > 0 else 0
+    roi = ((total_rev - total_spend) / total_spend * 100) if total_spend > 0 else 0
 
-    # Lọc dữ liệu
-    stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
-    if marketer_query:
-        stats = stats.filter(marketer__icontains=marketer_query)
-    if service_query:
-        stats = stats.filter(service__icontains=service_query)
-        
-    stats = stats.order_by('-report_date', 'marketer')
-    
-    # Tính tổng KPI
-    totals = stats.aggregate(
-        sum_spend=Sum('spend_amount'), sum_leads=Sum('leads'),
-        sum_appts=Sum('appointments'), sum_comments=Sum('comments'), sum_inboxes=Sum('inboxes')
-    )
-    
-    total_spend = totals['sum_spend'] or 0
-    total_leads = totals['sum_leads'] or 0
-    total_appts = totals['sum_appts'] or 0
-    avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
-    avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
-    
-    # Dữ liệu biểu đồ
-    chart_data_qs = stats.values('report_date').annotate(
-        daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
-    ).order_by('report_date')
+    last_7_days = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+    chart_labels = [d.strftime('%d/%m') for d in last_7_days]
+    chart_spend = []
+    chart_rev = []
 
-    chart_dates = []
-    chart_cpl = []
-    chart_leads = []
-    for item in chart_data_qs:
-        d_leads = item['daily_leads'] or 0
-        d_spend = item['daily_spend'] or 0
-        d_cpl = (d_spend / d_leads) if d_leads > 0 else 0
-        chart_dates.append(item['report_date'].strftime('%d/%m'))
-        chart_leads.append(d_leads)
-        chart_cpl.append(float(d_cpl))
+    for d in last_7_days:
+        day_stat = DailyCampaignStat.objects.filter(date=d).first()
+        chart_spend.append(int(day_stat.spend) if day_stat else 0)
+        chart_rev.append(int(day_stat.revenue_ads) if day_stat else 0)
 
     context = {
-        'stats': stats, 'form': form, 'totals': totals,
-        'avg_cpl': avg_cpl, 'avg_cpa': avg_cpa,
-        'chart_dates': chart_dates, 'chart_cpl': chart_cpl, 'chart_leads': chart_leads,
-        'date_start': date_start, 'date_end': date_end,
-        'marketer_query': marketer_query, 'service_query': service_query
+        'total_spend': total_spend,
+        'total_conv': total_conv,
+        'cost_per_conv': cost_per_conv,
+        'roi': roi,
+        'chart_labels': chart_labels,
+        'chart_spend': chart_spend,
+        'chart_rev': chart_rev
     }
     return render(request, 'marketing/dashboard.html', context)
 
+# --- 2. QUẢN LÝ CONTENT & ADS ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'TELESALE', 'MARKETING'])
-def delete_report(request, pk):
-    report = get_object_or_404(DailyCampaignStat, pk=pk)
-    if request.method == 'POST':
-        report.delete()
-        messages.success(request, "Đã xóa dòng báo cáo.")
-    return redirect('marketing_dashboard')
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
+def content_ads_list(request):
+    tasks = MarketingTask.objects.all().order_by('-created_at')
+    services = Service.objects.filter(is_active=True) # Lấy danh sách dịch vụ
 
-# --- 2. MARKETING WORKSPACE ---
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        platform = request.POST.get('platform')
+        status = request.POST.get('status')
+        content = request.POST.get('content')
+        budget = request.POST.get('budget', 0)
+        
+        # Nhận dữ liệu mới
+        service_id = request.POST.get('service_id')
+        start_date = request.POST.get('start_date')
+        deadline = request.POST.get('deadline')
+        script_link = request.POST.get('script_link')
+
+        if title:
+            MarketingTask.objects.create(
+                title=title,
+                platform=platform,
+                status=status,
+                content=content,
+                budget=budget if budget else 0,
+                assigned_to=request.user,
+                # Lưu các trường mới
+                service_id=service_id if service_id else None,
+                start_date=start_date if start_date else None,
+                deadline=deadline if deadline else None,
+                script_link=script_link
+            )
+            messages.success(request, "Đã thêm công việc mới!")
+            return redirect('content_ads_list')
+
+    context = {
+        'tasks': tasks,
+        'services': services
+    }
+    return render(request, 'marketing/content_ads.html', context)
+
+# --- 3. LỊCH MARKETING (WORKSPACE) ---
 @login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def marketing_workspace(request):
-    today = timezone.now().date()
-    tasks_urgent = MarketingTask.objects.exclude(status='DONE').filter(deadline__lte=today).order_by('deadline')
-    
-    if request.method == 'POST':
-        form = MarketingTaskForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Đã tạo công việc mới!")
-            return redirect('marketing_workspace')
-    else:
-        form = MarketingTaskForm(initial={'start_date': today, 'deadline': today})
-
-    return render(request, 'marketing/workspace.html', {'form': form, 'tasks_urgent': tasks_urgent, 'today': today})
-
-@login_required(login_url='/auth/login/')
-def get_marketing_tasks_api(request):
-    start = request.GET.get('start')
-    end = request.GET.get('end')
-    tasks = MarketingTask.objects.filter(start_date__range=[start, end])
+    # Lấy task để hiển thị lên lịch
+    tasks = MarketingTask.objects.all()
     
     events = []
-    for task in tasks:
-        color = '#3788d8'
-        if task.category == 'DESIGN': color = '#e67e22'
-        elif task.category == 'CONTENT': color = '#2ecc71'
-        elif task.category == 'VIDEO': color = '#e74c3c'
-        elif task.category == 'ADS': color = '#9b59b6'
-        if task.status == 'DONE': color = '#95a5a6'
-        
-        events.append({
-            'id': task.id,
-            'title': f"{task.get_category_display()}: {task.title}",
-            'start': task.start_date.isoformat(),
-            'end': task.deadline.isoformat(),
-            'backgroundColor': color, 'borderColor': color,
-            'extendedProps': {
-                'pic': task.pic.username if task.pic else "--",
-                'status': task.get_status_display(),
-                'note': task.note
+    tasks_urgent = []
+    today = timezone.now().date()
+
+    for t in tasks:
+        # Xử lý dữ liệu cho FullCalendar
+        if t.start_date:
+            evt = {
+                'title': f"[{t.platform}] {t.title}",
+                'start': t.start_date.strftime('%Y-%m-%d'),
+                'extendedProps': {
+                    'pic': t.assigned_to.last_name if t.assigned_to else "Chưa giao",
+                    'status': t.get_status_display(),
+                    'note': t.content
+                }
             }
-        })
-    return JsonResponse(events, safe=False)
-
-# --- 3. QUẢN LÝ CONTENT ADS ---
-@login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR']) 
-def content_ads_list(request):
-    if request.method == 'POST':
-        ad_id = request.POST.get('ad_id')
-        instance = None
-        if ad_id:
-            instance = get_object_or_404(ContentAd, id=ad_id)
-        
-        form = ContentAdForm(request.POST, instance=instance)
-        if form.is_valid():
-            form.save()
-            action = "cập nhật" if instance else "thêm mới"
-            messages.success(request, f"Đã {action} bài Content Ads!")
-            return redirect('content_ads_list')
-        else:
-            messages.error(request, f"Lỗi: {form.errors.as_text()}")
-    else:
-        form = ContentAdForm()
-
-    ads = ContentAd.objects.all().order_by('-created_at')
-    search_query = request.GET.get('q', '')
-    
-    if search_query:
-        ads = ads.filter(
-            Q(title__icontains=search_query) | 
-            Q(ad_headline__icontains=search_query) |
-            Q(content_creator__username__icontains=search_query)
-        )
-
-    return render(request, 'marketing/content_ads.html', {'ads': ads, 'form': form, 'search_query': search_query})
-
-@login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'MARKETING'])
-def content_ads_delete(request, pk):
-    ad = get_object_or_404(ContentAd, pk=pk)
-    if request.method == 'POST':
-        ad.delete()
-        messages.success(request, "Đã xóa bài Content Ads.")
-    return redirect('content_ads_list')
-
-# --- 4. API GỌI GEMINI (CƠ CHẾ TỰ DÒ TÌM MODEL) ---
-@login_required(login_url='/auth/login/')
-def generate_ad_content_api(request):
-    if request.method == 'POST':
-        prompt = request.POST.get('prompt')
-        if not prompt:
-            return JsonResponse({'success': False, 'error': 'Vui lòng nhập yêu cầu.'})
-        
-        try:
-            # 1. Cấu hình API Key
-            api_key = getattr(settings, 'GEMINI_API_KEY', None)
-            if not api_key:
-                return JsonResponse({'success': False, 'error': 'Chưa cấu hình GEMINI_API_KEY trong settings.py'})
-
-            genai.configure(api_key=api_key)
+            if t.deadline:
+                evt['end'] = (t.deadline + timedelta(days=1)).strftime('%Y-%m-%d') # FullCalendar exclusive end date
             
-            # 2. Tự động dò tìm Model khả dụng
-            available_models = []
-            try:
-                for m in genai.list_models():
-                    if 'generateContent' in m.supported_generation_methods:
-                        available_models.append(m.name)
-            except Exception:
-                pass # Nếu list_models lỗi, sẽ thử dùng default bên dưới
+            # Màu sắc
+            if t.status == 'COMPLETED': evt['color'] = '#1cc88a'
+            elif t.status == 'RUNNING': evt['color'] = '#4e73df'
+            elif t.status == 'WRITING': evt['color'] = '#f6c23e'
+            elif t.status == 'PAUSED': evt['color'] = '#e74a3b'
+            else: evt['color'] = '#858796'
 
-            model_name = None
-            # Ưu tiên các model mới và nhanh
-            priorities = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
-            
-            # Nếu tìm thấy trong list thì dùng
-            for p in priorities:
-                if p in available_models:
-                    model_name = p.replace('models/', '') # Bỏ prefix nếu thư viện yêu cầu
-                    break
-            
-            # Nếu không tìm thấy trong priorities, lấy cái đầu tiên có thể
-            if not model_name and available_models:
-                model_name = available_models[0].replace('models/', '')
-            
-            # Nếu vẫn không có (hoặc list_models lỗi), thử hardcode 'gemini-pro'
-            if not model_name:
-                model_name = 'gemini-pro'
+            events.append(evt)
 
-            # 3. Gọi AI tạo nội dung
-            model = genai.GenerativeModel(model_name)
-            
-            full_prompt = f"""
-            Bạn là một chuyên gia Copywriter cho Thẩm mỹ viện. Hãy viết một bài quảng cáo Facebook hấp dẫn dựa trên yêu cầu sau:
-            "{prompt}"
-            
-            Yêu cầu:
-            - Có tiêu đề giật tít (Headline).
-            - Dùng icon sinh động.
-            - Chia đoạn rõ ràng, dễ đọc.
-            - Có lời kêu gọi hành động (CTA) cuối bài.
-            - Giọng văn: Thân thiện, chuyên nghiệp, đánh trúng nỗi đau khách hàng.
-            """
-            
-            response = model.generate_content(full_prompt)
-            return JsonResponse({'success': True, 'content': response.text})
-        
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f"Lỗi AI: {str(e)}"})
-            
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
+        # Xử lý list task gấp bên trái (nếu chưa xong và có deadline)
+        if t.status != 'COMPLETED' and t.deadline:
+            t.is_overdue = t.deadline < today
+            tasks_urgent.append(t)
+
+    context = {
+        'events_json': json.dumps(events),
+        'tasks_urgent': tasks_urgent
+    }
+    return render(request, 'marketing/workspace.html', context)

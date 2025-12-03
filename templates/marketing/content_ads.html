@@ -1,267 +1,186 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load humanize %}
 
-{% block title %}Kho Content & Ads - V-Medical{% endblock %}
+{% block title %}Kho Content & Ads{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold text-dark mb-0">KHO TÀI NGUYÊN ADS</h4>
-    <button class="btn btn-primary fw-bold shadow-sm" onclick="openModal()">
-        <i class="bi bi-plus-circle me-2"></i>THÊM CONTENT MỚI
+    <h4 class="fw-bold text-dark">KHO CONTENT & CHIẾN DỊCH ADS</h4>
+    <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+        <i class="bi bi-plus-lg me-2"></i>Thêm Công Việc Mới
     </button>
 </div>
 
-<div class="card card-box mb-4">
-    <div class="card-body">
-        <form method="GET" class="input-group">
-            <input type="text" name="q" class="form-control" placeholder="Tìm tên bài, headline, người làm..." value="{{ search_query }}">
-            <button class="btn btn-dark" type="submit"><i class="bi bi-search"></i> Tìm kiếm</button>
-        </form>
-    </div>
-</div>
-
-<div class="row g-3">
-    {% for ad in ads %}
-    <div class="col-md-6 col-lg-4">
-        <div class="card card-box h-100 border-0 shadow-sm">
-            <div class="card-header bg-white border-bottom-0 pt-3 d-flex justify-content-between align-items-start">
-                <h6 class="fw-bold text-primary mb-0 text-truncate" title="{{ ad.title }}">
-                    <i class="bi bi-collection-play me-2"></i>{{ ad.title }}
-                </h6>
-                <div class="dropdown">
-                    <button class="btn btn-light btn-sm rounded-circle" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="editAd('{{ ad.id }}')">Sửa</a></li>
-                        <li>
-                            <form action="{% url 'content_ads_delete' ad.id %}" method="POST" onsubmit="return confirm('Xóa bài này?');">
-                                {% csrf_token %}
-                                <button class="dropdown-item text-danger">Xóa</button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="card-body pt-0">
-                <div class="small text-muted mb-2">{{ ad.created_at|date:"d/m/Y" }}</div>
-                
-                {% if ad.ad_headline %}
-                <div class="alert alert-light border p-2 mb-2 small fst-italic text-dark">
-                    "{{ ad.ad_headline }}"
-                </div>
-                {% endif %}
-
-                <div class="d-flex gap-2 mb-3 text-secondary small flex-wrap">
-                    <span class="badge bg-info bg-opacity-10 text-info border border-info" title="Content"><i class="bi bi-pen-fill"></i> {{ ad.content_creator.username|default:"--" }}</span>
-                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning" title="Editor"><i class="bi bi-film"></i> {{ ad.editor.username|default:"--" }}</span>
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary" title="Marketer"><i class="bi bi-graph-up-arrow"></i> {{ ad.marketer.username|default:"--" }}</span>
-                </div>
-
-                <div class="d-grid gap-2">
-                    {% if ad.link_video %}
-                        <a href="{{ ad.link_video }}" target="_blank" class="btn btn-sm btn-outline-danger text-start"><i class="bi bi-google-play me-2"></i>Link Video Gốc</a>
-                    {% endif %}
-                    {% if ad.link_thumb %}
-                        <a href="{{ ad.link_thumb }}" target="_blank" class="btn btn-sm btn-outline-secondary text-start"><i class="bi bi-image me-2"></i>Link Thumbnail</a>
-                    {% endif %}
-                </div>
-
-                {% if ad.result_note %}
-                <div class="mt-3 pt-2 border-top">
-                    <label class="small fw-bold text-success"><i class="bi bi-check-circle me-1"></i>Kết quả chạy:</label>
-                    <p class="small text-muted mb-0">{{ ad.result_note }}</p>
-                </div>
-                {% endif %}
-                
-                <div class="d-none" id="data-{{ ad.id }}">
-                    {{ ad.ad_headline }}|||{{ ad.post_content }}|||{{ ad.link_video }}|||{{ ad.link_thumb }}|||{{ ad.result_note }}|||{{ ad.content_creator.id }}|||{{ ad.editor.id }}|||{{ ad.marketer.id }}|||{{ ad.title }}
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-box bg-primary text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small">Tổng việc đang chạy</div>
+                        <h3 class="fw-bold mb-0">{{ tasks.count }}</h3>
+                    </div>
+                    <i class="bi bi-rocket-takeoff fs-1 opacity-50"></i>
                 </div>
             </div>
         </div>
     </div>
-    {% empty %}
-    <div class="col-12 text-center py-5 text-muted">Chưa có dữ liệu content ads.</div>
-    {% endfor %}
 </div>
 
-<div class="modal fade" id="adModal" tabindex="-1">
+<div class="card card-box shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h6 class="m-0 fw-bold text-primary">Danh sách công việc</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small">
+                <tr>
+                    <th class="ps-3">Tiêu đề / Dịch vụ</th>
+                    <th>Nền tảng</th>
+                    <th>Thời gian</th>
+                    <th>Link Kịch bản</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Ngân sách</th>
+                    <th class="text-end pe-3">Người tạo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td class="ps-3">
+                        <div class="fw-bold text-dark">{{ task.title }}</div>
+                        {% if task.service %}
+                            <span class="badge bg-info text-dark" style="font-size: 0.7rem;">{{ task.service.name }}</span>
+                        {% endif %}
+                        <div class="small text-muted text-truncate" style="max-width: 250px;">{{ task.content|truncatechars:50 }}</div>
+                    </td>
+                    <td>
+                        {% if task.platform == 'Facebook' %}<span class="badge bg-primary">Facebook</span>
+                        {% elif task.platform == 'Tiktok' %}<span class="badge bg-dark">Tiktok</span>
+                        {% elif task.platform == 'Google' %}<span class="badge bg-danger">Google</span>
+                        {% else %}<span class="badge bg-secondary">{{ task.platform }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if task.start_date %}
+                            <div class="small">Start: {{ task.start_date|date:"d/m" }}</div>
+                        {% endif %}
+                        {% if task.deadline %}
+                            <div class="small text-danger fw-bold">End: {{ task.deadline|date:"d/m" }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if task.script_link %}
+                            <a href="{{ task.script_link }}" target="_blank" class="btn btn-sm btn-outline-primary border-0">
+                                <i class="bi bi-link-45deg fs-5"></i> Xem Link
+                            </a>
+                        {% else %}
+                            <span class="text-muted small">--</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if task.status == 'COMPLETED' %}<span class="badge bg-success">Hoàn thành</span>
+                        {% elif task.status == 'RUNNING' %}<span class="badge bg-primary">Đang chạy</span>
+                        {% elif task.status == 'PLANNING' %}<span class="badge bg-secondary">Lên kế hoạch</span>
+                        {% elif task.status == 'WRITING' %}<span class="badge bg-warning text-dark">Đang viết</span>
+                        {% else %}<span class="badge bg-light text-dark border">{{ task.get_status_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-end fw-bold">{{ task.budget|intcomma }}</td>
+                    <td class="text-end pe-3">
+                        <div class="small fw-bold">{{ task.assigned_to.last_name }}</div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center py-5 text-muted">Chưa có công việc nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addTaskModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold" id="modalTitle">THÊM CONTENT MỚI</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Thêm Công Việc / Content Mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
                 {% csrf_token %}
-                <input type="hidden" name="ad_id" id="adId">
                 <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold small text-muted">Tên Ads (Mã quản lý) *</label>
-                            {{ form.title }}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Tiêu đề công việc <span class="text-danger">*</span></label>
+                                <input type="text" name="title" class="form-control" placeholder="VD: Bài post khuyến mãi tháng 12..." required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Dịch vụ quảng bá</label>
+                                <select name="service_id" class="form-select">
+                                    <option value="">-- Chọn dịch vụ --</option>
+                                    {% for sv in services %}
+                                        <option value="{{ sv.id }}">{{ sv.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label fw-bold small">Ngày bắt đầu</label>
+                                    <input type="date" name="start_date" class="form-control">
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label fw-bold small">Deadline</label>
+                                    <input type="date" name="deadline" class="form-control">
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">NV Content</label>
-                            {{ form.content_creator }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">NV Editor</label>
-                            {{ form.editor }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">Marketer chạy</label>
-                            {{ form.marketer }}
+
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label fw-bold">Nền tảng</label>
+                                    <select name="platform" class="form-select">
+                                        <option value="Facebook">Facebook</option>
+                                        <option value="Tiktok">Tiktok</option>
+                                        <option value="Google">Google Ads</option>
+                                        <option value="Website">Website/SEO</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label fw-bold">Trạng thái</label>
+                                    <select name="status" class="form-select">
+                                        <option value="PLANNING">Lên kế hoạch</option>
+                                        <option value="WRITING">Đang viết/SX</option>
+                                        <option value="DESIGNING">Đang thiết kế</option>
+                                        <option value="RUNNING">Đang chạy Ads</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Link Kịch bản / Tài liệu</label>
+                                <input type="url" name="script_link" class="form-control" placeholder="https://docs.google.com/...">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Ngân sách dự kiến (VNĐ)</label>
+                                <input type="number" name="budget" class="form-control" placeholder="0">
+                            </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Headline (Tiêu đề)</label>
-                        {{ form.ad_headline }}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label fw-bold small text-muted m-0">Nội dung bài Post</label>
-                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openAiModal()">
-                                <i class="bi bi-stars text-warning me-1"></i>Viết bằng AI
-                            </button>
-                        </div>
-                        {{ form.post_content }}
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Link Video Gốc</label>
-                            {{ form.link_video }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Link Thumbnail</label>
-                            {{ form.link_thumb }}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-success">Kết quả chạy (Optional)</label>
-                        {{ form.result_note }}
+                        <label class="form-label fw-bold">Ghi chú / Nội dung sơ bộ</label>
+                        <textarea name="content" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary fw-bold">LƯU THÔNG TIN</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Lưu Công Việc</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<div class="modal fade" id="aiModal" tabindex="-1" style="z-index: 1060;">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-warning bg-opacity-25">
-                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-stars text-warning me-2"></i>Trợ lý AI Content</h5>
-                <button type="button" class="btn-close" onclick="closeAiModal()"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label small fw-bold">Nhập yêu cầu của bạn:</label>
-                    <textarea class="form-control" id="aiPrompt" rows="3" placeholder="VD: Viết bài quảng cáo dịch vụ trị nám, giảm giá 30%, giọng hài hước..."></textarea>
-                </div>
-                <div id="aiLoading" class="text-center d-none text-primary mb-3">
-                    <div class="spinner-border spinner-border-sm" role="status"></div> Đang viết, chờ xíu...
-                </div>
-                <button type="button" class="btn btn-primary w-100 fw-bold" onclick="generateContent()">
-                    <i class="bi bi-magic me-2"></i>TẠO NỘI DUNG
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    var adModal, aiModal;
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        adModal = new bootstrap.Modal(document.getElementById('adModal'));
-        aiModal = new bootstrap.Modal(document.getElementById('aiModal'));
-    });
-
-    function openModal() {
-        document.getElementById('adId').value = '';
-        document.getElementById('modalTitle').innerText = "THÊM CONTENT MỚI";
-        document.querySelector('form').reset();
-        adModal.show();
-    }
-
-    function editAd(id) {
-        var dataString = document.getElementById('data-' + id).innerText;
-        var parts = dataString.split('|||');
-        
-        document.getElementById('adId').value = id;
-        document.getElementById('modalTitle').innerText = "CẬP NHẬT CONTENT";
-        
-        try {
-            document.querySelector('[name="ad_headline"]').value = parts[0].trim();
-            document.querySelector('[name="post_content"]').value = parts[1].trim();
-            document.querySelector('[name="link_video"]').value = parts[2].trim();
-            document.querySelector('[name="link_thumb"]').value = parts[3].trim();
-            document.querySelector('[name="result_note"]').value = parts[4].trim();
-            if(parts[5].trim()) document.querySelector('[name="content_creator"]').value = parts[5].trim();
-            if(parts[6].trim()) document.querySelector('[name="editor"]').value = parts[6].trim();
-            if(parts[7].trim()) document.querySelector('[name="marketer"]').value = parts[7].trim();
-            document.querySelector('[name="title"]').value = parts[8].trim();
-        } catch(e) { console.log(e); }
-
-        adModal.show();
-    }
-
-    // --- AI FUNCTIONS ---
-    function openAiModal() {
-        aiModal.show();
-    }
-
-    function closeAiModal() {
-        aiModal.hide();
-    }
-
-    function generateContent() {
-        var prompt = document.getElementById('aiPrompt').value;
-        if (!prompt) {
-            alert("Vui lòng nhập yêu cầu!");
-            return;
-        }
-
-        document.getElementById('aiLoading').classList.remove('d-none');
-        
-        // Gọi API Backend
-        var formData = new FormData();
-        formData.append('prompt', prompt);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-        fetch('{% url "api_generate_ads" %}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('aiLoading').classList.add('d-none');
-            if (data.success) {
-                // Điền nội dung vào Form chính
-                document.querySelector('[name="post_content"]').value = data.content;
-                aiModal.hide(); // Đóng modal AI
-            } else {
-                alert("Lỗi AI: " + data.error);
-            }
-        })
-        .catch(error => {
-            document.getElementById('aiLoading').classList.add('d-none');
-            alert("Lỗi kết nối: " + error);
-        });
-    }
-</script>
 {% endblock %}
