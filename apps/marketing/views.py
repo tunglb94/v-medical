@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Q  # <--- Đã thêm Q
+from django.db.models import Sum, Q
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.http import JsonResponse
@@ -11,7 +11,7 @@ from .models import MarketingTask, DailyCampaignStat, ContentAd
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
-from apps.authentication.models import User # <--- Đã thêm import User để tránh lỗi NameError
+from apps.authentication.models import User 
 
 # --- 1. DASHBOARD MARKETING ---
 @login_required(login_url='/auth/login/')
@@ -25,7 +25,6 @@ def marketing_dashboard(request):
     marketer_query = request.GET.get('marketer', '')
     service_query = request.GET.get('service', '')
     
-    # Xử lý Form thêm/sửa báo cáo
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -39,7 +38,6 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
-    # Lọc dữ liệu (Dùng report_date thay vì date)
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     if marketer_query:
         stats = stats.filter(marketer__icontains=marketer_query)
@@ -48,7 +46,6 @@ def marketing_dashboard(request):
         
     stats = stats.order_by('-report_date', 'marketer')
     
-    # Tính tổng KPI
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
@@ -57,7 +54,6 @@ def marketing_dashboard(request):
         sum_inboxes=Sum('inboxes')
     )
     
-    # Xử lý số liệu None thành 0
     for key in totals:
         if totals[key] is None: totals[key] = 0
 
@@ -68,7 +64,6 @@ def marketing_dashboard(request):
     avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
     
-    # Dữ liệu biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -104,29 +99,28 @@ def delete_report(request, pk):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def content_ads_list(request):
-    # 1. LẤY DỮ LIỆU CƠ BẢN
     services = Service.objects.filter(is_active=True)
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
     
-    # 2. XỬ LÝ LỌC (FILTER) - MỚI
-    tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by')
+    tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by', 'service')
 
-    # Lọc theo từ khóa (Tiêu đề hoặc Nội dung)
+    # Filter
     keyword = request.GET.get('keyword', '')
     if keyword:
         tasks = tasks.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
 
-    # Lọc theo Platform
+    service_id = request.GET.get('service_id', '')
+    if service_id:
+        tasks = tasks.filter(service_id=service_id)
+
     platform = request.GET.get('platform', '')
     if platform:
         tasks = tasks.filter(platform=platform)
 
-    # Lọc theo Trạng thái
     status = request.GET.get('status', '')
     if status:
         tasks = tasks.filter(status=status)
         
-    # Lọc theo Nhân sự (Tham gia bất kỳ vai trò nào)
     pic_id = request.GET.get('pic_id', '')
     if pic_id:
         tasks = tasks.filter(
@@ -137,7 +131,7 @@ def content_ads_list(request):
 
     tasks = tasks.order_by('-created_at')
 
-    # 3. XỬ LÝ TẠO MỚI (POST)
+    # Create Task
     if request.method == 'POST':
         title = request.POST.get('title')
         if title:
@@ -149,40 +143,41 @@ def content_ads_list(request):
                 service_id=request.POST.get('service_id') or None,
                 start_date=request.POST.get('start_date') or None,
                 deadline=request.POST.get('deadline') or None,
-                
-                # Lưu nhân sự
                 pic_content_id=request.POST.get('pic_content') or None,
                 pic_design_id=request.POST.get('pic_design') or None,
                 pic_ads_id=request.POST.get('pic_ads') or None,
-                
-                # Lưu link
                 link_source=request.POST.get('link_source'),
                 link_thumb=request.POST.get('link_thumb'),
                 link_final=request.POST.get('link_final'),
-                
-                # Lưu người tạo task (Mới)
                 created_by=request.user 
             )
             messages.success(request, "Đã thêm công việc mới!")
             return redirect('content_ads_list')
 
-    # Trả về context để giữ lại giá trị filter trên form
     context = {
         'tasks': tasks, 
         'services': services, 
         'staffs': staffs,
-        # Truyền lại giá trị lọc
         'keyword': keyword,
+        'selected_service': int(service_id) if service_id else '',
         'selected_platform': platform,
         'selected_status': status,
         'selected_pic': int(pic_id) if pic_id else ''
     }
     return render(request, 'marketing/content_ads.html', context)
 
+# --- KHÓA CHỨC NĂNG XÓA (Chỉ Admin) ---
 @login_required(login_url='/auth/login/')
 def content_ads_delete(request, pk):
-    get_object_or_404(MarketingTask, pk=pk).delete()
-    messages.success(request, "Đã xóa công việc.")
+    task = get_object_or_404(MarketingTask, pk=pk)
+    
+    # KIỂM TRA QUYỀN: Chỉ Role ADMIN hoặc Superuser mới được xóa
+    if request.user.role == 'ADMIN' or request.user.is_superuser:
+        task.delete()
+        messages.success(request, "Đã xóa công việc.")
+    else:
+        messages.error(request, "Bạn không có quyền xóa công việc này (Chỉ Admin mới có quyền).")
+        
     return redirect('content_ads_list')
 
 @login_required(login_url='/auth/login/')
