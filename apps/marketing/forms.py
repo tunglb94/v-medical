@@ -9,7 +9,9 @@ class ContentAdForm(forms.ModelForm):
 class DailyStatForm(forms.ModelForm):
     class Meta:
         model = DailyCampaignStat
-        fields = '__all__'
+        # SỬA Ở ĐÂY: Thay vì lấy tất cả, ta loại trừ revenue_ads và created_at
+        exclude = ['revenue_ads', 'created_at'] 
+        
         widgets = {
             'report_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}),
             'marketer': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
