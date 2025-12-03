@@ -1,47 +1,112 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Hệ thống Chat Nội bộ{% endblock %}
+{% block title %}Hệ thống Chat Pro{% endblock %}
 
 {% block content %}
 <style>
-    .chat-container { height: calc(100vh - 130px); background: #fff; border-radius: 10px; overflow: hidden; display: flex; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-    .user-list { width: 280px; background: #f8f9fa; border-right: 1px solid #e9ecef; overflow-y: auto; }
-    .user-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: 0.2s; display: flex; align-items: center; }
-    .user-item:hover, .user-item.active { background: #e2e6ea; }
-    .user-avatar { width: 40px; height: 40px; background: #3498db; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+    /* --- LAYOUT CHÍNH --- */
+    .chat-wrapper { height: calc(100vh - 130px); display: flex; gap: 15px; }
     
-    .chat-area { flex: 1; display: flex; flex-direction: column; background: white; }
-    .chat-header { padding: 15px; border-bottom: 1px solid #eee; font-weight: bold; background: #fff; }
-    .messages-box { flex: 1; padding: 20px; overflow-y: auto; background: #f1f2f6; display: flex; flex-direction: column; gap: 10px; }
+    /* CỘT TRÁI: DANH SÁCH USER */
+    .user-sidebar { width: 300px; background: white; border-radius: 10px; display: flex; flex-direction: column; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .search-box { padding: 15px; border-bottom: 1px solid #f0f0f0; }
+    .user-list { flex: 1; overflow-y: auto; }
+    .user-item { padding: 12px 15px; display: flex; align-items: center; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #f8f9fa; }
+    .user-item:hover { background-color: #f8f9fa; }
+    .user-item.active { background-color: #e3f2fd; border-left: 4px solid #3498db; }
     
-    .message { max-width: 70%; padding: 10px 15px; border-radius: 15px; position: relative; font-size: 0.95rem; }
+    .avatar-wrapper { position: relative; margin-right: 12px; }
+    .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; }
+    .status-dot { width: 12px; height: 12px; background-color: #95a5a6; border: 2px solid white; border-radius: 50%; position: absolute; bottom: 0; right: 0; }
+    .status-dot.online { background-color: #2ecc71; } /* Xanh lá: Online */
+
+    /* CỘT GIỮA: KHUNG CHAT */
+    .chat-main { flex: 1; background: white; border-radius: 10px; display: flex; flex-direction: column; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; }
+    .chat-header { padding: 10px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; height: 60px; }
+    
+    .messages-area { flex: 1; padding: 20px; overflow-y: auto; background-color: #f4f6f8; display: flex; flex-direction: column; gap: 8px; }
+    
+    .message { max-width: 75%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; }
     .message.sent { align-self: flex-end; background: #3498db; color: white; border-bottom-right-radius: 2px; }
-    .message.received { align-self: flex-start; background: white; border: 1px solid #ddd; border-bottom-left-radius: 2px; }
-    .msg-time { font-size: 0.7rem; margin-top: 5px; opacity: 0.7; text-align: right; }
+    .message.received { align-self: flex-start; background: white; border: 1px solid #dee2e6; border-bottom-left-radius: 2px; color: #333; }
     
-    .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; background: white; }
+    .msg-meta { font-size: 0.7rem; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; opacity: 0.8; }
+    .message.received .msg-meta { justify-content: flex-start; opacity: 0.6; }
+    
+    .input-area { padding: 15px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; align-items: center; }
+    
+    /* CỘT PHẢI: THÔNG TIN & LINK (Ẩn hiện) */
+    .info-sidebar { width: 0; overflow: hidden; background: white; border-radius: 10px; transition: width 0.3s ease; border-left: 1px solid #f0f0f0; display: flex; flex-direction: column; }
+    .info-sidebar.open { width: 280px; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
+    .info-header { padding: 15px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center; background: #f8f9fa; }
+    .link-list { flex: 1; overflow-y: auto; padding: 15px; }
+    .link-item { display: block; padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px; text-decoration: none; color: #3498db; font-size: 0.85rem; border: 1px solid #eee; word-break: break-all; }
+    .link-item:hover { background: #e9ecef; text-decoration: underline; }
+    .link-icon { margin-right: 5px; font-size: 1rem; }
+
+    /* HIGHLIGHT TÌM KIẾM */
+    .highlight { background-color: yellow; color: black; font-weight: bold; }
 </style>
 
-<div class="chat-container">
-    <div class="user-list">
-        {% for u in users %}
-        <div class="user-item" onclick="selectUser('{{ u.id }}', '{{ u.last_name }} {{ u.first_name }}')">
-            <div class="user-avatar">{{ u.username|slice:":1"|upper }}</div>
-            <div>
-                <div class="fw-bold text-dark">{{ u.last_name }} {{ u.first_name }}</div>
-                <div class="small text-muted">{{ u.get_role_display }}</div>
-            </div>
+<div class="chat-wrapper">
+    <div class="user-sidebar">
+        <div class="search-box">
+            <input type="text" id="userSearch" class="form-control form-control-sm rounded-pill" placeholder="🔍 Tìm nhân viên..." onkeyup="filterUsers()">
         </div>
-        {% endfor %}
+        <div class="user-list" id="userListContainer">
+            {% for u in users %}
+            <div class="user-item" data-name="{{ u.last_name }} {{ u.first_name }} {{ u.username }}" onclick="selectUser('{{ u.id }}', '{{ u.last_name }} {{ u.first_name }}')">
+                <div class="avatar-wrapper">
+                    <div class="user-avatar">{{ u.username|slice:":1"|upper }}</div>
+                    <div class="status-dot online"></div> 
+                </div>
+                <div class="overflow-hidden">
+                    <div class="fw-bold text-dark text-truncate" style="max-width: 180px;">{{ u.last_name }} {{ u.first_name }}</div>
+                    <div class="small text-muted">{{ u.get_role_display }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
-    <div class="chat-area">
-        <div class="chat-header" id="chatHeader">Chọn một người để bắt đầu chat...</div>
-        <div class="messages-box" id="messagesBox"></div>
+    <div class="chat-main">
+        <div class="chat-header">
+            <div class="d-flex align-items-center">
+                <span class="fw-bold fs-5 text-dark" id="chatTitle">Chọn người để chat</span>
+            </div>
+            <div class="d-flex gap-2" id="headerActions" style="display: none !important;">
+                <div class="input-group input-group-sm" style="width: 200px;">
+                    <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
+                    <input type="text" id="msgSearch" class="form-control border-0 bg-light" placeholder="Tìm nội dung..." onkeyup="searchMessages()">
+                </div>
+                <button class="btn btn-light btn-sm border" onclick="toggleInfoPanel()" title="Kho Link & Media">
+                    <i class="bi bi-layout-sidebar-reverse"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="messages-area" id="messagesBox">
+            <div class="text-center mt-5 text-muted">
+                <i class="bi bi-chat-square-dots display-1 opacity-25"></i>
+                <p class="mt-3">Hãy chọn một đồng nghiệp để bắt đầu trò chuyện.</p>
+            </div>
+        </div>
+
         <div class="input-area" id="inputArea" style="display: none;">
-            <input type="text" id="msgInput" class="form-control" placeholder="Nhập tin nhắn..." onkeypress="handleEnter(event)">
-            <button class="btn btn-primary" onclick="sendMessage()"><i class="bi bi-send"></i></button>
+            <input type="text" id="msgInput" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Nhập tin nhắn (Enter để gửi)..." onkeypress="handleEnter(event)">
+            <button class="btn btn-primary rounded-circle" style="width: 40px; height: 40px;" onclick="sendMessage()">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="info-sidebar" id="infoPanel">
+        <div class="info-header text-primary">
+            <i class="bi bi-link-45deg me-2"></i>KHO LINK ĐÃ GỬI
+        </div>
+        <div class="link-list" id="linkList">
+            <div class="text-center text-muted small mt-3">Không có link nào.</div>
         </div>
     </div>
 </div>
@@ -49,46 +114,114 @@
 <script>
     let currentReceiverId = null;
     let pollInterval = null;
+    let allMessages = []; // Lưu tạm tin nhắn để tìm kiếm
 
+    // 1. CHỌN USER ĐỂ CHAT
     function selectUser(userId, userName) {
         currentReceiverId = userId;
-        document.getElementById('chatHeader').innerText = "Chat với: " + userName;
+        document.getElementById('chatTitle').innerText = userName;
         document.getElementById('inputArea').style.display = 'flex';
+        document.getElementById('headerActions').style.setProperty('display', 'flex', 'important');
         
-        // Active class
+        // Active highlight
         document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
 
         loadMessages();
         
-        // Polling: Cứ 3 giây tải tin nhắn mới 1 lần
+        // Polling: Cập nhật tin mới mỗi 3s
         if (pollInterval) clearInterval(pollInterval);
         pollInterval = setInterval(loadMessages, 3000);
     }
 
+    // 2. TẢI TIN NHẮN & XỬ LÝ LINK, ĐÃ XEM
     function loadMessages() {
         if (!currentReceiverId) return;
         
+        // Lấy giá trị tìm kiếm hiện tại để giữ lại highlight
+        const searchText = document.getElementById('msgSearch').value.toLowerCase();
+
         fetch(`/chat/api/get/${currentReceiverId}/`)
             .then(response => response.json())
             .then(data => {
+                // Nếu dữ liệu không đổi và đang không tìm kiếm thì không render lại (để tránh giật)
+                // (Ở đây làm đơn giản là render lại hết)
+                
                 const box = document.getElementById('messagesBox');
-                const isAtBottom = box.scrollHeight - box.scrollTop === box.clientHeight;
+                // Kiểm tra xem user có đang cuộn lên xem lịch sử không
+                const isAtBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 100;
                 
                 box.innerHTML = '';
+                const linkContainer = document.getElementById('linkList');
+                linkContainer.innerHTML = ''; // Reset list link
+                let hasLink = false;
+
                 data.forEach(msg => {
+                    // Xử lý nội dung (Convert Link thành thẻ <a>)
+                    let contentHtml = msg.content;
+                    
+                    // Regex tìm URL
+                    const urlRegex = /(https?:\/\/[^\s]+)/g;
+                    const links = msg.content.match(urlRegex);
+                    
+                    if (links) {
+                        hasLink = true;
+                        links.forEach(link => {
+                            // Tạo link trong tin nhắn
+                            contentHtml = contentHtml.replace(link, `<a href="${link}" target="_blank" class="text-white text-decoration-underline">${link}</a>`);
+                            
+                            // Thêm vào Kho Link bên phải
+                            const linkItem = document.createElement('a');
+                            linkItem.href = link;
+                            linkItem.target = "_blank";
+                            linkItem.className = "link-item";
+                            linkItem.innerHTML = `<i class="bi bi-globe link-icon"></i> ${link}`;
+                            linkContainer.appendChild(linkItem);
+                        });
+                    }
+                    
+                    // Highlight nếu đang tìm kiếm
+                    if (searchText && contentHtml.toLowerCase().includes(searchText)) {
+                        contentHtml = contentHtml.replace(new RegExp(searchText, "gi"), (match) => `<span class="highlight">${match}</span>`);
+                    }
+
+                    // Trạng thái đã xem
+                    let statusHtml = '';
+                    if (msg.is_me) {
+                        contentHtml = contentHtml.replace(/class="text-white/g, 'class="text-white'); // Fix màu link nếu là mình gửi
+                        statusHtml = msg.is_read 
+                            ? '<i class="bi bi-check2-all text-info" title="Đã xem"></i>' 
+                            : '<i class="bi bi-check2 text-light" title="Đã gửi"></i>';
+                    } else {
+                        // Link người khác gửi thì màu xanh
+                        contentHtml = contentHtml.replace(/class="text-white/g, 'class="text-primary'); 
+                    }
+
                     const div = document.createElement('div');
                     div.className = `message ${msg.is_me ? 'sent' : 'received'}`;
-                    div.innerHTML = `${msg.content} <div class="msg-time">${msg.time}</div>`;
+                    // Nếu là mình gửi thì màu chữ trắng, link trắng. Người khác gửi thì màu đen.
+                    
+                    div.innerHTML = `
+                        ${contentHtml} 
+                        <div class="msg-meta">
+                            ${msg.time} ${statusHtml}
+                        </div>
+                    `;
                     box.appendChild(div);
                 });
 
+                if (!hasLink) {
+                    linkContainer.innerHTML = '<div class="text-center text-muted small mt-3">Không có link nào.</div>';
+                }
+
+                // Tự động cuộn xuống nếu đang ở dưới cùng
                 if (isAtBottom || box.scrollTop === 0) {
                     box.scrollTop = box.scrollHeight;
                 }
             });
     }
 
+    // 3. GỬI TIN NHẮN
     function sendMessage() {
         const input = document.getElementById('msgInput');
         const content = input.value.trim();
@@ -101,7 +234,7 @@
         }).then(res => {
             if (res.ok) {
                 input.value = '';
-                loadMessages(); // Load lại ngay lập tức
+                loadMessages(); // Load lại ngay
             }
         });
     }
@@ -109,5 +242,7 @@
     function handleEnter(e) {
         if (e.key === 'Enter') sendMessage();
     }
-</script>
-{% endblock %}
+
+    // 4. TÌM KIẾM USER (Lọc danh sách bên trái)
+    function filterUsers() {
+        const query = document.getElementById('userSearch').
