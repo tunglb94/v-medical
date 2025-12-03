@@ -4,9 +4,11 @@ from django.contrib import messages
 from django.db.models import Sum
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.http import JsonResponse
 import json
 
-from .models import MarketingTask, DailyCampaignStat
+from .models import MarketingTask, DailyCampaignStat, ContentAd
+from .forms import ContentAdForm # Cần tạo form này ở bước sau
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 
@@ -51,7 +53,7 @@ def marketing_dashboard(request):
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def content_ads_list(request):
     tasks = MarketingTask.objects.all().order_by('-created_at')
-    services = Service.objects.filter(is_active=True) # Lấy danh sách dịch vụ
+    services = Service.objects.filter(is_active=True)
 
     if request.method == 'POST':
         title = request.POST.get('title')
@@ -60,7 +62,6 @@ def content_ads_list(request):
         content = request.POST.get('content')
         budget = request.POST.get('budget', 0)
         
-        # Nhận dữ liệu mới
         service_id = request.POST.get('service_id')
         start_date = request.POST.get('start_date')
         deadline = request.POST.get('deadline')
@@ -74,7 +75,6 @@ def content_ads_list(request):
                 content=content,
                 budget=budget if budget else 0,
                 assigned_to=request.user,
-                # Lưu các trường mới
                 service_id=service_id if service_id else None,
                 start_date=start_date if start_date else None,
                 deadline=deadline if deadline else None,
@@ -93,15 +93,12 @@ def content_ads_list(request):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR'])
 def marketing_workspace(request):
-    # Lấy task để hiển thị lên lịch
     tasks = MarketingTask.objects.all()
-    
     events = []
     tasks_urgent = []
     today = timezone.now().date()
 
     for t in tasks:
-        # Xử lý dữ liệu cho FullCalendar
         if t.start_date:
             evt = {
                 'title': f"[{t.platform}] {t.title}",
@@ -113,9 +110,8 @@ def marketing_workspace(request):
                 }
             }
             if t.deadline:
-                evt['end'] = (t.deadline + timedelta(days=1)).strftime('%Y-%m-%d') # FullCalendar exclusive end date
+                evt['end'] = (t.deadline + timedelta(days=1)).strftime('%Y-%m-%d')
             
-            # Màu sắc
             if t.status == 'COMPLETED': evt['color'] = '#1cc88a'
             elif t.status == 'RUNNING': evt['color'] = '#4e73df'
             elif t.status == 'WRITING': evt['color'] = '#f6c23e'
@@ -124,7 +120,6 @@ def marketing_workspace(request):
 
             events.append(evt)
 
-        # Xử lý list task gấp bên trái (nếu chưa xong và có deadline)
         if t.status != 'COMPLETED' and t.deadline:
             t.is_overdue = t.deadline < today
             tasks_urgent.append(t)
@@ -134,3 +129,27 @@ def marketing_workspace(request):
         'tasks_urgent': tasks_urgent
     }
     return render(request, 'marketing/workspace.html', context)
+
+# --- API CHO LỊCH (ĐÃ FIX LỖI DATE FORMAT) ---
+@login_required(login_url='/auth/login/')
+def get_marketing_tasks_api(request):
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+    
+    # FIX LỖI: Cắt chuỗi để lấy YYYY-MM-DD nếu có time đi kèm
+    # Ví dụ: 2025-11-30T00:00:00+07:00 -> 2025-11-30
+    if start_str and 'T' in start_str:
+        start_str = start_str.split('T')[0]
+    if end_str and 'T' in end_str:
+        end_str = end_str.split('T')[0]
+
+    tasks = MarketingTask.objects.filter(start_date__range=[start_str, end_str])
+    
+    events = []
+    for task in tasks:
+        events.append({
+            'title': f"{task.platform}: {task.title}",
+            'start': task.start_date.strftime('%Y-%m-%d') if task.start_date else '',
+            'end': task.deadline.strftime('%Y-%m-%d') if task.deadline else '',
+        })
+    return JsonResponse(events, safe=False)
