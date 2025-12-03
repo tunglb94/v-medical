@@ -81,7 +81,8 @@
                     <th class="ps-3" style="width: 25%;">Tiêu đề / Dịch vụ</th>
                     <th>Nền tảng</th>
                     <th>Thời gian</th>
-                    <th>Người tạo</th> <th>Nhân sự thực hiện</th>
+                    <th>Người tạo</th>
+                    <th>Nhân sự thực hiện</th>
                     <th>Link Tài Nguyên</th>
                     <th>Trạng thái</th>
                     <th class="text-end pe-3">Hành động</th>
@@ -115,7 +116,12 @@
                     </td>
                     <td>
                         <div class="small text-muted fst-italic">
-                            <i class="bi bi-person-circle"></i> {{ task.created_by.last_name|default:task.created_by.username|default:"Admin" }}
+                            <i class="bi bi-person-circle"></i> 
+                            {% if task.created_by %}
+                                {{ task.created_by.last_name|default:task.created_by.username }}
+                            {% else %}
+                                Admin
+                            {% endif %}
                         </div>
                     </td>
                     <td>
