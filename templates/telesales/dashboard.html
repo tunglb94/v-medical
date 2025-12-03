@@ -79,12 +79,49 @@
                     {% csrf_token %}
                     <div class="p-3 border-bottom bg-white">
                         <div class="row g-2">
-                            <div class="col-md-3"><label class="small text-muted fw-bold">Họ tên</label><input type="text" name="cus_name" class="form-control form-control-sm fw-bold text-primary" value="{{ selected_customer.name }}"></div>
-                            <div class="col-md-2"><label class="small text-muted fw-bold">SĐT</label><input type="text" name="cus_phone" class="form-control form-control-sm fw-bold" value="{{ selected_customer.phone }}"></div>
-                            <div class="col-md-2"><label class="small text-muted fw-bold">Giới tính</label><select name="cus_gender" class="form-select form-select-sm">{% for code, label in gender_choices %}<option value="{{ code }}" {% if selected_customer.gender == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                            <div class="col-md-2"><label class="small text-muted fw-bold">Ngày sinh</label><input type="date" name="cus_dob" class="form-control form-control-sm" value="{{ selected_customer.dob|date:'Y-m-d' }}"></div>
-                            <div class="col-md-3"><label class="small text-muted fw-bold">Dịch vụ</label><select name="cus_skin" class="form-select form-select-sm text-danger fw-bold">{% for code, label in skin_choices %}<option value="{{ code }}" {% if selected_customer.skin_condition == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                            <div class="col-md-12 mt-2"><div class="input-group input-group-sm"><span class="input-group-text bg-light">Đ/C</span><input type="text" name="cus_city" class="form-control" style="max-width: 150px;" value="{{ selected_customer.city|default:'' }}" placeholder="Tỉnh/TP"><input type="text" name="cus_address" class="form-control" value="{{ selected_customer.address|default:'' }}" placeholder="Địa chỉ chi tiết..."></div></div>
+                            <div class="col-md-2">
+                                <label class="small text-muted fw-bold">Họ tên</label>
+                                <input type="text" name="cus_name" class="form-control form-control-sm fw-bold text-primary" value="{{ selected_customer.name }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small text-muted fw-bold">SĐT</label>
+                                <input type="text" name="cus_phone" class="form-control form-control-sm fw-bold" value="{{ selected_customer.phone }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small text-muted fw-bold">Giới tính</label>
+                                <select name="cus_gender" class="form-select form-select-sm">
+                                    {% for code, label in gender_choices %}
+                                    <option value="{{ code }}" {% if selected_customer.gender == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small text-muted fw-bold">Ngày sinh</label>
+                                <input type="date" name="cus_dob" class="form-control form-control-sm" value="{{ selected_customer.dob|date:'Y-m-d' }}">
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label class="small text-muted fw-bold">Sale nhận data</label>
+                                <input type="text" class="form-control form-control-sm bg-light text-dark fw-bold" 
+                                       value="{{ selected_customer.assigned_telesale.last_name|default:selected_customer.assigned_telesale.username|default:'--' }}" readonly>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="small text-muted fw-bold">Dịch vụ</label>
+                                <select name="cus_skin" class="form-select form-select-sm text-danger fw-bold">
+                                    {% for code, label in skin_choices %}
+                                    <option value="{{ code }}" {% if selected_customer.skin_condition == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-12 mt-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light">Đ/C</span>
+                                    <input type="text" name="cus_city" class="form-control" style="max-width: 150px;" value="{{ selected_customer.city|default:'' }}" placeholder="Tỉnh/TP">
+                                    <input type="text" name="cus_address" class="form-control" value="{{ selected_customer.address|default:'' }}" placeholder="Địa chỉ chi tiết...">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -93,31 +130,56 @@
                             <h6 class="fw-bold text-secondary mb-3 small"><i class="bi bi-clock-history me-1"></i>LỊCH SỬ TƯƠNG TÁC</h6>
                             {% for log in call_history %}
                                 <div class="timeline-item {% if log.status == 'BOOKED' %}success{% endif %}">
-                                    <div class="d-flex justify-content-between mb-1"><span class="fw-bold small">{{ log.caller.username|default:"Admin" }}</span><small class="text-muted">{{ log.call_time|date:"d/m H:i" }}</small></div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-bold small">{{ log.caller.last_name|default:log.caller.username }}</span>
+                                        <small class="text-muted">{{ log.call_time|date:"d/m H:i" }}</small>
+                                    </div>
                                     <span class="badge rounded-pill border bg-white text-dark mb-1">{{ log.get_status_display }}</span>
                                     <p class="mb-0 small text-secondary fst-italic bg-white p-2 rounded border">{{ log.note }}</p>
                                 </div>
-                            {% empty %}<div class="text-center mt-5 text-muted small">Chưa có lịch sử.</div>{% endfor %}
-                            {% if selected_customer.note_telesale %}<div class="alert alert-warning small mt-3"><strong><i class="bi bi-sticky me-1"></i>Note Nguồn:</strong><br>{{ selected_customer.note_telesale }}</div>{% endif %}
+                            {% empty %}
+                                <div class="text-center mt-5 text-muted small">Chưa có lịch sử.</div>
+                            {% endfor %}
+                            
+                            {% if selected_customer.note_telesale %}
+                                <div class="alert alert-warning small mt-3">
+                                    <strong><i class="bi bi-sticky me-1"></i>Note Nguồn:</strong><br>
+                                    {{ selected_customer.note_telesale }}
+                                </div>
+                            {% endif %}
                         </div>
 
                         <div class="w-50 p-3 d-flex flex-column bg-white position-relative">
                             <h6 class="fw-bold text-primary mb-3 small"><i class="bi bi-headset me-1"></i>GHI NHẬN KẾT QUẢ</h6>
-                            <div class="flex-grow-1 mb-3"><textarea name="note" class="form-control h-100 p-3 bg-light" placeholder="Nội dung cuộc gọi..." style="resize: none;" required></textarea></div>
+                            <div class="flex-grow-1 mb-3">
+                                <textarea name="note" class="form-control h-100 p-3 bg-light" placeholder="Nội dung cuộc gọi..." style="resize: none;" required></textarea>
+                            </div>
                             <div class="sticky-bottom-action">
                                 <div class="mb-2">
                                     <select name="status" id="callStatusSelect" class="form-select form-select-lg fw-bold border-primary" onchange="toggleDateInput()">
-                                        {% for code, label in status_choices %}<option value="{{ code }}" {% if code == 'NEW' %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                                        {% for code, label in status_choices %}
+                                        <option value="{{ code }}" {% if code == 'NEW' %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
-                                <div id="appointmentDateInput" class="mb-2" style="display: none;"><label class="small fw-bold text-success">📅 Ngày giờ hẹn</label><input type="datetime-local" name="appointment_date" class="form-control border-success fw-bold"></div>
-                                <button type="submit" class="btn btn-primary fw-bold w-100 py-3 shadow-sm text-uppercase"><i class="bi bi-save me-2"></i>Lưu & Cập nhật</button>
+                                <div id="appointmentDateInput" class="mb-2" style="display: none;">
+                                    <label class="small fw-bold text-success">📅 Ngày giờ hẹn</label>
+                                    <input type="datetime-local" name="appointment_date" class="form-control border-success fw-bold">
+                                </div>
+                                <button type="submit" class="btn btn-primary fw-bold w-100 py-3 shadow-sm text-uppercase">
+                                    <i class="bi bi-save me-2"></i>Lưu & Cập nhật
+                                </button>
                             </div>
                         </div>
                     </div>
                 </form>
             {% else %}
-                <div class="d-flex align-items-center justify-content-center h-100 text-muted bg-light"><div class="text-center"><i class="bi bi-telephone-inbound display-1 mb-3 opacity-25"></i><h5>Chọn khách hàng để bắt đầu gọi</h5></div></div>
+                <div class="d-flex align-items-center justify-content-center h-100 text-muted bg-light">
+                    <div class="text-center">
+                        <i class="bi bi-telephone-inbound display-1 mb-3 opacity-25"></i>
+                        <h5>Chọn khách hàng để bắt đầu gọi</h5>
+                    </div>
+                </div>
             {% endif %}
         </div>
     </div>
