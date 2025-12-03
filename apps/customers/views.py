@@ -12,7 +12,8 @@ from apps.sales.models import Order
 from apps.authentication.decorators import allowed_users
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE']) 
+# Đã thêm MARKETING, CONTENT, EDITOR, DESIGNER vào danh sách được xem
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']) 
 def customer_list(request):
     query = request.GET.get('q', '')
     source_filter = request.GET.get('source', '')
@@ -30,7 +31,7 @@ def customer_list(request):
     if date_from and date_to: customers = customers.filter(created_at__date__range=[date_from, date_to])
 
     source_choices = Customer.Source.choices
-    skin_choices = Customer.SkinIssue.choices # <--- QUAY VỀ SkinIssue
+    skin_choices = Customer.SkinIssue.choices
     cities = Customer.objects.values_list('city', flat=True).distinct().exclude(city__isnull=True)
 
     total_count = customers.count()
@@ -46,7 +47,8 @@ def customer_list(request):
     return render(request, 'customers/customer_list.html', context)
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
+# Đã thêm MARKETING, CONTENT, EDITOR, DESIGNER vào danh sách được xem chi tiết
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def customer_detail(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     call_logs = CallLog.objects.filter(customer=customer).order_by('-call_time')
@@ -73,6 +75,7 @@ def customer_detail(request, pk):
     return render(request, 'customers/customer_detail.html', context)
 
 @login_required(login_url='/auth/login/')
+# Giữ nguyên chỉ ADMIN mới được xóa để an toàn dữ liệu
 @allowed_users(allowed_roles=['ADMIN'])
 def customer_delete(request, pk):
     customer = get_object_or_404(Customer, pk=pk)

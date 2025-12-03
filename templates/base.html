@@ -146,7 +146,7 @@
         </li>
         {% endif %}
         
-        {% if request.user.role in 'ADMIN,RECEPTIONIST,TELESALE' %}
+        {% if request.user.role in 'ADMIN,RECEPTIONIST,TELESALE,MARKETING,CONTENT,EDITOR,DESIGNER' %}
         <li>
             <a href="{% url 'customer_list' %}" class="{% if 'customers' in request.path %}active{% endif %}">
                 <i class="bi bi-journal-text"></i> <span>Hồ Sơ Khách Hàng</span>
@@ -154,7 +154,7 @@
         </li>
         {% endif %}
 
-        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR' %}
+        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR,DESIGNER' %}
         <li class="menu-header">Tài chính & Marketing</li>
         {% endif %}
 
@@ -166,7 +166,7 @@
         </li>
         {% endif %}
 
-        {% if request.user.role in 'ADMIN,MARKETING' %}
+        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR,DESIGNER' %}
         <li>
             <a href="{% url 'marketing_dashboard' %}" class="{% if request.resolver_match.url_name == 'marketing_dashboard' %}active{% endif %}">
                 <i class="bi bi-megaphone-fill"></i> <span>Báo Cáo Ads</span>
@@ -174,7 +174,7 @@
         </li>
         {% endif %}
         
-        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR' %}
+        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR,DESIGNER' %}
         <li>
             <a href="{% url 'content_ads_list' %}" class="{% if 'content-ads' in request.path %}active{% endif %}">
                 <i class="bi bi-collection-play-fill"></i> <span>Kho Content & Ads</span>
