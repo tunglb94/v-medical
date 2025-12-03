@@ -125,7 +125,6 @@ def content_ads_list(request):
                 link_source=request.POST.get('link_source'),
                 link_thumb=request.POST.get('link_thumb'),
                 link_final=request.POST.get('link_final'),
-                assigned_to=request.user 
             )
             messages.success(request, "Đã thêm công việc mới!")
             return redirect('content_ads_list')
