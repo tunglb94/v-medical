@@ -1,26 +1,66 @@
 {% extends 'base.html' %}
-{% block title %}{{ doc.title }} - Medical Guide{% endblock %}
+{% load static %}
+
+{% block title %}{{ doc.title }} - Tài liệu đào tạo{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <a href="{% url 'document_list' %}" class="btn btn-outline-secondary btn-sm mb-3 fw-bold"><i class="bi bi-arrow-left me-1"></i> Quay lại</a>
-    
-    <div class="card card-box shadow-lg border-0">
-        <div class="p-5 text-white rounded-top" style="background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);">
-            <h1 class="fw-bold display-6 mb-3">{{ doc.title }}</h1>
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-light text-dark fw-bold px-3 py-2">{{ doc.get_category_display }}</span>
-                <span class="small opacity-75"><i class="bi bi-clock me-1"></i> Cập nhật: {{ doc.updated_at|date:"d/m/Y" }}</span>
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card shadow-sm border-0 mb-3 sticky-top" style="top: 20px; z-index: 100;">
+                <div class="card-body">
+                    <h5 class="fw-bold text-primary mb-3">{{ doc.title }}</h5>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'document_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Quay lại Kho
+                        </a>
+                        <a href="{% url 'training_test' doc.id %}" class="btn btn-danger fw-bold">
+                            <i class="bi bi-pencil-square me-2"></i>Làm bài kiểm tra
+                        </a>
+                    </div>
+
+                    <hr>
+                    <h6 class="fw-bold small text-muted">LỊCH SỬ KIỂM TRA CỦA BẠN</h6>
+                    <div class="list-group list-group-flush small">
+                        {% for result in request.user.usertestresult_set.all %}
+                            {% if result.document.id == doc.id %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>{{ result.created_at|date:"d/m" }} - {{ result.score }}%</span>
+                                {% if result.is_passed %}
+                                    <span class="badge bg-success">Đạt</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Trượt</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% empty %}
+                            <p class="text-muted fst-italic mb-0">Chưa có kết quả.</p>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="card-body p-5 bg-white">
-            {% if content_template %}
-                {% include content_template %}
-            {% else %}
-                <div class="alert alert-warning">Nội dung chi tiết đang được cập nhật...</div>
-                <p>{{ doc.short_description }}</p>
-            {% endif %}
+        <div class="col-md-9">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4" style="min-height: 600px;">
+                    {% if content_template %}
+                        {% include content_template %}
+                    {% else %}
+                        <div class="alert alert-warning text-center">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Tài liệu này chưa có nội dung chi tiết hoặc file template không tồn tại.
+                            <br>
+                            <small class="text-muted">Admin vui lòng kiểm tra trường 'template_name' trong Database.</small>
+                        </div>
+                        <div class="mt-3">
+                            <h6 class="fw-bold">Mô tả sơ lược:</h6>
+                            <p>{{ doc.short_description }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
