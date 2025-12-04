@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 import json
 
-from .models import MarketingTask, DailyCampaignStat, ContentAd
+from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback # <--- Import thêm TaskFeedback
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -15,7 +15,6 @@ from apps.authentication.models import User
 
 # --- 1. DASHBOARD MARKETING ---
 @login_required(login_url='/auth/login/')
-# Đã thêm CONTENT, EDITOR, DESIGNER vào danh sách được xem Dashboard
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'TELESALE', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def marketing_dashboard(request):
     today = timezone.now().date()
@@ -58,7 +57,6 @@ def marketing_dashboard(request):
         sum_inboxes=Sum('inboxes')
     )
     
-    # Xử lý số liệu None thành 0
     for key in totals:
         if totals[key] is None: totals[key] = 0
 
@@ -69,7 +67,6 @@ def marketing_dashboard(request):
     avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
     
-    # Dữ liệu biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -103,16 +100,13 @@ def delete_report(request, pk):
 
 # --- 2. QUẢN LÝ CONTENT ADS & LỊCH ---
 @login_required(login_url='/auth/login/')
-# Đã thêm CONTENT, EDITOR, DESIGNER vào danh sách được truy cập
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_list(request):
     services = Service.objects.filter(is_active=True)
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
     
-    # Tối ưu query với select_related
     tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by', 'service')
 
-    # --- BỘ LỌC (FILTER) ---
     keyword = request.GET.get('keyword', '')
     if keyword:
         tasks = tasks.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
@@ -139,7 +133,6 @@ def content_ads_list(request):
 
     tasks = tasks.order_by('-created_at')
 
-    # --- XỬ LÝ TẠO MỚI (POST) ---
     if request.method == 'POST':
         title = request.POST.get('title')
         if title:
@@ -157,7 +150,6 @@ def content_ads_list(request):
                 link_source=request.POST.get('link_source'),
                 link_thumb=request.POST.get('link_thumb'),
                 link_final=request.POST.get('link_final'),
-                # Lưu người tạo task
                 created_by=request.user 
             )
             messages.success(request, "Đã thêm công việc mới!")
@@ -175,11 +167,75 @@ def content_ads_list(request):
     }
     return render(request, 'marketing/content_ads.html', context)
 
+# --- 3. SỬA TASK & LƯU FEEDBACK ---
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
+def content_ads_edit(request, pk):
+    task = get_object_or_404(MarketingTask, pk=pk)
+    
+    if request.method == 'POST':
+        task.title = request.POST.get('title')
+        task.service_id = request.POST.get('service_id') or None
+        task.platform = request.POST.get('platform')
+        task.status = request.POST.get('status')
+        
+        start_date = request.POST.get('start_date')
+        task.start_date = start_date if start_date else None
+        
+        deadline = request.POST.get('deadline')
+        task.deadline = deadline if deadline else None
+        
+        task.pic_content_id = request.POST.get('pic_content') or None
+        task.pic_design_id = request.POST.get('pic_design') or None
+        task.pic_ads_id = request.POST.get('pic_ads') or None
+        
+        task.link_source = request.POST.get('link_source')
+        task.link_thumb = request.POST.get('link_thumb')
+        task.link_final = request.POST.get('link_final')
+        task.content = request.POST.get('content')
+        
+        task.save()
+
+        # --- LƯU FEEDBACK ---
+        new_feedback = request.POST.get('new_feedback')
+        if new_feedback and new_feedback.strip():
+            TaskFeedback.objects.create(
+                task=task,
+                user=request.user,
+                content=new_feedback.strip()
+            )
+        
+        messages.success(request, f"Đã cập nhật công việc: {task.title}")
+        
+    return redirect('content_ads_list')
+
+# --- 4. API LẤY LỊCH SỬ FEEDBACK ---
+@login_required
+def get_task_feedback_api(request, task_id):
+    feedbacks = TaskFeedback.objects.filter(task_id=task_id).select_related('user').order_by('-created_at')
+    
+    data = []
+    for fb in feedbacks:
+        time_str = fb.created_at.strftime("%H:%M %d/%m")
+        user_name = fb.user.last_name + " " + fb.user.first_name
+        if not user_name.strip():
+            user_name = fb.user.username
+
+        data.append({
+            'user': user_name,
+            'role': fb.user.get_role_display(),
+            'avatar': fb.user.username[0].upper(),
+            'content': fb.content,
+            'time': time_str,
+            'is_me': fb.user == request.user
+        })
+    
+    return JsonResponse(data, safe=False)
+
 @login_required(login_url='/auth/login/')
 def content_ads_delete(request, pk):
     task = get_object_or_404(MarketingTask, pk=pk)
     
-    # CHỈ CHO PHÉP ADMIN HOẶC SUPERUSER XÓA
     if request.user.role == 'ADMIN' or request.user.is_superuser:
         task.delete()
         messages.success(request, "Đã xóa công việc.")

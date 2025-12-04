@@ -24,7 +24,7 @@ class MarketingTask(models.Model):
     pic_design = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks_design', verbose_name="NV Dựng/Thiết kế")
     pic_ads = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks_ads', verbose_name="NV Chạy Ads")
 
-    # --- NGƯỜI TẠO (MỚI THÊM) ---
+    # --- NGƯỜI TẠO ---
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_marketing_tasks', verbose_name="Người tạo task")
 
     # --- TÀI NGUYÊN ---
@@ -47,6 +47,16 @@ class MarketingTask(models.Model):
     class Meta:
         verbose_name = "Công việc Marketing"
         verbose_name_plural = "Quản lý Content & Ads"
+
+# --- MỚI: MODEL FEEDBACK (LỊCH SỬ TRAO ĐỔI) ---
+class TaskFeedback(models.Model):
+    task = models.ForeignKey(MarketingTask, on_delete=models.CASCADE, related_name='feedbacks')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    content = models.TextField(verbose_name="Nội dung phản hồi")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 # 2. BÁO CÁO SỐ LIỆU ADS
 class DailyCampaignStat(models.Model):

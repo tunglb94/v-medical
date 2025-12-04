@@ -12,7 +12,9 @@ urlpatterns = [
 
     # Content Ads
     path('content-ads/', views.content_ads_list, name='content_ads_list'),
+    path('content-ads/edit/<int:pk>/', views.content_ads_edit, name='content_ads_edit'),
     path('content-ads/delete/<int:pk>/', views.content_ads_delete, name='content_ads_delete'),
     
-    # Đã xóa path 'api/generate-ads/' vì bạn yêu cầu bỏ AI
+    # API Feedback
+    path('api/task-feedback/<int:task_id>/', views.get_task_feedback_api, name='api_task_feedback'),
 ]
