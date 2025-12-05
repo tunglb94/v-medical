@@ -22,6 +22,7 @@
         a.stat-link { text-decoration: none; color: inherit; display: block; width: 100%; height: 100%; }
         a.stat-link:hover { color: #3498db; background-color: #f8f9fa; }
         tr:has(a.stat-link):hover { background-color: #f1f5f9; cursor: pointer; }
+        .table-hover tbody tr:hover td a { color: #3498db; }
     </style>
 </head>
 <body>
@@ -102,7 +103,7 @@
                                     {% elif group == '55+' %}
                                         <a href="{% url 'telesale_home' %}?age_min=55&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ count }}</a>
                                     {% else %}
-                                        {{ count }}
+                                        <span class="stat-link fw-bold">{{ count }}</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -122,13 +123,9 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    {% if item.label == 'Nữ' %}
-                                        <a href="{% url 'telesale_home' %}?gender=FEMALE&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ item.count }}</a>
-                                    {% elif item.label == 'Nam' %}
-                                        <a href="{% url 'telesale_home' %}?gender=MALE&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ item.count }}</a>
-                                    {% else %}
+                                    <a href="{% url 'telesale_home' %}?gender={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">
                                         {{ item.count }}
-                                    {% endif %}
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -147,7 +144,9 @@
                             <tr>
                                 <td>{{ item.city|default:"Chưa cập nhật" }}</td>
                                 <td class="text-end">
-                                    <a href="{% url 'telesale_home' %}?city={{ item.city|default:'None' }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ item.count }}</a>
+                                    <a href="{% url 'telesale_home' %}?city={{ item.city|default:'None' }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">
+                                        {{ item.count }}
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -168,16 +167,15 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    <span class="stat-value">{{ item.count }}</span>
-                                    <span class="stat-percent">({{ item.percent }}%)</span>
-                                    </td>
+                                    <a href="{% url 'telesale_home' %}?fanpage={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
+                                        <span class="stat-value">{{ item.count }}</span>
+                                        <span class="stat-percent">({{ item.percent }}%)</span>
+                                    </a>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    <div class="p-2 small text-muted fst-italic text-center">
-                        (Tính năng click Fanpage đang cập nhật)
-                    </div>
                 </div>
             </div>
 
@@ -191,8 +189,10 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    <span class="stat-value">{{ item.count }}</span>
-                                    <span class="stat-percent">({{ item.percent }}%)</span>
+                                    <a href="{% url 'telesale_home' %}?source={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
+                                        <span class="stat-value">{{ item.count }}</span>
+                                        <span class="stat-percent">({{ item.percent }}%)</span>
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -231,7 +231,7 @@
         </div>
 
         <div class="col-lg-4">
-             <div class="card card-box h-100">
+            <div class="card card-box h-100">
                 <div class="card-header bg-primary text-white"><i class="bi bi-trophy-fill me-2"></i>Hiệu Suất Telesale</div>
                 <div class="card-body p-0">
                     <div class="table-responsive">

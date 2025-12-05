@@ -180,7 +180,7 @@ def telesale_dashboard(request):
         'gender_choices': Customer.Gender.choices,
         'telesales_list': telesales_list,
         'today_str': today.strftime('%Y-%m-%d'),
-        # Truyền thêm các tham số drill-down để giữ state nếu cần
+        # Truyền thêm các tham số drill-down để template có thể dùng nếu cần
         'req_date_start': req_date_start,
         'req_date_end': req_date_end,
     }
@@ -235,7 +235,7 @@ def add_customer_manual(request):
     return redirect('telesale_home')
 
 
-# --- 3. BÁO CÁO TELESALE (LOGIC SMART: CHỈ LẤY TRẠNG THÁI CUỐI + FULL DANH SÁCH) ---
+# --- 3. BÁO CÁO TELESALE (LOGIC SMART + HỖ TRỢ CLICK CHI TIẾT) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TELESALE'])
 def telesale_report(request):
@@ -253,16 +253,16 @@ def telesale_report(request):
 
     total_leads = customers.count()
     
-    # --- THỐNG KÊ NGUỒN & FANPAGE ---
+    # --- THỐNG KÊ NGUỒN (Có mã code) ---
     source_stats = customers.values('source').annotate(count=Count('id')).order_by('-count')
     source_data = []
     for x in source_stats:
         code = x['source']
         label = dict(Customer.Source.choices).get(code, 'Khác')
         percent = round(x['count']/total_leads*100, 1) if total_leads else 0
-        # Gửi thêm 'code' để Report có thể tạo link drill-down
         source_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
 
+    # --- THỐNG KÊ FANPAGE (Có mã code) ---
     fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
     fanpage_dict = dict(Customer.Fanpage.choices)
     fanpage_data = []
@@ -270,18 +270,20 @@ def telesale_report(request):
         code = x['fanpage']
         label = fanpage_dict.get(code, "Chưa xác định")
         percent = round(x['count']/total_leads*100, 1) if total_leads else 0
-        # Gửi thêm 'code' để Report có thể tạo link drill-down
         fanpage_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
 
-    # --- THỐNG KÊ DEMOGRAPHIC (Tỉnh, Giới, Tuổi) ---
+    # --- THỐNG KÊ TỈNH THÀNH ---
     city_stats = customers.values('city').annotate(count=Count('id')).order_by('-count')
     
+    # --- THỐNG KÊ GIỚI TÍNH (Có mã code) ---
     gender_stats_raw = customers.values('gender').annotate(count=Count('id'))
     gender_data = []
     for x in gender_stats_raw:
-        label = dict(Customer.Gender.choices).get(x['gender'], 'Không rõ')
-        gender_data.append({'label': label, 'count': x['count']})
+        code = x['gender']
+        label = dict(Customer.Gender.choices).get(code, 'Không rõ')
+        gender_data.append({'code': code, 'label': label, 'count': x['count']})
 
+    # --- THỐNG KÊ ĐỘ TUỔI ---
     age_groups = {'18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '55+': 0, 'Unknown': 0}
     for cus in customers:
         age = cus.age
@@ -325,7 +327,7 @@ def telesale_report(request):
         rate = round(count/total_leads*100, 1) if total_leads else 0
         
         data_quality_list.append({
-            'code': code, # Code dùng để tạo link drill-down
+            'code': code, 
             'label': label,
             'count': count,
             'rate': rate
