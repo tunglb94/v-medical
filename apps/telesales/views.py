@@ -170,7 +170,7 @@ def add_customer_manual(request):
     return redirect('telesale_home')
 
 
-# --- 3. BÁO CÁO TELESALE CHI TIẾT (ĐÃ SỬA: ĐẦY ĐỦ TRƯỜNG) ---
+# --- 3. BÁO CÁO TELESALE (SMART REPORT) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TELESALE'])
 def telesale_report(request):
@@ -180,7 +180,9 @@ def telesale_report(request):
     date_start_str = request.GET.get('date_start', str(start_of_month))
     date_end_str = request.GET.get('date_end', str(today))
     
+    # Data đầu vào (Input)
     customers = Customer.objects.filter(created_at__date__range=[date_start_str, date_end_str])
+    # Data hoạt động (Logs)
     logs = CallLog.objects.filter(call_time__date__range=[date_start_str, date_end_str])
 
     total_leads = customers.count()
@@ -220,21 +222,40 @@ def telesale_report(request):
         elif 46 <= age <= 55: age_groups['46-55'] += 1
         else: age_groups['55+'] += 1
 
-    # 3. CHẤT LƯỢNG DATA (FULL TOÀN BỘ TRƯỜNG)
-    # Tự động lấy tất cả các lựa chọn trong CallStatus để không bao giờ bị thiếu
+    # --- 3. CHẤT LƯỢNG DATA (LOGIC THÔNG MINH - CHỈ LẤY TRẠNG THÁI CUỐI) ---
+    
+    # Bước 1: Lấy danh sách khách hàng ĐÃ ĐƯỢC GỌI trong khoảng thời gian này
+    # (Để đảm bảo chỉ tính những khách có tương tác trong kỳ báo cáo)
+    involved_customers = Customer.objects.filter(
+        call_logs__call_time__date__range=[date_start_str, date_end_str]
+    ).distinct()
+
+    # Bước 2: Với mỗi khách hàng, tìm ra trạng thái của cuộc gọi MỚI NHẤT
+    latest_log_subquery = CallLog.objects.filter(
+        customer=OuterRef('pk')
+    ).order_by('-call_time').values('status')[:1]
+
+    # Bước 3: Gán (Annotate) trạng thái cuối vào khách và đếm tổng hợp
+    status_counts_query = involved_customers.annotate(
+        final_status=Subquery(latest_log_subquery)
+    ).values('final_status').annotate(total=Count('id'))
+
+    # Bước 4: Chuyển kết quả về dạng Dictionary để dễ tra cứu { 'BOOKED': 5, 'NO_ANSWER': 10, ... }
+    status_map = {item['final_status']: item['total'] for item in status_counts_query}
+
+    # Bước 5: Tạo list hiển thị ra view (Quét toàn bộ trạng thái hệ thống có)
     data_quality_list = []
-    
-    # Những trạng thái muốn loại bỏ khỏi báo cáo (Ví dụ: Mới - vì chưa gọi)
-    excluded_statuses = ['NEW'] 
-    
-    all_statuses = CallLog.CallStatus.choices # Lấy list tuple (code, label) từ Model
+    excluded_statuses = ['NEW'] # Không hiển thị trạng thái 'Mới' vì chưa gọi
+    all_statuses = CallLog.CallStatus.choices
     
     for code, label in all_statuses:
         if code in excluded_statuses:
             continue
             
-        # Đếm số khách unique có trạng thái này
-        count = logs.filter(status=code).values('customer').distinct().count()
+        # Lấy số lượng từ dictionary đã tính ở Bước 4 (Nếu không có thì bằng 0)
+        count = status_map.get(code, 0)
+        
+        # Tỷ lệ tính trên tổng Input đầu vào
         rate = round(count/total_leads*100, 1) if total_leads else 0
         
         data_quality_list.append({
@@ -244,10 +265,9 @@ def telesale_report(request):
             'rate': rate
         })
 
-    # Sắp xếp theo số lượng giảm dần để dễ nhìn
     data_quality_list.sort(key=lambda x: x['count'], reverse=True)
     
-    # 4. HIỆU SUẤT TELESALE
+    # 4. HIỆU SUẤT TELESALE (Cũng dùng logic Unique - Thông minh)
     telesales = User.objects.filter(role='TELESALE')
     performance_data = []
     
@@ -255,6 +275,8 @@ def telesale_report(request):
         assigned_count = customers.filter(assigned_telesale=sale).count()
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
+        
+        # Đếm số khách Đặt hẹn thành công (Chỉ đếm 1 lần cho 1 khách)
         booked_unique = sale_logs.filter(status='BOOKED').values('customer').distinct().count()
         
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
@@ -280,7 +302,7 @@ def telesale_report(request):
         'city_stats': city_stats,
         'gender_data': gender_data,
         'age_groups': age_groups,
-        'data_quality_list': data_quality_list, # <--- Dùng list động này thay vì dict cũ
+        'data_quality_list': data_quality_list,
         'performance_data': performance_data,
     }
     return render(request, 'telesales/report.html', context)
