@@ -43,37 +43,61 @@ def telesale_dashboard(request):
     req_status = request.GET.get('status') # Trạng thái cuối (Booked, Far away...)
 
     # Kiểm tra xem request này có phải là lọc từ báo cáo không
-    is_report_filter = any([req_source, req_fanpage, req_city, req_gender, req_age_min, req_age_max, req_status])
+    is_report_filter = any([req_source, req_fanpage, req_city, req_gender, req_age_min, req_age_max, req_status, req_date_start])
 
     if is_report_filter:
         # 1. Lọc theo Date Range
-        # Nếu lọc theo Trạng thái (Status) -> Cần tìm khách có tương tác (CallLog) trong khoảng này
-        # Nếu lọc theo Nguồn/Fanpage... -> Tìm khách tạo (Created_at) trong khoảng này (theo logic input đầu vào)
+        # Nếu lọc theo Trạng thái (Status) -> Cần tìm khách có tương tác (CallLog) trong khoảng này (Output Report)
+        # Nếu lọc theo Nguồn/Fanpage... -> Tìm khách tạo (Created_at) trong khoảng này (Input Report)
         if req_date_start and req_date_end:
             if req_status:
                 customers = customers.filter(call_logs__call_time__date__range=[req_date_start, req_date_end]).distinct()
             else:
                 customers = customers.filter(created_at__date__range=[req_date_start, req_date_end])
 
-        # 2. Lọc thuộc tính cơ bản
-        if req_source: customers = customers.filter(source=req_source)
-        if req_fanpage: customers = customers.filter(fanpage=req_fanpage)
+        # 2. Lọc thuộc tính cơ bản (FIX LỖI NONE/NULL)
+        # Fix lỗi Source: Handle cả trường hợp 'None' (từ template) là NULL hoặc rỗng trong DB
+        if req_source: 
+            if req_source == 'None':
+                customers = customers.filter(Q(source__isnull=True) | Q(source=''))
+            else:
+                customers = customers.filter(source=req_source)
+
+        if req_fanpage: 
+            if req_fanpage == 'None':
+                customers = customers.filter(Q(fanpage__isnull=True) | Q(fanpage=''))
+            else:
+                customers = customers.filter(fanpage=req_fanpage)
+
         if req_city: 
-            if req_city == 'None': customers = customers.filter(city__isnull=True)
-            else: customers = customers.filter(city=req_city)
-        if req_gender: customers = customers.filter(gender=req_gender)
+            if req_city == 'None': 
+                customers = customers.filter(Q(city__isnull=True) | Q(city=''))
+            else: 
+                customers = customers.filter(city=req_city)
+
+        if req_gender: 
+            if req_gender == 'None':
+                customers = customers.filter(Q(gender__isnull=True) | Q(gender=''))
+            else:
+                customers = customers.filter(gender=req_gender)
 
         # 3. Lọc Độ tuổi (Tính toán từ năm sinh)
         if req_age_min or req_age_max:
             current_year = today.year
             if req_age_min:
                 # Tuổi >= X thì Năm sinh <= (Năm nay - X)
-                max_dob_year = current_year - int(req_age_min)
-                customers = customers.filter(dob__year__lte=max_dob_year)
+                try:
+                    max_dob_year = current_year - int(req_age_min)
+                    customers = customers.filter(dob__year__lte=max_dob_year)
+                except ValueError:
+                    pass
             if req_age_max:
                 # Tuổi <= Y thì Năm sinh >= (Năm nay - Y)
-                min_dob_year = current_year - int(req_age_max)
-                customers = customers.filter(dob__year__gte=min_dob_year)
+                try:
+                    min_dob_year = current_year - int(req_age_max)
+                    customers = customers.filter(dob__year__gte=min_dob_year)
+                except ValueError:
+                    pass
 
         # 4. Lọc Trạng thái (Logic Smart: Lấy trạng thái CUỐI CÙNG)
         if req_status:
