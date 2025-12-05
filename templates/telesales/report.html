@@ -44,25 +44,32 @@
                 <small class="text-muted">Khách mới trong kỳ</small>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card card-box p-3 text-center h-100 border-start border-4 border-success">
-                <div class="text-uppercase text-muted small fw-bold">Đặt Hẹn (Booked)</div>
-                <div class="highlight-number text-success">{{ data_quality.booked.count }}</div>
-                <div class="badge bg-success bg-opacity-10 text-success">{{ data_quality.booked.rate }}% / Tổng data</div>
+        {% for item in data_quality_list %}
+            {% if item.code == 'BOOKED' %}
+            <div class="col-md-3">
+                <div class="card card-box p-3 text-center h-100 border-start border-4 border-success">
+                    <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
+                    <div class="highlight-number text-success">{{ item.count }}</div>
+                    <div class="badge bg-success bg-opacity-10 text-success">{{ item.rate }}% / Tổng data</div>
+                </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card card-box p-3 text-center h-100 border-start border-4 border-warning">
-                <div class="text-uppercase text-muted small fw-bold">Tỉnh Xa</div>
-                <div class="highlight-number text-warning">{{ data_quality.far_away.count }}</div>
-                <div class="badge bg-warning bg-opacity-10 text-warning">{{ data_quality.far_away.rate }}% / Tổng data</div>
+            {% endif %}
+            {% if item.code == 'FAR_AWAY' %}
+            <div class="col-md-3">
+                <div class="card card-box p-3 text-center h-100 border-start border-4 border-warning">
+                    <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
+                    <div class="highlight-number text-warning">{{ item.count }}</div>
+                    <div class="badge bg-warning bg-opacity-10 text-warning">{{ item.rate }}% / Tổng data</div>
+                </div>
             </div>
-        </div>
+            {% endif %}
+        {% endfor %}
+        
         <div class="col-md-3">
-            <div class="card card-box p-3 text-center h-100 border-start border-4 border-danger">
-                <div class="text-uppercase text-muted small fw-bold">Sai số / Spam</div>
-                <div class="highlight-number text-danger">{{ data_quality.wrong_number.count|add:data_quality.spam.count }}</div>
-                <div class="badge bg-danger bg-opacity-10 text-danger">Data rác</div>
+            <div class="card card-box p-3 text-center h-100 border-start border-4 border-secondary">
+                <div class="text-uppercase text-muted small fw-bold">Đã xử lý</div>
+                <div class="highlight-number text-secondary">---</div>
+                <small class="text-muted">Xem chi tiết bảng dưới</small>
             </div>
         </div>
     </div>
@@ -168,26 +175,19 @@
                     <table class="table table-striped table-hover table-custom m-0">
                         <thead><tr><th>Trạng thái</th><th class="text-end">Số lượng</th><th class="text-end">% Tổng Data</th></tr></thead>
                         <tbody>
+                            {% for item in data_quality_list %}
                             <tr>
-                                <td class="text-success fw-bold">Đặt hẹn (Booked)</td>
-                                <td class="text-end fw-bold">{{ data_quality.booked.count }}</td>
-                                <td class="text-end">{{ data_quality.booked.rate }}%</td>
+                                <td>
+                                    {% if item.code == 'BOOKED' %}<i class="bi bi-check-circle-fill text-success me-1"></i>{% endif %}
+                                    {% if item.code == 'WRONG_NUMBER' or item.code == 'SPAM' %}<i class="bi bi-x-circle-fill text-danger me-1"></i>{% endif %}
+                                    {{ item.label }}
+                                </td>
+                                <td class="text-end fw-bold">{{ item.count }}</td>
+                                <td class="text-end">{{ item.rate }}%</td>
                             </tr>
-                            <tr>
-                                <td>Tỉnh xa (Far away)</td>
-                                <td class="text-end">{{ data_quality.far_away.count }}</td>
-                                <td class="text-end">{{ data_quality.far_away.rate }}%</td>
-                            </tr>
-                            <tr>
-                                <td>Không nghe máy</td>
-                                <td class="text-end">{{ data_quality.no_answer.count }}</td>
-                                <td class="text-end">{{ data_quality.no_answer.rate }}%</td>
-                            </tr>
-                            <tr>
-                                <td class="text-danger">Sai số / Spam</td>
-                                <td class="text-end">{{ data_quality.wrong_number.count|add:data_quality.spam.count }}</td>
-                                <td class="text-end">{{ data_quality.wrong_number.rate|add:data_quality.spam.rate }}%</td>
-                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center">Chưa có dữ liệu</td></tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>

@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Max, Subquery, OuterRef, Count
 from django.utils import timezone
 from datetime import timedelta, date
-import re # <--- Import Regex để check SĐT
+import re 
 
 from apps.customers.models import Customer
 from apps.telesales.models import CallLog
@@ -21,17 +21,14 @@ def telesale_dashboard(request):
     today = timezone.now().date()
     telesales_list = User.objects.filter(role='TELESALE', is_active=True)
 
-    # Thêm select_related để lấy thông tin Sale nhanh hơn
     customers = Customer.objects.select_related('assigned_telesale').all()
 
-    # Tìm kiếm
     search_query = request.GET.get('q', '')
     if search_query:
         customers = customers.filter(
             Q(phone__icontains=search_query) | Q(name__icontains=search_query)
         )
 
-    # Bộ lọc
     filter_type = request.GET.get('type', 'new') 
     if filter_type == 'new':
         customers = customers.filter(created_at__date=today)
@@ -52,7 +49,6 @@ def telesale_dashboard(request):
     
     customers = customers.order_by('-created_at')
 
-    # Xử lý chọn khách
     selected_customer = None
     call_history = []
     
@@ -68,7 +64,6 @@ def telesale_dashboard(request):
     if selected_customer:
         call_history = CallLog.objects.filter(customer=selected_customer).order_by('-call_time')
 
-    # Lưu kết quả gọi
     if request.method == "POST" and selected_customer:
         selected_customer.name = request.POST.get('cus_name', selected_customer.name)
         selected_customer.phone = request.POST.get('cus_phone', selected_customer.phone)
@@ -76,8 +71,6 @@ def telesale_dashboard(request):
         selected_customer.address = request.POST.get('cus_address', selected_customer.address)
         selected_customer.city = request.POST.get('cus_city', selected_customer.city)
         selected_customer.skin_condition = request.POST.get('cus_skin', selected_customer.skin_condition)
-        
-        # --- CẬP NHẬT FANPAGE KHI SỬA (MỚI) ---
         selected_customer.fanpage = request.POST.get('cus_fanpage', selected_customer.fanpage)
         
         dob_val = request.POST.get('cus_dob')
@@ -122,7 +115,7 @@ def telesale_dashboard(request):
         'filter_type': filter_type,
         'source_choices': Customer.Source.choices,
         'skin_choices': Customer.SkinIssue.choices,
-        'fanpage_choices': Customer.Fanpage.choices, # <--- MỚI: Truyền danh sách Fanpage
+        'fanpage_choices': Customer.Fanpage.choices,
         'status_choices': CallLog.CallStatus.choices,
         'gender_choices': Customer.Gender.choices,
         'telesales_list': telesales_list,
@@ -131,12 +124,12 @@ def telesale_dashboard(request):
     return render(request, 'telesales/dashboard.html', context)
 
 
-# --- 2. THÊM KHÁCH THỦ CÔNG (CÓ CHECK REGEX SĐT) ---
+# --- 2. THÊM KHÁCH THỦ CÔNG ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['TELESALE', 'ADMIN'])
 def add_customer_manual(request):
     if request.method == "POST":
-        phone = request.POST.get('phone', '').strip() # Xóa khoảng trắng thừa
+        phone = request.POST.get('phone', '').strip()
         name = request.POST.get('name')
         telesale_id = request.POST.get('telesale_id')
         
@@ -144,12 +137,10 @@ def add_customer_manual(request):
             messages.error(request, "Thiếu Tên hoặc SĐT!")
             return redirect('telesale_home')
 
-        # --- CHECK ĐỊNH DẠNG SĐT ---
         if not re.match(r'^0\d{9}$', phone):
             messages.error(request, f"SĐT '{phone}' không hợp lệ! Phải là 10 số và bắt đầu bằng số 0.")
             return redirect('telesale_home')
 
-        # --- KIỂM TRA TRÙNG SỐ ---
         existing_customer = Customer.objects.filter(phone=phone).first()
         if existing_customer:
             messages.warning(request, f"SĐT {phone} đã có trên hệ thống! Đang chuyển tới hồ sơ khách hàng này.")
@@ -166,10 +157,7 @@ def add_customer_manual(request):
                 city=request.POST.get('city'),
                 address=request.POST.get('address'),
                 source=request.POST.get('source'),
-                
-                # --- MỚI: LƯU FANPAGE ---
                 fanpage=request.POST.get('fanpage'), 
-                
                 skin_condition=request.POST.get('skin_condition'),
                 note_telesale=request.POST.get('note_telesale'),
                 assigned_telesale_id=assigned_user_id
@@ -182,7 +170,7 @@ def add_customer_manual(request):
     return redirect('telesale_home')
 
 
-# --- 3. BÁO CÁO TELESALE CHI TIẾT (MỚI) ---
+# --- 3. BÁO CÁO TELESALE CHI TIẾT (ĐÃ SỬA: ĐẦY ĐỦ TRƯỜNG) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TELESALE'])
 def telesale_report(request):
@@ -192,19 +180,17 @@ def telesale_report(request):
     date_start_str = request.GET.get('date_start', str(start_of_month))
     date_end_str = request.GET.get('date_end', str(today))
     
-    # Lấy Data theo ngày tạo (Input đầu vào)
     customers = Customer.objects.filter(created_at__date__range=[date_start_str, date_end_str])
-    # Lấy Log gọi theo ngày gọi (Hoạt động)
     logs = CallLog.objects.filter(call_time__date__range=[date_start_str, date_end_str])
 
     total_leads = customers.count()
     
-    # --- 1. THỐNG KÊ NGUỒN & FANPAGE ---
+    # 1. THỐNG KÊ NGUỒN & FANPAGE
     source_stats = customers.values('source').annotate(count=Count('id')).order_by('-count')
     source_data = []
     for x in source_stats:
         label = dict(Customer.Source.choices).get(x['source'], 'Khác')
-        percent = round(x['count']/total_leads*100, 1) if total_leads > 0 else 0
+        percent = round(x['count']/total_leads*100, 1) if total_leads else 0
         source_data.append({'label': label, 'count': x['count'], 'percent': percent})
 
     fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
@@ -212,10 +198,10 @@ def telesale_report(request):
     fanpage_data = []
     for x in fanpage_stats:
         label = fanpage_dict.get(x['fanpage'], "Chưa xác định")
-        percent = round(x['count']/total_leads*100, 1) if total_leads > 0 else 0
+        percent = round(x['count']/total_leads*100, 1) if total_leads else 0
         fanpage_data.append({'label': label, 'count': x['count'], 'percent': percent})
 
-    # --- 2. THỐNG KÊ DEMOGRAPHIC (Tỉnh thành, Giới tính, Tuổi) ---
+    # 2. THỐNG KÊ DEMOGRAPHIC
     city_stats = customers.values('city').annotate(count=Count('id')).order_by('-count')
     
     gender_stats_raw = customers.values('gender').annotate(count=Count('id'))
@@ -234,27 +220,34 @@ def telesale_report(request):
         elif 46 <= age <= 55: age_groups['46-55'] += 1
         else: age_groups['55+'] += 1
 
-    # --- 3. CHẤT LƯỢNG DATA (Dựa trên trạng thái cuộc gọi) ---
-    # Helper đếm số khách hàng DUY NHẤT có trạng thái cụ thể
-    def count_unique_status(status_code):
-        return logs.filter(status=status_code).values('customer').distinct().count()
-
-    booked_count = count_unique_status('BOOKED')
-    far_away_count = count_unique_status('FAR_AWAY')
-    wrong_number_count = count_unique_status('WRONG_NUMBER')
-    no_answer_count = count_unique_status('NO_ANSWER')
-    spam_count = count_unique_status('SPAM')
+    # 3. CHẤT LƯỢNG DATA (FULL TOÀN BỘ TRƯỜNG)
+    # Tự động lấy tất cả các lựa chọn trong CallStatus để không bao giờ bị thiếu
+    data_quality_list = []
     
-    # Tính tỷ lệ trên Tổng Data (Input)
-    data_quality = {
-        'booked': {'count': booked_count, 'rate': round(booked_count/total_leads*100, 1) if total_leads else 0},
-        'far_away': {'count': far_away_count, 'rate': round(far_away_count/total_leads*100, 1) if total_leads else 0},
-        'wrong_number': {'count': wrong_number_count, 'rate': round(wrong_number_count/total_leads*100, 1) if total_leads else 0},
-        'no_answer': {'count': no_answer_count, 'rate': round(no_answer_count/total_leads*100, 1) if total_leads else 0},
-        'spam': {'count': spam_count, 'rate': round(spam_count/total_leads*100, 1) if total_leads else 0},
-    }
+    # Những trạng thái muốn loại bỏ khỏi báo cáo (Ví dụ: Mới - vì chưa gọi)
+    excluded_statuses = ['NEW'] 
+    
+    all_statuses = CallLog.CallStatus.choices # Lấy list tuple (code, label) từ Model
+    
+    for code, label in all_statuses:
+        if code in excluded_statuses:
+            continue
+            
+        # Đếm số khách unique có trạng thái này
+        count = logs.filter(status=code).values('customer').distinct().count()
+        rate = round(count/total_leads*100, 1) if total_leads else 0
+        
+        data_quality_list.append({
+            'code': code,
+            'label': label,
+            'count': count,
+            'rate': rate
+        })
 
-    # --- 4. HIỆU SUẤT TELESALE ---
+    # Sắp xếp theo số lượng giảm dần để dễ nhìn
+    data_quality_list.sort(key=lambda x: x['count'], reverse=True)
+    
+    # 4. HIỆU SUẤT TELESALE
     telesales = User.objects.filter(role='TELESALE')
     performance_data = []
     
@@ -262,10 +255,8 @@ def telesale_report(request):
         assigned_count = customers.filter(assigned_telesale=sale).count()
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
-        # Đếm số khách Đặt hẹn thành công (Unique customer)
         booked_unique = sale_logs.filter(status='BOOKED').values('customer').distinct().count()
         
-        # Tỷ lệ chốt trên số data được chia (nếu có)
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
         
         if assigned_count > 0 or total_calls > 0:
@@ -289,7 +280,7 @@ def telesale_report(request):
         'city_stats': city_stats,
         'gender_data': gender_data,
         'age_groups': age_groups,
-        'data_quality': data_quality,
+        'data_quality_list': data_quality_list, # <--- Dùng list động này thay vì dict cũ
         'performance_data': performance_data,
     }
     return render(request, 'telesales/report.html', context)
