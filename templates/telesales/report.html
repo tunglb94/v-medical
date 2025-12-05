@@ -17,6 +17,11 @@
         .stat-value { font-weight: bold; color: #2c3e50; }
         .stat-percent { font-size: 0.85rem; color: #64748b; margin-left: 5px; }
         .highlight-number { font-size: 1.5rem; font-weight: 800; color: #3498db; }
+        
+        /* Style cho link click */
+        a.stat-link { text-decoration: none; color: inherit; display: block; width: 100%; height: 100%; }
+        a.stat-link:hover { color: #3498db; background-color: #f8f9fa; }
+        tr:has(a.stat-link):hover { background-color: #f1f5f9; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -39,39 +44,39 @@
     <div class="row g-3 mb-3">
         <div class="col-md-3">
             <div class="card card-box p-3 text-center h-100 border-start border-4 border-primary">
-                <div class="text-uppercase text-muted small fw-bold">Tổng Data (Input)</div>
-                <div class="highlight-number">{{ total_leads }}</div>
-                <small class="text-muted">Khách mới trong kỳ</small>
+                <a href="{% url 'telesale_home' %}?date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
+                    <div class="text-uppercase text-muted small fw-bold">Tổng Data (Input)</div>
+                    <div class="highlight-number">{{ total_leads }}</div>
+                    <small class="text-muted">Khách mới trong kỳ</small>
+                </a>
             </div>
         </div>
+        
         {% for item in data_quality_list %}
             {% if item.code == 'BOOKED' %}
             <div class="col-md-3">
                 <div class="card card-box p-3 text-center h-100 border-start border-4 border-success">
-                    <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
-                    <div class="highlight-number text-success">{{ item.count }}</div>
-                    <div class="badge bg-success bg-opacity-10 text-success">{{ item.rate }}% / Tổng data</div>
+                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
+                        <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
+                        <div class="highlight-number text-success">{{ item.count }}</div>
+                        <div class="badge bg-success bg-opacity-10 text-success">{{ item.rate }}% / Tổng data</div>
+                    </a>
                 </div>
             </div>
             {% endif %}
+            
             {% if item.code == 'FAR_AWAY' %}
             <div class="col-md-3">
                 <div class="card card-box p-3 text-center h-100 border-start border-4 border-warning">
-                    <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
-                    <div class="highlight-number text-warning">{{ item.count }}</div>
-                    <div class="badge bg-warning bg-opacity-10 text-warning">{{ item.rate }}% / Tổng data</div>
+                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
+                        <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
+                        <div class="highlight-number text-warning">{{ item.count }}</div>
+                        <div class="badge bg-warning bg-opacity-10 text-warning">{{ item.rate }}% / Tổng data</div>
+                    </a>
                 </div>
             </div>
             {% endif %}
         {% endfor %}
-        
-        <div class="col-md-3">
-            <div class="card card-box p-3 text-center h-100 border-start border-4 border-secondary">
-                <div class="text-uppercase text-muted small fw-bold">Đã xử lý</div>
-                <div class="highlight-number text-secondary">---</div>
-                <small class="text-muted">Xem chi tiết bảng dưới</small>
-            </div>
-        </div>
     </div>
 
     <div class="row">
@@ -85,7 +90,21 @@
                             {% for group, count in age_groups.items %}
                             <tr>
                                 <td>{{ group }}</td>
-                                <td class="text-end stat-value">{{ count }}</td>
+                                <td class="text-end">
+                                    {% if group == '18-25' %}
+                                        <a href="{% url 'telesale_home' %}?age_min=18&age_max=25&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ count }}</a>
+                                    {% elif group == '26-35' %}
+                                        <a href="{% url 'telesale_home' %}?age_min=26&age_max=35&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ count }}</a>
+                                    {% elif group == '36-45' %}
+                                        <a href="{% url 'telesale_home' %}?age_min=36&age_max=45&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ count }}</a>
+                                    {% elif group == '46-55' %}
+                                        <a href="{% url 'telesale_home' %}?age_min=46&age_max=55&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ count }}</a>
+                                    {% elif group == '55+' %}
+                                        <a href="{% url 'telesale_home' %}?age_min=55&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ count }}</a>
+                                    {% else %}
+                                        {{ count }}
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -102,7 +121,15 @@
                             {% for item in gender_data %}
                             <tr>
                                 <td>{{ item.label }}</td>
-                                <td class="text-end stat-value">{{ item.count }}</td>
+                                <td class="text-end">
+                                    {% if item.label == 'Nữ' %}
+                                        <a href="{% url 'telesale_home' %}?gender=FEMALE&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ item.count }}</a>
+                                    {% elif item.label == 'Nam' %}
+                                        <a href="{% url 'telesale_home' %}?gender=MALE&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ item.count }}</a>
+                                    {% else %}
+                                        {{ item.count }}
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -119,7 +146,9 @@
                             {% for item in city_stats %}
                             <tr>
                                 <td>{{ item.city|default:"Chưa cập nhật" }}</td>
-                                <td class="text-end stat-value">{{ item.count }}</td>
+                                <td class="text-end">
+                                    <a href="{% url 'telesale_home' %}?city={{ item.city|default:'None' }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link fw-bold">{{ item.count }}</a>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -141,11 +170,14 @@
                                 <td class="text-end">
                                     <span class="stat-value">{{ item.count }}</span>
                                     <span class="stat-percent">({{ item.percent }}%)</span>
-                                </td>
+                                    </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                    <div class="p-2 small text-muted fst-italic text-center">
+                        (Tính năng click Fanpage đang cập nhật)
+                    </div>
                 </div>
             </div>
 
@@ -170,19 +202,23 @@
             </div>
 
             <div class="card card-box">
-                <div class="card-header"><i class="bi bi-clipboard-data-fill me-2"></i>Chất Lượng Data (Chi tiết)</div>
+                <div class="card-header"><i class="bi bi-clipboard-data-fill me-2"></i>Chất Lượng Data (Chốt cuối)</div>
                 <div class="card-body p-0">
                     <table class="table table-striped table-hover table-custom m-0">
-                        <thead><tr><th>Trạng thái</th><th class="text-end">Số lượng</th><th class="text-end">% Tổng Data</th></tr></thead>
+                        <thead><tr><th>Trạng thái cuối</th><th class="text-end">Số lượng</th><th class="text-end">% Tổng Data</th></tr></thead>
                         <tbody>
                             {% for item in data_quality_list %}
                             <tr>
                                 <td>
-                                    {% if item.code == 'BOOKED' %}<i class="bi bi-check-circle-fill text-success me-1"></i>{% endif %}
-                                    {% if item.code == 'WRONG_NUMBER' or item.code == 'SPAM' %}<i class="bi bi-x-circle-fill text-danger me-1"></i>{% endif %}
-                                    {{ item.label }}
+                                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link d-flex align-items-center">
+                                        {% if item.code == 'BOOKED' %}<i class="bi bi-check-circle-fill text-success me-1"></i>{% endif %}
+                                        {% if item.code == 'WRONG_NUMBER' or item.code == 'SPAM' %}<i class="bi bi-x-circle-fill text-danger me-1"></i>{% endif %}
+                                        {{ item.label }}
+                                    </a>
                                 </td>
-                                <td class="text-end fw-bold">{{ item.count }}</td>
+                                <td class="text-end fw-bold">
+                                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">{{ item.count }}</a>
+                                </td>
                                 <td class="text-end">{{ item.rate }}%</td>
                             </tr>
                             {% empty %}
@@ -195,7 +231,7 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card card-box h-100">
+             <div class="card card-box h-100">
                 <div class="card-header bg-primary text-white"><i class="bi bi-trophy-fill me-2"></i>Hiệu Suất Telesale</div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
