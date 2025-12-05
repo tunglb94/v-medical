@@ -77,6 +77,9 @@ def telesale_dashboard(request):
         selected_customer.city = request.POST.get('cus_city', selected_customer.city)
         selected_customer.skin_condition = request.POST.get('cus_skin', selected_customer.skin_condition)
         
+        # --- CẬP NHẬT FANPAGE KHI SỬA ---
+        selected_customer.fanpage = request.POST.get('cus_fanpage', selected_customer.fanpage)
+        
         dob_val = request.POST.get('cus_dob')
         if dob_val: selected_customer.dob = dob_val
         selected_customer.save()
@@ -119,6 +122,7 @@ def telesale_dashboard(request):
         'filter_type': filter_type,
         'source_choices': Customer.Source.choices,
         'skin_choices': Customer.SkinIssue.choices,
+        'fanpage_choices': Customer.Fanpage.choices, # <--- TRUYỀN DATA FANPAGE
         'status_choices': CallLog.CallStatus.choices,
         'gender_choices': Customer.Gender.choices,
         'telesales_list': telesales_list,
@@ -162,6 +166,10 @@ def add_customer_manual(request):
                 city=request.POST.get('city'),
                 address=request.POST.get('address'),
                 source=request.POST.get('source'),
+                
+                # --- LƯU FANPAGE KHI TẠO MỚI ---
+                fanpage=request.POST.get('fanpage'), 
+                
                 skin_condition=request.POST.get('skin_condition'),
                 note_telesale=request.POST.get('note_telesale'),
                 assigned_telesale_id=assigned_user_id
@@ -189,9 +197,24 @@ def telesale_report(request):
 
     total_leads = customers.count()
     
+    # Thống kê Nguồn
     source_stats = customers.values('source').annotate(count=Count('id')).order_by('-count')
     source_labels = [dict(Customer.Source.choices).get(x['source']) for x in source_stats]
     source_data = [x['count'] for x in source_stats]
+
+    # --- THỐNG KÊ FANPAGE (MỚI) ---
+    fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
+    fanpage_dict = dict(Customer.Fanpage.choices)
+    fanpage_data_list = []
+    
+    for item in fanpage_stats:
+        code = item['fanpage']
+        label = fanpage_dict.get(code, "Chưa xác định") if code else "Chưa xác định"
+        fanpage_data_list.append({
+            'label': label,
+            'count': item['count']
+        })
+    # ------------------------------
 
     city_stats = customers.values('city').annotate(count=Count('id')).order_by('-count')[:5]
     gender_stats = customers.values('gender').annotate(count=Count('id'))
@@ -237,6 +260,7 @@ def telesale_report(request):
         'total_leads': total_leads,
         'source_labels': source_labels,
         'source_data': source_data,
+        'fanpage_data_list': fanpage_data_list, # <--- TRUYỀN DATA MỚI
         'city_stats': city_stats,
         'gender_stats': gender_stats,
         'age_groups': age_groups,

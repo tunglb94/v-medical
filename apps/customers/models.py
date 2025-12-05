@@ -24,6 +24,15 @@ class Customer(models.Model):
         TIKTOK = "TIKTOK", "Tiktok"
         REFERRAL = "REFERRAL", "Bạn giới thiệu"
         OTHER = "OTHER", "Khác"
+    
+    # --- CẬP NHẬT: THÊM DANH SÁCH FANPAGE ---
+    class Fanpage(models.TextChoices):
+        BS_QUAN = "BS_QUAN", "Bác sĩ Cao Trần Quân"
+        VMEDICAL_CLINIC = "VMEDICAL_CLINIC", "V - Medical Clinic"
+        DL_VMEDICAL = "DL_VMEDICAL", "Phòng Khám Da Liễu Thẩm Mỹ V-Medical"
+        QUAN_SINCE_2006 = "QUAN_SINCE_2006", "Cao Trần Quân - Viện Da Liễu V Medical since 2006"
+        ULTHERAPY_57A = "ULTHERAPY_57A", "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo"
+        OTHER = "OTHER", "Khác / Không rõ"
 
     class Ranking(models.TextChoices):
         MEMBER = "MEMBER", "Thành viên"
@@ -45,6 +54,9 @@ class Customer(models.Model):
     
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.FACEBOOK, verbose_name="Nguồn khách")
     
+    # --- CẬP NHẬT: THÊM FIELD FANPAGE ---
+    fanpage = models.CharField(max_length=50, choices=Fanpage.choices, null=True, blank=True, verbose_name="Fanpage Nguồn")
+
     # Vẫn dùng SkinIssue để khớp với code cũ
     skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
     

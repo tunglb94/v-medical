@@ -120,13 +120,26 @@
                                 </select>
                             </div>
                             
-                            <div class="col-md-12 mt-2">
+                            <div class="col-md-6 mt-2">
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light">Đ/C</span>
                                     <input type="text" name="cus_city" class="form-control" style="max-width: 150px;" value="{{ selected_customer.city|default:'' }}" placeholder="Tỉnh/TP">
                                     <input type="text" name="cus_address" class="form-control" value="{{ selected_customer.address|default:'' }}" placeholder="Địa chỉ chi tiết...">
                                 </div>
                             </div>
+
+                            <div class="col-md-6 mt-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light">Fanpage</span>
+                                    <select name="cus_fanpage" class="form-select">
+                                        <option value="">-- Chưa xác định --</option>
+                                        {% for code, label in fanpage_choices %}
+                                        <option value="{{ code }}" {% if selected_customer.fanpage == code %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
@@ -206,7 +219,14 @@
             <div class="row mb-3"><div class="col-md-6"><label class="form-label fw-bold small">Họ Tên *</label><input type="text" name="name" class="form-control" required></div><div class="col-md-6"><label class="form-label fw-bold small">SĐT *</label><input type="text" name="phone" class="form-control" placeholder="Ví dụ: 0912345678" required></div></div>
             <div class="row mb-3"><div class="col-md-4"><label class="form-label fw-bold small">Giới tính</label><select name="gender" class="form-select">{% for code, label in gender_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-4"><label class="form-label fw-bold small">Ngày sinh</label><input type="date" name="dob" class="form-control"></div><div class="col-md-4"><label class="form-label fw-bold small">Tỉnh / Thành</label><input class="form-control" name="city" list="cityOptions"></div></div>
             <div class="mb-3"><label class="form-label fw-bold small">Địa chỉ</label><input type="text" name="address" class="form-control"></div>
-            <div class="row mb-3"><div class="col-md-6"><label class="form-label fw-bold small">Nguồn</label><select name="source" class="form-select">{% for code, label in source_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-6"><label class="form-label fw-bold small text-danger">Dịch vụ quan tâm</label><select name="skin_condition" class="form-select">{% for code, label in skin_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div></div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4"><label class="form-label fw-bold small">Nguồn</label><select name="source" class="form-select">{% for code, label in source_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+                <div class="col-md-4"><label class="form-label fw-bold small text-primary">Fanpage</label><select name="fanpage" class="form-select">{% for code, label in fanpage_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+                
+                <div class="col-md-4"><label class="form-label fw-bold small text-danger">Dịch vụ quan tâm</label><select name="skin_condition" class="form-select">{% for code, label in skin_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+            </div>
+
             <div class="mb-3"><label class="form-label fw-bold small text-primary">Phân bổ cho Telesale</label><select name="telesale_id" class="form-select border-primary fw-bold"><option value="">-- Tự động (Gán cho tôi) --</option>{% for staff in telesales_list %}<option value="{{ staff.id }}">{{ staff.last_name }} {{ staff.first_name }} ({{ staff.username }})</option>{% endfor %}</select></div>
             <div class="mb-3"><label class="form-label fw-bold small">Ghi chú nguồn</label><textarea name="note_telesale" class="form-control" rows="2"></textarea></div>
             <button type="submit" class="btn btn-primary fw-bold w-100 py-3">LƯU & PHÂN BỔ</button>

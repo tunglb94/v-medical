@@ -4,11 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}V-Medical CRM{% endblock %}</title>
+    <title>{% block title %}Báo Cáo Telesale - V-Medical{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     
     <style>
         :root {
@@ -71,7 +70,6 @@
             width: auto;
         }
         
-        /* --- MOBILE & TABLET --- */
         .mobile-nav-toggle {
             display: none; 
             position: fixed; top: 15px; right: 15px; z-index: 1100;
@@ -95,7 +93,6 @@
 
         .card-box { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: white; }
     </style>
-    {% block extra_css %}{% endblock %}
 </head>
 <body>
 
@@ -112,124 +109,20 @@
     </div>
     
     <ul class="sidebar-menu">
-        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-        <li class="menu-header">Quản trị</li>
+        <li class="menu-header">Thống kê</li>
         <li>
-            <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-                <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard Tổng Quan</span>
+            <a href="{% url 'telesale_home' %}" class="">
+                <i class="bi bi-arrow-left-circle-fill"></i> <span>Quay lại Dashboard</span>
             </a>
         </li>
         <li>
-            <a href="{% url 'staff_list' %}" class="{% if 'staff' in request.path %}active{% endif %}">
-                <i class="bi bi-people-fill"></i> <span>Quản lý Nhân sự</span>
-            </a>
-        </li>
-        {% endif %}
-
-        {% if request.user.role in 'ADMIN,TELESALE,RECEPTIONIST,DOCTOR,TECHNICIAN' %}
-        <li class="menu-header">Nghiệp vụ</li>
-        {% endif %}
-
-        {% if request.user.role in 'ADMIN,TELESALE' %}
-        <li>
-            <a href="{% url 'telesale_home' %}" class="{% if request.resolver_match.url_name == 'telesale_home' %}active{% endif %}">
-                <i class="bi bi-headset"></i> <span>Telesale Center</span>
-            </a>
-        </li>
-        {% endif %}
-
-        {% if request.user.role in 'ADMIN,RECEPTIONIST,TELESALE,DOCTOR,TECHNICIAN' %}
-        <li>
-            <a href="{% url 'reception_home' %}" class="{% if 'reception' in request.path %}active{% endif %}">
-                <i class="bi bi-calendar-check-fill"></i> <span>Lễ Tân & Lịch Hẹn</span>
-            </a>
-        </li>
-        {% endif %}
-        
-        {% if request.user.role in 'ADMIN,RECEPTIONIST,TELESALE,MARKETING,CONTENT,EDITOR,DESIGNER' %}
-        <li>
-            <a href="{% url 'customer_list' %}" class="{% if 'customers' in request.path %}active{% endif %}">
-                <i class="bi bi-journal-text"></i> <span>Hồ Sơ Khách Hàng</span>
-            </a>
-        </li>
-        {% endif %}
-
-        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR,DESIGNER' %}
-        <li class="menu-header">Tài chính & Marketing</li>
-        {% endif %}
-
-        {% if request.user.role == 'ADMIN' %}
-        <li>
-            <a href="{% url 'sales_report' %}" class="{% if request.resolver_match.url_name == 'sales_report' %}active{% endif %}">
-                <i class="bi bi-bar-chart-fill"></i> <span>Báo Cáo Doanh Thu</span>
-            </a>
-        </li>
-        {% endif %}
-
-        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR,DESIGNER' %}
-        <li>
-            <a href="{% url 'marketing_dashboard' %}" class="{% if request.resolver_match.url_name == 'marketing_dashboard' %}active{% endif %}">
-                <i class="bi bi-megaphone-fill"></i> <span>Báo Cáo Ads</span>
-            </a>
-        </li>
-        {% endif %}
-        
-        {% if request.user.role in 'ADMIN,MARKETING,CONTENT,EDITOR,DESIGNER' %}
-        <li>
-            <a href="{% url 'content_ads_list' %}" class="{% if 'content-ads' in request.path %}active{% endif %}">
-                <i class="bi bi-collection-play-fill"></i> <span>Kho Content & Ads</span>
-            </a>
-        </li>
-        <li>
-            <a href="{% url 'marketing_workspace' %}" class="{% if 'workspace' in request.path %}active{% endif %}">
-                <i class="bi bi-kanban-fill"></i> <span>Lịch Marketing</span>
-            </a>
-        </li>
-        {% endif %}
-
-        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-        <li class="menu-header">Nhân sự (HRM)</li>
-        
-        <li>
-            <a href="{% url 'contract_management' %}" class="{% if 'contracts' in request.path %}active{% endif %}">
-                <i class="bi bi-file-earmark-person-fill"></i> <span>Hợp Đồng & Lương</span>
-            </a>
-        </li>
-
-        <li>
-            <a href="{% url 'payroll_dashboard' %}" class="{% if 'payroll' in request.path %}active{% endif %}">
-                <i class="bi bi-cash-coin"></i> <span>Tính Lương</span>
-            </a>
-        </li>
-        {% endif %}
-        
-        <li>
-            <a href="{% url 'attendance_list' %}" class="{% if 'attendance' in request.path %}active{% endif %}">
-                <i class="bi bi-clock-history"></i> <span>Bảng Công</span>
-            </a>
-        </li>
-
-        <li>
-            <a href="{% url 'chat_home' %}" class="{% if 'chat' in request.path %}active{% endif %}">
-                <i class="bi bi-chat-dots-fill"></i> <span>Chat Nội bộ</span>
+            <a href="#" class="active">
+                <i class="bi bi-bar-chart-fill"></i> <span>Báo Cáo Telesale</span>
             </a>
         </li>
     </ul>
     
     <div class="sidebar-footer">
-        <a href="{% url 'user_profile' %}" class="text-decoration-none" title="Sửa hồ sơ">
-            <div class="d-flex align-items-center mb-3 px-2 py-2 rounded" style="background: rgba(255,255,255,0.05);">
-                <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center me-2" style="width:35px; height:35px;">
-                    <span class="fw-bold text-white">
-                        {% if request.user.username %}{{ request.user.username|slice:":1"|upper }}{% else %}?{% endif %}
-                    </span>
-                </div>
-                <div class="overflow-hidden text-white">
-                    <div class="fw-bold text-truncate" style="max-width: 130px;">{{ request.user.username }}</div>
-                    <div class="small text-white-50" style="font-size: 0.75rem;">{{ request.user.get_role_display }}</div>
-                </div>
-            </div>
-        </a>
         <a href="{% url 'logout' %}" class="btn btn-danger w-100 fw-bold btn-sm">
             <i class="bi bi-box-arrow-left me-1"></i> Đăng Xuất
         </a>
@@ -237,16 +130,112 @@
 </nav>
 
 <main class="main-content">
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show shadow-sm" role="alert">
-                <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-dark m-0">BÁO CÁO HIỆU SUẤT TELESALE</h4>
+        <form method="GET" class="d-flex gap-2">
+            <input type="date" name="date_start" class="form-control" value="{{ date_start }}">
+            <span class="align-self-center">-</span>
+            <input type="date" name="date_end" class="form-control" value="{{ date_end }}">
+            <button class="btn btn-primary"><i class="bi bi-filter"></i> Lọc</button>
+        </form>
+    </div>
 
-    {% block content %}{% endblock %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card card-box p-3 border-start border-4 border-primary">
+                <div class="small text-muted fw-bold">TỔNG LEADS</div>
+                <div class="fs-2 fw-bold text-dark">{{ total_leads }}</div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card card-box h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-facebook me-2"></i>THỐNG KÊ THEO FANPAGE</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tên Fanpage</th>
+                                    <th class="text-center" width="100">Số lượng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in fanpage_data_list %}
+                                <tr>
+                                    <td>{{ item.label }}</td>
+                                    <td class="text-center fw-bold text-primary">{{ item.count }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-center">Chưa có dữ liệu</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card card-box h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="bi bi-pie-chart-fill me-2"></i>CƠ CẤU NGUỒN DATA</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="sourceChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card card-box">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-dark"><i class="bi bi-trophy-fill me-2"></i>BẢNG XẾP HẠNG HIỆU SUẤT</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Nhân sự</th>
+                                    <th class="text-center">Data được chia</th>
+                                    <th class="text-center">Cuộc gọi thực hiện</th>
+                                    <th class="text-center">Đơn chốt (Booked)</th>
+                                    <th class="text-center">Tỷ lệ chốt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in performance_data %}
+                                <tr>
+                                    <td class="fw-bold">{{ sale.fullname }} <small class="text-muted">({{ sale.username }})</small></td>
+                                    <td class="text-center">{{ sale.assigned }}</td>
+                                    <td class="text-center">{{ sale.total_calls }}</td>
+                                    <td class="text-center text-success fw-bold">{{ sale.booked }}</td>
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="me-2">{{ sale.rate }}%</span>
+                                            <div class="progress" style="width: 50px; height: 5px;">
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ sale.rate }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center">Chưa có dữ liệu hoạt động</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -256,8 +245,26 @@
         document.getElementById('sidebarMenu').classList.toggle('show');
         document.getElementById('sidebarOverlay').classList.toggle('active');
     }
-</script>
 
-{% block extra_js %}{% endblock %}
+    // VẼ BIỂU ĐỒ NGUỒN
+    const ctx = document.getElementById('sourceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ source_labels|safe }},
+            datasets: [{
+                data: {{ source_data|safe }},
+                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right' }
+            }
+        }
+    });
+</script>
 </body>
 </html>
