@@ -42,6 +42,60 @@
         </form>
     </div>
 
+    <div class="card card-box mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#advancedFilter" role="button" aria-expanded="{% if req_city or req_gender or req_fanpage or req_telesale %}true{% else %}false{% endif %}" aria-controls="advancedFilter" style="cursor: pointer;">
+            <div><i class="bi bi-funnel-fill me-2"></i>LỌC NÂNG CAO</div>
+            <i class="bi bi-chevron-down"></i>
+        </div>
+        <div class="collapse {% if req_city or req_gender or req_fanpage or req_telesale %}show{% endif %}" id="advancedFilter">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <input type="hidden" name="date_start" value="{{ date_start }}">
+                    <input type="hidden" name="date_end" value="{{ date_end }}">
+                    
+                    <div class="col-md-3">
+                        <label for="filter_telesale" class="form-label small fw-bold text-muted">Nhân viên Telesale</label>
+                        <select name="filter_telesale" id="filter_telesale" class="form-select form-select-sm">
+                            <option value="">-- Tất cả --</option>
+                            {% for sale in telesales_list %}
+                                <option value="{{ sale.id }}" {% if req_telesale == sale.id|stringformat:"i" %}selected{% endif %}>{{ sale.first_name }} {{ sale.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="filter_gender" class="form-label small fw-bold text-muted">Giới tính</label>
+                        <select name="filter_gender" id="filter_gender" class="form-select form-select-sm">
+                            <option value="">-- Tất cả --</option>
+                            {% for code, label in gender_choices %}
+                                <option value="{{ code }}" {% if req_gender == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="filter_fanpage" class="form-label small fw-bold text-muted">Fanpage</label>
+                        <select name="filter_fanpage" id="filter_fanpage" class="form-select form-select-sm">
+                            <option value="">-- Tất cả --</option>
+                            {% for code, label in fanpage_choices %}
+                                <option value="{{ code }}" {% if req_fanpage == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="filter_city" class="form-label small fw-bold text-muted">Tỉnh/Thành phố</label>
+                        <input type="text" name="filter_city" id="filter_city" class="form-control form-control-sm" placeholder="Nhập tên Tỉnh/TP" value="{{ req_city|default:'' }}">
+                    </div>
+                    
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <button type="submit" class="btn btn-info btn-sm fw-bold"><i class="bi bi-search"></i> ÁP DỤNG LỌC</button>
+                        <a href="{% url 'telesale_report' %}?date_start={{ date_start }}&date_end={{ date_end }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise"></i> XÓA LỌC</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     <div class="row g-3 mb-3">
         <div class="col-md-3">
             <div class="card card-box p-3 text-center h-100 border-start border-4 border-primary">
