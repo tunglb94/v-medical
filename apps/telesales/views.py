@@ -279,12 +279,38 @@ def telesale_report(request):
     # --- THỐNG KÊ FANPAGE (Có mã code) ---
     fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
     fanpage_dict = dict(Customer.Fanpage.choices)
-    fanpage_data = []
+    
+    unmapped_fanpage_count = 0
+    final_fanpage_data = []
+
     for x in fanpage_stats:
         code = x['fanpage']
-        label = fanpage_dict.get(code, "Chưa xác định")
+        
+        # Thử lấy nhãn từ choices, nếu không có, dùng mã đặc biệt 'UNMAPPED_CODE'
+        # Các mã không hợp lệ bao gồm: None, chuỗi rỗng '', hoặc mã string sai
+        label = fanpage_dict.get(code, 'UNMAPPED_CODE') 
+        
+        if label == 'UNMAPPED_CODE':
+            # Nếu là mã không xác định, cộng dồn số lượng
+            unmapped_fanpage_count += x['count']
+            continue
+
+        # Nếu là mã hợp lệ, thêm vào danh sách kết quả cuối cùng
         percent = round(x['count']/total_leads*100, 1) if total_leads else 0
-        fanpage_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
+        final_fanpage_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
+
+    # Thêm nhóm mã không xác định (Unmapped) đã được hợp nhất vào danh sách kết quả (nếu có)
+    if unmapped_fanpage_count > 0:
+        unmapped_percent = round(unmapped_fanpage_count/total_leads*100, 1) if total_leads else 0
+        final_fanpage_data.append({
+            'code': None, # Đặt code là None để chặn tạo link drill-down không chính xác
+            'label': "Chưa cập nhật/Mã lỗi",
+            'count': unmapped_fanpage_count, 
+            'percent': unmapped_percent
+        })
+        
+    final_fanpage_data.sort(key=lambda x: x['count'], reverse=True)
+    fanpage_data = final_fanpage_data
 
     # --- THỐNG KÊ TỈNH THÀNH ---
     city_stats = customers.values('city').annotate(count=Count('id')).order_by('-count')
