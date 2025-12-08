@@ -115,7 +115,8 @@
                                     </td>
                                     <td class="text-end pe-4">
                                         {% if app.status == 'SCHEDULED' %}
-                                            <button class="btn btn-sm btn-warning fw-bold shadow-sm"
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-warning fw-bold shadow-sm"
                                                     onclick="openCheckinModal({{ app.id }}, '{{ app.customer.name }}', '{{ app.appointment_date|date:'H:i d/m/Y' }}', '{{ app.customer.customer_code|default:'' }}')">
                                                 <i class="bi bi-box-arrow-in-right me-1"></i> CHECK-IN
                                             </button>
@@ -204,7 +205,7 @@
                 <h5 class="modal-title text-primary fw-bold" id="checkinModalLabel"><i class="bi bi-box-arrow-in-right me-2"></i>CHECK-IN KHÁCH HÀNG</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="" id="checkinForm">
+            <form method="POST" action="{% url 'checkin' 0 %}" id="checkinForm">
                 {% csrf_token %}
                 <div class="modal-body">
                     <h6 class="fw-bold mb-1" id="checkinCustomerName"></h6>
@@ -225,15 +226,153 @@
     </div>
 </div>
 <div class="modal fade" id="walkinModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title fw-bold">KHÁCH VÃNG LAI</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{% url 'reception_walkin' %}" method="POST">
+          {% csrf_token %}
+          <div class="modal-body">
+              <div class="alert alert-warning small mb-3 p-2"><i class="bi bi-info-circle me-1"></i> Hệ thống sẽ tạo hồ sơ mới nếu SĐT chưa có.</div>
+              <div class="mb-3"><label class="form-label fw-bold small">Họ Tên *</label><input type="text" name="name" class="form-control" required></div>
+              <div class="mb-3"><label class="form-label fw-bold small">SĐT *</label><input type="text" name="phone" class="form-control" required></div>
+              <div class="row mb-3">
+                  <div class="col-4"><label class="form-label fw-bold small">Tuổi</label><input type="number" name="age" class="form-control"></div>
+                  <div class="col-8"><label class="form-label fw-bold small">Tỉnh Thành</label><input class="form-control" list="provinceOptions" name="city"></div>
+              </div>
+              <div class="mb-3"><label class="form-label fw-bold small">Giờ đến</label><input type="datetime-local" name="appointment_date" class="form-control" required></div>
+          </div>
+          <div class="modal-footer"><button type="submit" class="btn btn-warning fw-bold w-100">TẠO & CHECK-IN NGAY</button></div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <div class="modal fade" id="receptionBookingModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-teal text-white">
+        <h5 class="modal-title fw-bold">Đặt lịch nhanh</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{% url 'reception_create_appointment' %}" method="POST">
+          {% csrf_token %}
+          <div class="modal-body">
+              <input type="hidden" name="customer_id" id="modalBookingCustomerId">
+              <div class="mb-3"><label class="form-label small text-muted">Khách hàng</label><input type="text" class="form-control fw-bold" id="modalBookingCustomerName" readonly></div>
+              <div class="mb-3"><label class="form-label fw-bold small">Giờ hẹn</label><input type="datetime-local" name="appointment_date" class="form-control" required></div>
+          </div>
+          <div class="modal-footer"><button type="submit" class="btn btn-primary bg-teal border-0 w-100 fw-bold">XÁC NHẬN HẸN</button></div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <div class="modal fade" id="finishModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold">CHỐT CA TƯ VẤN</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{% url 'reception_finish' %}" method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="appointment_id" id="finishApptId">
+          <div class="modal-body bg-light">
+              <div class="alert alert-success bg-white border-success d-flex align-items-center mb-3">
+                  <i class="bi bi-person-check-fill fs-3 me-3 text-success"></i>
+                  <div><strong id="finishCustomerName" class="fs-5">Tên Khách</strong></div>
+              </div>
+
+              <div class="card mb-3 border-0 shadow-sm">
+                  <div class="card-header bg-white fw-bold text-primary small border-bottom">1. NHÂN SỰ PHỤ TRÁCH</div>
+                  <div class="card-body row g-2">
+                      <div class="col-md-4">
+                          <label class="small text-muted">Bác sĩ</label>
+                          <select name="doctor_id" class="form-select form-select-sm">
+                              <option value="">-- Chọn --</option>
+                              {% for doc in doctors %}<option value="{{ doc.id }}">BS. {{ doc.last_name }} {{ doc.first_name }}</option>{% endfor %}
+                          </select>
+                      </div>
+                      <div class="col-md-4">
+                          <label class="small text-muted">Kỹ thuật viên</label>
+                          <select name="technician_id" class="form-select form-select-sm">
+                              <option value="">-- Chọn --</option>
+                              {% for tech in technicians %}<option value="{{ tech.id }}">KTV. {{ tech.last_name }} {{ tech.first_name }}</option>{% endfor %}
+                          </select>
+                      </div>
+                      <div class="col-md-4">
+                          <label class="small text-muted">Sale tư vấn</label>
+                          <select name="consultant_id" class="form-select form-select-sm">
+                              <option value="">-- Chọn --</option>
+                              {% for sale in consultants %}<option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>{% endfor %}
+                          </select>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="card border-0 shadow-sm">
+                  <div class="card-header bg-white fw-bold text-danger small border-bottom">2. KẾT QUẢ GIAO DỊCH</div>
+                  <div class="card-body">
+                      <div class="mb-3 text-center">
+                          <div class="btn-group w-100" role="group">
+                              <input type="radio" class="btn-check" name="result_status" id="success" value="buy" checked onclick="toggleOrderForm(true)">
+                              <label class="btn btn-outline-success fw-bold" for="success">THÀNH CÔNG</label>
+                              <input type="radio" class="btn-check" name="result_status" id="fail" value="no_buy" onclick="toggleOrderForm(false)">
+                              <label class="btn btn-outline-secondary fw-bold" for="fail">THẤT BẠI</label>
+                          </div>
+                      </div>
+
+                      <div id="orderInfoBlock" class="p-3 bg-success bg-opacity-10 border border-success rounded">
+                          <div class="mb-2">
+                              <label class="form-label fw-bold small">Dịch vụ</label>
+                              <select name="service_id" id="serviceSelect" class="form-select" onchange="updatePrice()">
+                                  <option value="" data-price="0">-- Chọn dịch vụ --</option>
+                                  {% for sv in services %}<option value="{{ sv.id }}" data-price="{{ sv.price|floatformat:0 }}">{{ sv.name }}</option>{% endfor %}
+                              </select>
+                          </div>
+                          <div class="row g-2">
+                              <div class="col-4"><label class="small text-muted">Giá gốc</label><input type="number" name="original_price" id="originalPrice" class="form-control form-control-sm" readonly></div>
+                              <div class="col-4"><label class="small text-muted">Giảm giá</label><input type="number" name="discount" id="discountInput" class="form-control form-control-sm" placeholder="0" oninput="calculateFinal()"></div>
+                              <div class="col-4"><label class="small fw-bold text-danger">THỰC THU</label><input type="number" name="total_amount" id="finalPrice" class="form-control form-control-sm fw-bold text-danger" readonly></div>
+                          </div>
+                      </div>
+
+                      <div id="rejectionInfoBlock" class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded" style="display: none;">
+                          <textarea name="rejection_reason" id="rejectReason" class="form-control" rows="2" placeholder="Lý do khách từ chối..."></textarea>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-success fw-bold w-100">LƯU & HOÀN TẤT</button>
+          </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <div class="modal fade" id="eventDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title mb-0">Chi tiết lịch hẹn</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h5 class="fw-bold text-primary mb-1" id="popupCustomerName">Tên khách</h5>
+                <p class="text-muted small mb-3" id="popupPhone">SĐT</p>
+                <ul class="list-unstyled small mb-3 bg-light p-2 rounded">
+                    <li class="d-flex justify-content-between mb-1"><span>Giờ:</span> <strong id="popupTime">--:--</strong></li>
+                    <li class="d-flex justify-content-between mb-1"><span>Trạng thái:</span> <strong id="popupStatus">--</strong></li>
+                    <li class="d-flex justify-content-between"><span>Bác sĩ:</span> <strong id="popupDoctor">--</strong></li>
+                </ul>
+                <div class="d-grid" id="popupActions"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <datalist id="provinceOptions">
@@ -304,7 +443,7 @@
         modal.show();
     }
     
-    // --- CẬP NHẬT FULLCALENDAR ACTION ---
+    // --- CẬP NHẬT FULLCALENDAR ACTION (THIẾU TRUYỀN CUSTOMER CODE) ---
     function showEventPopup(event) {
         document.getElementById('popupCustomerName').innerText = event.extendedProps.customerName;
         document.getElementById('popupPhone').innerText = event.extendedProps.phone;
@@ -316,12 +455,12 @@
         actionsDiv.innerHTML = '';
         
         if (event.extendedProps.statusCode === 'SCHEDULED') {
+             // THAY THẾ: Gọi Modal check-in từ popup lịch
             const btn = document.createElement('button');
             btn.className = 'btn btn-warning fw-bold w-100';
             btn.innerText = 'CHECK-IN';
             btn.onclick = function() {
                 bootstrap.Modal.getInstance(document.getElementById('eventDetailModal')).hide();
-                // Lấy thông tin cần thiết để truyền vào openCheckinModal
                 const apptId = event.id;
                 const custName = event.extendedProps.customerName;
                 const apptTime = event.start.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) + ' ' + event.start.toLocaleDateString('vi-VN');
@@ -357,8 +496,7 @@
             locale: 'vi',
             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
             slotMinTime: "08:00:00", slotMaxTime: "20:00:00", allDaySlot: false, height: 'auto',
-            // Cần sửa API để trả về customerCode
-            events: '/api/calendar/appointments/', 
+            events: '/api/calendar/appointments/',
             eventClick: function(info) { showEventPopup(info.event); }
         });
         calendar.render();

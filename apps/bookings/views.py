@@ -74,8 +74,8 @@ def get_appointments_api(request):
     if start_date and end_date:
         appointments = Appointment.objects.filter(
             appointment_date__range=[start_date[:10], end_date[:10]]
-        )
-        
+        ).select_related('customer') # Thêm select_related để lấy mã khách hàng
+
         for app in appointments:
             color = '#6c757d'
             if app.status == 'SCHEDULED': color = '#0d6efd'
@@ -94,6 +94,7 @@ def get_appointments_api(request):
                     'phone': app.customer.phone,
                     'status': app.get_status_display(),
                     'statusCode': app.status,
+                    'customerCode': app.customer.customer_code or '', # BỔ SUNG: Truyền mã khách hàng
                     'doctor': app.assigned_doctor.last_name if app.assigned_doctor else "Chưa gán"
                 }
             })
@@ -116,7 +117,6 @@ def checkin_appointment(request, appointment_id):
                 # 1. Kiểm tra trùng lặp (trừ chính khách hàng này)
                 if Customer.objects.filter(customer_code=customer_code).exclude(pk=app.customer.pk).exists():
                     messages.error(request, f"LỖI: Mã khách hàng '{customer_code}' đã được sử dụng cho khách hàng khác.")
-                    # Vì POST request từ modal, ta phải redirect
                     return redirect('reception_home') 
                 
                 # 2. Lưu mã khách hàng
@@ -127,7 +127,8 @@ def checkin_appointment(request, appointment_id):
             # Thực hiện Check-in
             app.status = 'ARRIVED' 
             app.receptionist = request.user
-            app.checkin_time = timezone.now() # Giả định model Appointment có checkin_time
+            # Giả định Appointment model có field checkin_time
+            app.checkin_time = timezone.now() 
             app.save()
             messages.success(request, f"Đã Check-in thành công: {app.customer.name}")
         
