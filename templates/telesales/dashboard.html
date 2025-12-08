@@ -166,6 +166,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
+
                             <hr class="my-2">
                             
                             <h6 class="fw-bold text-success small mb-2"><i class="bi bi-telephone-outbound-fill me-2"></i>GHI NHẬN CUỘC GỌI</h6>
@@ -237,7 +238,7 @@
 </div>
 
 <div class="modal fade" id="addCustomerModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title fw-bold">THÊM KHÁCH HÀNG MỚI</h5>
@@ -246,40 +247,74 @@
       <form action="{% url 'add_customer_manual' %}" method="POST">
           {% csrf_token %}
           <div class="modal-body">
-              <div class="mb-3">
-                  <label class="form-label small fw-bold">Họ tên *</label>
-                  <input type="text" name="name" class="form-control" required>
-              </div>
-              <div class="mb-3">
-                  <label class="form-label small fw-bold">Số điện thoại *</label>
-                  <input type="text" name="phone" class="form-control" required placeholder="09xxxx (10 số)">
-              </div>
-               <div class="row">
-                   <div class="col-6 mb-3">
+              <div class="row g-3">
+                  <div class="col-md-6">
+                      <label class="form-label small fw-bold">Họ tên *</label>
+                      <input type="text" name="name" class="form-control" required>
+                  </div>
+                  <div class="col-md-6">
+                      <label class="form-label small fw-bold">Số điện thoại *</label>
+                      <input type="text" name="phone" class="form-control" required placeholder="09xxxx (10 số)">
+                  </div>
+                  
+                  <div class="col-md-6">
                       <label class="form-label small fw-bold">Giới tính</label>
                       <select name="gender" class="form-select">
                           {% for code, label in gender_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
                       </select>
-                   </div>
-                   <div class="col-6 mb-3">
+                  </div>
+                  <div class="col-md-6">
                       <label class="form-label small fw-bold">Năm sinh</label>
                       <input type="date" name="dob" class="form-control">
-                   </div>
-               </div>
-               <div class="mb-3">
-                  <label class="form-label small fw-bold">Sale Phụ Trách</label>
-                  <select name="telesale_id" class="form-select">
-                      <option value="{{ request.user.id }}">-- {{ request.user.last_name }} (Tôi) --</option>
-                      {% for staff in telesales_list %}
-                        {% if staff.id != request.user.id %}
-                            <option value="{{ staff.id }}">{{ staff.last_name }} {{ staff.first_name }}</option>
-                        {% endif %}
-                      {% endfor %}
-                  </select>
-              </div>
-              <div class="mb-3">
-                  <label class="form-label small fw-bold">Ghi chú ban đầu</label>
-                  <textarea name="note_telesale" class="form-control" rows="2"></textarea>
+                  </div>
+
+                  <div class="col-md-8">
+                      <label class="form-label small fw-bold">Địa chỉ</label>
+                      <input type="text" name="address" class="form-control">
+                  </div>
+                  <div class="col-md-4">
+                      <label class="form-label small fw-bold">Tỉnh / Thành</label>
+                      <input type="text" name="city" class="form-control" list="provinceOptions">
+                  </div>
+
+                  <div class="col-md-4">
+                      <label class="form-label small fw-bold">Nguồn khách</label>
+                      <select name="source" class="form-select">
+                          <option value="OTHER">-- Chọn nguồn --</option>
+                          {% for code, label in source_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                      </select>
+                  </div>
+                  <div class="col-md-4">
+                      <label class="form-label small fw-bold">Fanpage</label>
+                      <select name="fanpage" class="form-select">
+                          <option value="">-- Chưa rõ --</option>
+                          {% for code, label in fanpage_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                      </select>
+                  </div>
+                  <div class="col-md-4">
+                      <label class="form-label small fw-bold">Dịch vụ quan tâm</label>
+                      <select name="skin_condition" class="form-select">
+                          <option value="OTHER">-- Khác --</option>
+                          {% for code, label in skin_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                      </select>
+                  </div>
+
+                  <div class="col-12">
+                      <label class="form-label small fw-bold">Sale Phụ Trách</label>
+                      <select name="telesale_id" class="form-select">
+                          <option value="{{ request.user.id }}">-- {{ request.user.last_name }} (Tôi) --</option>
+                          {% for staff in telesales_list %}
+                            {% if staff.id != request.user.id %}
+                                <option value="{{ staff.id }}">{{ staff.last_name }} {{ staff.first_name }}</option>
+                            {% endif %}
+                          {% endfor %}
+                      </select>
+                  </div>
+
+                  <div class="col-12">
+                      <label class="form-label small fw-bold">Ghi chú ban đầu</label>
+                      <textarea name="note_telesale" class="form-control" rows="2"></textarea>
+                  </div>
               </div>
           </div>
           <div class="modal-footer">
