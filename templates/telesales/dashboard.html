@@ -69,7 +69,7 @@
                             
                             <span class="badge bg-light text-dark border" title="Sale phụ trách">
                                 {% if customer.assigned_telesale %}
-                                    {{ customer.assigned_telesale.username }}
+                                    {{ customer.assigned_telesale.last_name }} {{ customer.assigned_telesale.first_name }}
                                 {% else %}
                                     --
                                 {% endif %}

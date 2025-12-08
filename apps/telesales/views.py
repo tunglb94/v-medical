@@ -85,23 +85,25 @@ def telesale_dashboard(request):
             
     else:
         # --- C. BỘ LỌC MẶC ĐỊNH (KHI DÙNG DASHBOARD BÌNH THƯỜNG) ---
-        filter_type = request.GET.get('type', 'new') 
-        if filter_type == 'new':
-            customers = customers.filter(created_at__date=today)
-        elif filter_type == 'old':
-            customers = customers.exclude(created_at__date=today)
-        elif filter_type == 'callback':
-            last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
-            customers = customers.annotate(
-                last_status=Subquery(last_log.values('status')[:1])
-            ).filter(last_status__in=['FOLLOW_UP', 'BUSY', 'CONSULTING'])
-        elif filter_type == 'birthday':
-            customers = customers.filter(dob__day=today.day, dob__month=today.month)
-        elif filter_type == 'dormant':
-            cutoff_date = today - timedelta(days=90)
-            customers = customers.annotate(
-                last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
-            ).filter(last_visit__lt=cutoff_date).exclude(appointments__status='SCHEDULED', appointments__appointment_date__gte=today)
+        # SỬA LỖI TẠI ĐÂY: Nếu đang tìm kiếm (có search_query) thì KHÔNG áp dụng bộ lọc ngày tháng mặc định
+        if not search_query:
+            filter_type = request.GET.get('type', 'new') 
+            if filter_type == 'new':
+                customers = customers.filter(created_at__date=today)
+            elif filter_type == 'old':
+                customers = customers.exclude(created_at__date=today)
+            elif filter_type == 'callback':
+                last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
+                customers = customers.annotate(
+                    last_status=Subquery(last_log.values('status')[:1])
+                ).filter(last_status__in=['FOLLOW_UP', 'BUSY', 'CONSULTING'])
+            elif filter_type == 'birthday':
+                customers = customers.filter(dob__day=today.day, dob__month=today.month)
+            elif filter_type == 'dormant':
+                cutoff_date = today - timedelta(days=90)
+                customers = customers.annotate(
+                    last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
+                ).filter(last_visit__lt=cutoff_date).exclude(appointments__status='SCHEDULED', appointments__appointment_date__gte=today)
     
     # Sắp xếp mặc định: Mới nhất lên đầu
     customers = customers.order_by('-created_at')
@@ -138,7 +140,7 @@ def telesale_dashboard(request):
             # Nếu chọn nhân viên, cập nhật ID
             selected_customer.assigned_telesale_id = new_telesale_id
         else:
-            # Nếu chọn "-- Chưa gán --" (value rỗng), set về None
+            # Nếu chọn "-- Chưa gán --", set về None (bỏ phụ trách)
             selected_customer.assigned_telesale_id = None
         # --------------------------------------
 
@@ -390,27 +392,38 @@ def telesale_report(request):
 
     data_quality_list.sort(key=lambda x: x['count'], reverse=True)
     
-    # --- HIỆU SUẤT TELESALE (Cũng dùng logic Unique) ---
+    # --- HIỆU SUẤT TELESALE (ĐÃ SỬA: ĐẾM DỰA TRÊN LỊCH HẸN THẬT) ---
     telesales = User.objects.filter(role='TELESALE')
     performance_data = []
     
     for sale in telesales:
-        # assigned_count chỉ tính trên customers đã được lọc
+        # 1. Data được phân bổ (Tính trên tập customers đã lọc input)
         assigned_count = customers.filter(assigned_telesale=sale).count() 
+        
+        # 2. Tổng cuộc gọi (Vẫn lấy từ Log)
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
         
-        booked_unique = sale_logs.filter(status='BOOKED').values('customer').distinct().count()
+        # 3. SỐ LỊCH ĐẶT (QUAN TRỌNG: Sửa để đếm từ bảng Appointment)
+        # Logic: Đếm số khách hàng CỦA TELESALE ĐÓ mà có phát sinh lịch hẹn trong kỳ
+        booked_unique = Appointment.objects.filter(
+            # Lọc lịch hẹn được TẠO trong khoảng thời gian báo cáo
+            created_at__date__range=[date_start_str, date_end_str],
+            # Chỉ tính nếu khách hàng đó do Telesale này phụ trách
+            customer__assigned_telesale=sale
+        ).values('customer').distinct().count()
         
+        # Tính tỷ lệ chốt
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
         
+        # Chỉ hiển thị nhân viên có data hoặc có gọi điện
         if assigned_count > 0 or total_calls > 0:
             performance_data.append({
                 'fullname': f"{sale.last_name} {sale.first_name}",
                 'username': sale.username,
                 'assigned': assigned_count,
                 'total_calls': total_calls,
-                'booked': booked_unique,
+                'booked': booked_unique, # Số liệu này giờ sẽ khớp với thực tế lịch hẹn
                 'rate': round(rate_on_assigned, 1)
             })
     
