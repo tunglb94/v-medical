@@ -31,7 +31,7 @@ def reception_dashboard(request):
     # Lấy danh sách lịch hẹn
     appointments = Appointment.objects.filter(
         appointment_date__date=current_date
-    ).order_by('status', 'appointment_date')
+    ).select_related('customer').order_by('status', 'appointment_date') # ĐÃ SỬA: select_related('customer')
 
     # --- TÍNH NĂNG SINH NHẬT (AUTOMATION) ---
     birthdays_today = Customer.objects.filter(dob__day=today.day, dob__month=today.month)
@@ -127,8 +127,7 @@ def checkin_appointment(request, appointment_id):
             # Thực hiện Check-in
             app.status = 'ARRIVED' 
             app.receptionist = request.user
-            # Giả định Appointment model có field checkin_time
-            app.checkin_time = timezone.now() 
+            app.checkin_time = timezone.now()
             app.save()
             messages.success(request, f"Đã Check-in thành công: {app.customer.name}")
         
