@@ -221,10 +221,15 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    <a href="{% url 'telesale_home' %}?fanpage={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
-                                        <span class="stat-value">{{ item.count }}</span>
-                                        <span class="stat-percent">({{ item.percent }}%)</span>
-                                    </a>
+                                    {% if item.code %}
+                                        <a href="{% url 'telesale_home' %}?fanpage={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}" class="stat-link">
+                                            <span class="stat-value">{{ item.count }}</span>
+                                            <span class="stat-percent">({{ item.percent }}%)</span>
+                                        </a>
+                                    {% else %}
+                                         <span class="stat-value">{{ item.count }}</span>
+                                         <span class="stat-percent">({{ item.percent }}%)</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
