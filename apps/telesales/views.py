@@ -132,6 +132,16 @@ def telesale_dashboard(request):
         selected_customer.skin_condition = request.POST.get('cus_skin', selected_customer.skin_condition)
         selected_customer.fanpage = request.POST.get('cus_fanpage', selected_customer.fanpage)
         
+        # --- CẬP NHẬT SALE PHỤ TRÁCH (MỚI) ---
+        new_telesale_id = request.POST.get('assigned_telesale_id')
+        if new_telesale_id:
+            # Nếu chọn nhân viên, cập nhật ID
+            selected_customer.assigned_telesale_id = new_telesale_id
+        else:
+            # Nếu chọn "-- Chưa gán --" (value rỗng), set về None
+            selected_customer.assigned_telesale_id = None
+        # --------------------------------------
+
         dob_val = request.POST.get('cus_dob')
         if dob_val: selected_customer.dob = dob_val
         selected_customer.save()

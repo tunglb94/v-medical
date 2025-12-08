@@ -5,40 +5,51 @@
 
 {% block extra_css %}
 <style>
-    .list-group-item.active { background-color: #eef2ff; color: #000; border-left: 4px solid #3498db; border-color: #f0f0f0; }
-    .timeline-item { border-left: 2px solid #dee2e6; padding-left: 15px; padding-bottom: 15px; position: relative; }
-    .timeline-item::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: #bdc3c7; }
-    .timeline-item.success::before { background: #198754; }
-    .sticky-bottom-action { position: sticky; bottom: 0; background: white; padding-top: 15px; padding-bottom: 5px; border-top: 1px solid #eee; z-index: 10; margin-top: auto; }
+    .list-group-item.active { background-color: #0d6efd; border-color: #0d6efd; color: white !important; }
+    .list-group-item.active .text-muted { color: #e9ecef !important; }
+    .card-box { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); }
+    /* Scrollbar cho danh sách khách */
+    .overflow-auto::-webkit-scrollbar { width: 6px; }
+    .overflow-auto::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
+    
+    /* Timeline styles */
+    .timeline { border-left: 2px solid #e9ecef; padding-left: 20px; position: relative; }
+    .timeline-item { position: relative; margin-bottom: 20px; }
+    .timeline-item::before { content: ''; position: absolute; left: -26px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #0d6efd; border: 2px solid white; }
+    .timeline-item.status-booked::before { background: #198754; }
+    .timeline-item.status-no-answer::before { background: #ffc107; }
+    .timeline-item.status-wrong-number::before { background: #dc3545; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="fw-bold text-dark m-0">TELESALE CENTER</h4>
-    <a href="{% url 'telesale_report' %}" class="btn btn-outline-primary fw-bold shadow-sm btn-sm">
-        <i class="bi bi-bar-chart-line-fill me-2"></i>XEM BÁO CÁO
-    </a>
+    <h4 class="fw-bold m-0"><i class="bi bi-headset me-2 text-primary"></i>TELESALE DASHBOARD</h4>
+    <div>
+        <a href="{% url 'telesale_report' %}" class="btn btn-outline-primary btn-sm fw-bold"><i class="bi bi-bar-chart-fill me-1"></i> BÁO CÁO</a>
+        <button class="btn btn-primary btn-sm fw-bold ms-2" data-bs-toggle="modal" data-bs-target="#addCustomerModal"><i class="bi bi-person-plus-fill me-1"></i> THÊM KHÁCH</button>
+    </div>
 </div>
 
-<div class="row g-3" style="height: calc(100vh - 110px);">
-    <div class="col-12 col-lg-3 d-flex flex-column h-100">
-        <div class="card card-box h-100 d-flex flex-column overflow-hidden">
-            <div class="p-3 border-bottom bg-white">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="fw-bold text-primary mb-0">DANH SÁCH DATA</h6>
-                    <button type="button" class="btn btn-sm btn-primary rounded-circle shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal"><i class="bi bi-plus-lg"></i></button>
-                </div>
-                <form method="GET" id="filterForm">
-                    <div class="input-group input-group-sm mb-2">
-                        <input type="text" name="q" class="form-control" placeholder="SĐT, Tên..." value="{{ search_query }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+<div class="row g-3 h-100">
+    <div class="col-lg-3 d-flex flex-column" style="height: calc(100vh - 140px);">
+        <div class="card card-box flex-grow-1 overflow-hidden d-flex flex-column">
+            <div class="p-2 border-bottom bg-light">
+                <form method="GET" class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0" placeholder="Tìm tên, SĐT..." value="{{ search_query }}">
                     </div>
-                    <div class="btn-group w-100 mb-1" role="group">
+                </form>
+                
+                <form method="GET" class="d-flex justify-content-between">
+                    <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="type" id="btnNew" value="new" {% if filter_type == 'new' %}checked{% endif %} onchange="this.form.submit()">
                         <label class="btn btn-outline-success btn-sm" for="btnNew">Mới</label>
+                        
                         <input type="radio" class="btn-check" name="type" id="btnOld" value="old" {% if filter_type == 'old' %}checked{% endif %} onchange="this.form.submit()">
                         <label class="btn btn-outline-secondary btn-sm" for="btnOld">Cũ</label>
+                        
                         <input type="radio" class="btn-check" name="type" id="btnCallback" value="callback" {% if filter_type == 'callback' %}checked{% endif %} onchange="this.form.submit()">
                         <label class="btn btn-outline-warning text-dark btn-sm" for="btnCallback">Gọi lại</label>
                     </div>
@@ -58,12 +69,7 @@
                             
                             <span class="badge bg-light text-dark border" title="Sale phụ trách">
                                 {% if customer.assigned_telesale %}
-                                    <i class="bi bi-person-fill text-primary"></i> 
-                                    {% if customer.assigned_telesale.last_name or customer.assigned_telesale.first_name %}
-                                        {{ customer.assigned_telesale.last_name }} {{ customer.assigned_telesale.first_name }}
-                                    {% else %}
-                                        {{ customer.assigned_telesale.username }}
-                                    {% endif %}
+                                    {{ customer.assigned_telesale.username }}
                                 {% else %}
                                     --
                                 {% endif %}
@@ -71,178 +77,240 @@
                         </div>
                     </a>
                 {% empty %}
-                    <div class="text-center p-4 text-muted small">Không có dữ liệu</div>
+                    <div class="text-center p-4 text-muted small">Không tìm thấy khách hàng.</div>
                 {% endfor %}
+            </div>
+            <div class="p-2 border-top bg-light small text-center text-muted">
+                Tổng: {{ customers.count }} khách
             </div>
         </div>
     </div>
 
-    <div class="col-12 col-lg-9 d-flex flex-column h-100">
-        <div class="card card-box h-100 overflow-hidden">
-            {% if selected_customer %}
-                <form method="POST" class="d-flex flex-column h-100">
-                    {% csrf_token %}
-                    <div class="p-3 border-bottom bg-white">
-                        <div class="row g-2">
-                            <div class="col-md-2">
-                                <label class="small text-muted fw-bold">Họ tên</label>
-                                <input type="text" name="cus_name" class="form-control form-control-sm fw-bold text-primary" value="{{ selected_customer.name }}">
+    <div class="col-lg-9 d-flex flex-column" style="height: calc(100vh - 140px);">
+        {% if selected_customer %}
+        <div class="row h-100 g-3">
+            <div class="col-md-7 h-100 d-flex flex-column">
+                <div class="card card-box flex-grow-1 overflow-auto">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold m-0 text-primary"><i class="bi bi-person-lines-fill me-2"></i>THÔNG TIN KHÁCH HÀNG</h6>
+                        <span class="badge bg-info text-dark">{{ selected_customer.get_ranking_display }}</span>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" class="row g-2">
+                            {% csrf_token %}
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label small fw-bold text-muted">Họ và Tên</label>
+                                <input type="text" name="cus_name" class="form-control form-control-sm fw-bold" value="{{ selected_customer.name }}">
                             </div>
-                            <div class="col-md-2">
-                                <label class="small text-muted fw-bold">SĐT</label>
-                                <input type="text" name="cus_phone" class="form-control form-control-sm fw-bold" value="{{ selected_customer.phone }}">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label small fw-bold text-muted">Số điện thoại</label>
+                                <input type="text" name="cus_phone" class="form-control form-control-sm" value="{{ selected_customer.phone }}">
                             </div>
-                            <div class="col-md-2">
-                                <label class="small text-muted fw-bold">Giới tính</label>
-                                <select name="cus_gender" class="form-select form-select-sm">
-                                    {% for code, label in gender_choices %}
-                                    <option value="{{ code }}" {% if selected_customer.gender == code %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="small text-muted fw-bold">Ngày sinh</label>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label small fw-bold text-muted">Ngày sinh</label>
                                 <input type="date" name="cus_dob" class="form-control form-control-sm" value="{{ selected_customer.dob|date:'Y-m-d' }}">
                             </div>
-                            
-                            <div class="col-md-2">
-                                <label class="small text-muted fw-bold">Sale nhận data</label>
-                                <input type="text" class="form-control form-control-sm bg-light text-dark fw-bold" 
-                                       value="{% if selected_customer.assigned_telesale.last_name or selected_customer.assigned_telesale.first_name %}{{ selected_customer.assigned_telesale.last_name }} {{ selected_customer.assigned_telesale.first_name }}{% else %}{{ selected_customer.assigned_telesale.username|default:'--' }}{% endif %}" readonly>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label small fw-bold text-muted">Giới tính</label>
+                                <select name="cus_gender" class="form-select form-select-sm">
+                                    {% for code, label in gender_choices %}
+                                        <option value="{{ code }}" {% if selected_customer.gender == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-
-                            <div class="col-md-2">
-                                <label class="small text-muted fw-bold">Dịch vụ</label>
-                                <select name="cus_skin" class="form-select form-select-sm text-danger fw-bold">
-                                    {% for code, label in skin_choices %}
-                                    <option value="{{ code }}" {% if selected_customer.skin_condition == code %}selected{% endif %}>{{ label }}</option>
+                            <div class="col-12 mb-2">
+                                <label class="form-label small fw-bold text-muted">Địa chỉ</label>
+                                <input type="text" name="cus_address" class="form-control form-control-sm" value="{{ selected_customer.address|default:'' }}">
+                            </div>
+                             <div class="col-md-6 mb-2">
+                                <label class="form-label small fw-bold text-muted">Tỉnh / Thành</label>
+                                <input type="text" name="cus_city" class="form-control form-control-sm" value="{{ selected_customer.city|default:'' }}" list="provinceOptions">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label small fw-bold text-muted">Nguồn khách</label>
+                                <select name="cus_source" class="form-select form-select-sm" disabled>
+                                    {% for code, label in source_choices %}
+                                        <option value="{{ code }}" {% if selected_customer.source == code %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             
-                            <div class="col-md-6 mt-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light">Đ/C</span>
-                                    <input type="text" name="cus_city" class="form-control" style="max-width: 150px;" value="{{ selected_customer.city|default:'' }}" placeholder="Tỉnh/TP">
-                                    <input type="text" name="cus_address" class="form-control" value="{{ selected_customer.address|default:'' }}" placeholder="Địa chỉ chi tiết...">
-                                </div>
-                            </div>
-
-                            <div class="col-md-6 mt-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light">Fanpage</span>
-                                    <select name="cus_fanpage" class="form-select">
-                                        <option value="">-- Chưa xác định --</option>
-                                        {% for code, label in fanpage_choices %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label small fw-bold text-muted">Fanpage</label>
+                                <select name="cus_fanpage" class="form-select form-select-sm">
+                                    <option value="">-- Chưa rõ --</option>
+                                    {% for code, label in fanpage_choices %}
                                         <option value="{{ code }}" {% if selected_customer.fanpage == code %}selected{% endif %}>{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                                    {% endfor %}
+                                </select>
                             </div>
 
-                        </div>
-                    </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label small fw-bold text-muted">Dịch vụ quan tâm</label>
+                                <select name="cus_skin" class="form-select form-select-sm">
+                                    {% for code, label in skin_choices %}
+                                        <option value="{{ code }}" {% if selected_customer.skin_condition == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                    <div class="d-flex flex-grow-1 overflow-hidden">
-                        <div class="w-50 border-end p-3 overflow-auto bg-light">
-                            <h6 class="fw-bold text-secondary mb-3 small"><i class="bi bi-clock-history me-1"></i>LỊCH SỬ TƯƠNG TÁC</h6>
-                            {% for log in call_history %}
-                                <div class="timeline-item {% if log.status == 'BOOKED' %}success{% endif %}">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="fw-bold small">
-                                            {% if log.caller.last_name or log.caller.first_name %}
-                                                {{ log.caller.last_name }} {{ log.caller.first_name }}
-                                            {% else %}
-                                                {{ log.caller.username }}
-                                            {% endif %}
-                                        </span>
-                                        <small class="text-muted">{{ log.call_time|date:"d/m H:i" }}</small>
-                                    </div>
-                                    <span class="badge rounded-pill border bg-white text-dark mb-1">{{ log.get_status_display }}</span>
-                                    <p class="mb-0 small text-secondary fst-italic bg-white p-2 rounded border">{{ log.note }}</p>
-                                </div>
-                            {% empty %}
-                                <div class="text-center mt-5 text-muted small">Chưa có lịch sử.</div>
-                            {% endfor %}
+                            <div class="col-12 mb-3 bg-warning bg-opacity-10 p-2 rounded border border-warning">
+                                <label class="form-label fw-bold small text-primary mb-1"><i class="bi bi-people-fill me-1"></i>SALE PHỤ TRÁCH (Chuyển Data)</label>
+                                <select name="assigned_telesale_id" class="form-select form-select-sm text-primary fw-bold border-primary">
+                                    <option value="">-- Chưa gán (Data Tự do) --</option>
+                                    {% for sale in telesales_list %}
+                                        <option value="{{ sale.id }}" 
+                                            {% if selected_customer.assigned_telesale_id == sale.id %}selected{% endif %}>
+                                            {{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <hr class="my-2">
                             
-                            {% if selected_customer.note_telesale %}
-                                <div class="alert alert-warning small mt-3">
-                                    <strong><i class="bi bi-sticky me-1"></i>Note Nguồn:</strong><br>
-                                    {{ selected_customer.note_telesale }}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="w-50 p-3 d-flex flex-column bg-white position-relative">
-                            <h6 class="fw-bold text-primary mb-3 small"><i class="bi bi-headset me-1"></i>GHI NHẬN KẾT QUẢ</h6>
-                            <div class="flex-grow-1 mb-3">
-                                <textarea name="note" class="form-control h-100 p-3 bg-light" placeholder="Nội dung cuộc gọi..." style="resize: none;" required></textarea>
+                            <h6 class="fw-bold text-success small mb-2"><i class="bi bi-telephone-outbound-fill me-2"></i>GHI NHẬN CUỘC GỌI</h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Kết quả cuộc gọi *</label>
+                                <select name="status" id="callStatusSelect" class="form-select" onchange="toggleBookingField()">
+                                    {% for code, label in status_choices %}
+                                        <option value="{{ code }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                            <div class="sticky-bottom-action">
-                                <div class="mb-2">
-                                    <select name="status" id="callStatusSelect" class="form-select form-select-lg fw-bold border-primary" onchange="toggleDateInput()">
-                                        {% for code, label in status_choices %}
-                                        <option value="{{ code }}" {% if code == 'NEW' %}selected{% endif %}>{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div id="appointmentDateInput" class="mb-2" style="display: none;">
-                                    <label class="small fw-bold text-success">📅 Ngày giờ hẹn</label>
-                                    <input type="datetime-local" name="appointment_date" class="form-control border-success fw-bold">
-                                </div>
-                                <button type="submit" class="btn btn-primary fw-bold w-100 py-3 shadow-sm text-uppercase">
-                                    <i class="bi bi-save me-2"></i>Lưu & Cập nhật
+
+                            <div class="mb-3 bg-light p-2 rounded border" id="bookingField" style="display: none;">
+                                <label class="form-label small fw-bold text-success">Ngày giờ hẹn khách đến *</label>
+                                <input type="datetime-local" name="appointment_date" id="appointmentDateInput" class="form-control fw-bold text-success">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Ghi chú chi tiết</label>
+                                <textarea name="note" class="form-control" rows="3" placeholder="Khách phản hồi gì..." required></textarea>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary fw-bold">
+                                    <i class="bi bi-save me-1"></i> LƯU THÔNG TIN & KẾT QUẢ
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                </form>
-            {% else %}
-                <div class="d-flex align-items-center justify-content-center h-100 text-muted bg-light">
-                    <div class="text-center">
-                        <i class="bi bi-telephone-inbound display-1 mb-3 opacity-25"></i>
-                        <h5>Chọn khách hàng để bắt đầu gọi</h5>
+                        </form>
                     </div>
                 </div>
-            {% endif %}
+            </div>
+
+            <div class="col-md-5 h-100">
+                <div class="card card-box h-100 overflow-hidden d-flex flex-column">
+                    <div class="card-header bg-white">
+                        <h6 class="fw-bold m-0 text-secondary"><i class="bi bi-clock-history me-2"></i>LỊCH SỬ CHĂM SÓC</h6>
+                    </div>
+                    <div class="card-body flex-grow-1 overflow-auto bg-light">
+                        <div class="timeline mt-2">
+                            {% for log in call_history %}
+                                <div class="timeline-item {% if log.status == 'BOOKED' %}status-booked{% elif log.status == 'NO_ANSWER' %}status-no-answer{% elif log.status == 'WRONG_NUMBER' %}status-wrong-number{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold small {{ log.get_status_color }}">{{ log.get_status_display }}</span>
+                                        <small class="text-muted" style="font-size: 0.75rem;">{{ log.call_time|date:"H:i d/m/Y" }}</small>
+                                    </div>
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body p-2 small">
+                                            {{ log.note|linebreaksbr }}
+                                            <div class="mt-1 text-end text-muted fst-italic" style="font-size: 0.7rem;">- {{ log.caller.username }} -</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="text-center text-muted small mt-5">Chưa có lịch sử gọi.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+        {% else %}
+            <div class="d-flex align-items-center justify-content-center h-100 text-muted flex-column">
+                <i class="bi bi-person-workspace display-1 opacity-25"></i>
+                <p class="mt-3">Chọn khách hàng để xem chi tiết & gọi điện</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 
 <div class="modal fade" id="addCustomerModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white"><h5 class="modal-title fw-bold">THÊM DATA MỚI</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-      <form action="{% url 'add_customer' %}" method="POST">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">THÊM KHÁCH HÀNG MỚI</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{% url 'add_customer_manual' %}" method="POST">
           {% csrf_token %}
-          <div class="modal-body bg-light">
-            <div class="row mb-3"><div class="col-md-6"><label class="form-label fw-bold small">Họ Tên *</label><input type="text" name="name" class="form-control" required></div><div class="col-md-6"><label class="form-label fw-bold small">SĐT *</label><input type="text" name="phone" class="form-control" placeholder="Ví dụ: 0912345678" required></div></div>
-            <div class="row mb-3"><div class="col-md-4"><label class="form-label fw-bold small">Giới tính</label><select name="gender" class="form-select">{% for code, label in gender_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-4"><label class="form-label fw-bold small">Ngày sinh</label><input type="date" name="dob" class="form-control"></div><div class="col-md-4"><label class="form-label fw-bold small">Tỉnh / Thành</label><input class="form-control" name="city" list="cityOptions"></div></div>
-            <div class="mb-3"><label class="form-label fw-bold small">Địa chỉ</label><input type="text" name="address" class="form-control"></div>
-            
-            <div class="row mb-3">
-                <div class="col-md-4"><label class="form-label fw-bold small">Nguồn</label><select name="source" class="form-select">{% for code, label in source_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
-                <div class="col-md-4"><label class="form-label fw-bold small text-primary">Fanpage</label><select name="fanpage" class="form-select">{% for code, label in fanpage_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
-                
-                <div class="col-md-4"><label class="form-label fw-bold small text-danger">Dịch vụ quan tâm</label><select name="skin_condition" class="form-select">{% for code, label in skin_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
-            </div>
-
-            <div class="mb-3"><label class="form-label fw-bold small text-primary">Phân bổ cho Telesale</label><select name="telesale_id" class="form-select border-primary fw-bold"><option value="">-- Tự động (Gán cho tôi) --</option>{% for staff in telesales_list %}<option value="{{ staff.id }}">{{ staff.last_name }} {{ staff.first_name }} ({{ staff.username }})</option>{% endfor %}</select></div>
-            <div class="mb-3"><label class="form-label fw-bold small">Ghi chú nguồn</label><textarea name="note_telesale" class="form-control" rows="2"></textarea></div>
-            <button type="submit" class="btn btn-primary fw-bold w-100 py-3">LƯU & PHÂN BỔ</button>
+          <div class="modal-body">
+              <div class="mb-3">
+                  <label class="form-label small fw-bold">Họ tên *</label>
+                  <input type="text" name="name" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label small fw-bold">Số điện thoại *</label>
+                  <input type="text" name="phone" class="form-control" required placeholder="09xxxx (10 số)">
+              </div>
+               <div class="row">
+                   <div class="col-6 mb-3">
+                      <label class="form-label small fw-bold">Giới tính</label>
+                      <select name="gender" class="form-select">
+                          {% for code, label in gender_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                      </select>
+                   </div>
+                   <div class="col-6 mb-3">
+                      <label class="form-label small fw-bold">Năm sinh</label>
+                      <input type="date" name="dob" class="form-control">
+                   </div>
+               </div>
+               <div class="mb-3">
+                  <label class="form-label small fw-bold">Sale Phụ Trách</label>
+                  <select name="telesale_id" class="form-select">
+                      <option value="{{ request.user.id }}">-- {{ request.user.last_name }} (Tôi) --</option>
+                      {% for staff in telesales_list %}
+                        {% if staff.id != request.user.id %}
+                            <option value="{{ staff.id }}">{{ staff.last_name }} {{ staff.first_name }}</option>
+                        {% endif %}
+                      {% endfor %}
+                  </select>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label small fw-bold">Ghi chú ban đầu</label>
+                  <textarea name="note_telesale" class="form-control" rows="2"></textarea>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary w-100 fw-bold">LƯU KHÁCH HÀNG</button>
           </div>
       </form>
     </div>
   </div>
 </div>
-<datalist id="cityOptions"><option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Cần Thơ"><option value="Bình Dương"><option value="Đồng Nai"><option value="Nghệ An"></datalist>
+
+<datalist id="provinceOptions">
+    <option value="Hà Nội"><option value="TP. Hồ Chí Minh"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Cần Thơ">
+    <option value="Bình Dương"><option value="Đồng Nai"><option value="Nghệ An"><option value="Thanh Hóa"><option value="Bắc Ninh">
+</datalist>
+
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    function toggleDateInput() {
+    function toggleBookingField() {
         var status = document.getElementById('callStatusSelect').value;
+        var bookingField = document.getElementById('bookingField');
         var dateInput = document.getElementById('appointmentDateInput');
-        var inputField = dateInput.querySelector('input');
-        if (status === 'BOOKED') { dateInput.style.display = 'block'; inputField.required = true; } 
-        else { dateInput.style.display = 'none'; inputField.required = false; inputField.value = ''; }
+        
+        if (status === 'BOOKED') {
+            bookingField.style.display = 'block';
+            dateInput.required = true;
+        } else {
+            bookingField.style.display = 'none';
+            dateInput.required = false;
+        }
     }
 </script>
 {% endblock %}
