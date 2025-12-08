@@ -6,8 +6,9 @@ from django.conf.urls.static import static
 # Import views từ Authentication (để lấy root_view và global_search)
 from apps.authentication.views import root_view, global_search 
 
-# Import views từ Telesales
-from apps.telesales.views import telesale_dashboard, add_customer_manual, telesale_report
+# Import views từ Telesales (Xóa imports không cần thiết ở đây)
+# Giữ lại telesale_dashboard để mapping đường dẫn gốc
+from apps.telesales.views import telesale_dashboard #, add_customer_manual, telesale_report
 
 # Import views từ Bookings
 from apps.bookings.views import (
@@ -34,11 +35,14 @@ urlpatterns = [
     # --- 3. DASHBOARD ---
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
-    # --- 4. TELESALE ---
-    path('telesale/', telesale_dashboard, name='telesale_home'),
-    path('add-customer/', add_customer_manual, name='add_customer'),
-    path('telesale/report/', telesale_report, name='telesale_report'),
+    # --- 4. TELESALE (Sử dụng include để gom tất cả URL Telesale) ---
+    # Thay thế 3 dòng cũ bằng 1 dòng include duy nhất
+    path('telesale/', include('apps.telesales.urls')), # Sửa thành include
     
+    # URL Telesale cũ bị dư ra khỏi block TELESALE, phải xóa
+    # path('add-customer/', add_customer_manual, name='add_customer'), # ĐÃ XÓA
+    # path('telesale/report/', telesale_report, name='telesale_report'), # ĐÃ XÓA
+
     # --- 5. RECEPTION (LỄ TÂN) ---
     path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
@@ -55,7 +59,7 @@ urlpatterns = [
 
     # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 
-    path('marketing/', include('apps.marketing.urls')),
+    path('marketing/', include('apps.marketing.urls')), # GIỮ NGUYÊN
     path('hr/', include('apps.hr.urls')),
     
     # --- 8. CHAT ---
