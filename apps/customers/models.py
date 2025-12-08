@@ -60,6 +60,9 @@ class Customer(models.Model):
     # Vẫn dùng SkinIssue để khớp với code cũ
     skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
     
+    # BỔ SUNG: MÃ KHÁCH HÀNG
+    customer_code = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Mã khách hàng/ID")
+
     assigned_telesale = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 

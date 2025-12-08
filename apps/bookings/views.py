@@ -105,12 +105,41 @@ def get_appointments_api(request):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE'])
 def checkin_appointment(request, appointment_id):
-    app = get_object_or_404(Appointment, id=appointment_id)
+    app = get_object_or_404(Appointment.objects.select_related('customer'), pk=appointment_id)
+
+    if request.method == "POST":
+        customer_code = request.POST.get('customer_code', '').strip()
+        
+        if app.status == 'SCHEDULED':
+            
+            if customer_code:
+                # 1. Kiểm tra trùng lặp (trừ chính khách hàng này)
+                if Customer.objects.filter(customer_code=customer_code).exclude(pk=app.customer.pk).exists():
+                    messages.error(request, f"LỖI: Mã khách hàng '{customer_code}' đã được sử dụng cho khách hàng khác.")
+                    # Vì POST request từ modal, ta phải redirect
+                    return redirect('reception_home') 
+                
+                # 2. Lưu mã khách hàng
+                customer = app.customer
+                customer.customer_code = customer_code
+                customer.save()
+
+            # Thực hiện Check-in
+            app.status = 'ARRIVED' 
+            app.receptionist = request.user
+            app.checkin_time = timezone.now() # Giả định model Appointment có checkin_time
+            app.save()
+            messages.success(request, f"Đã Check-in thành công: {app.customer.name}")
+        
+        return redirect('reception_home')
+    
+    # Giữ nguyên logic cũ cho GET request (ví dụ: từ fullcalendar)
     if app.status == 'SCHEDULED':
         app.status = 'ARRIVED' 
         app.receptionist = request.user
         app.save()
         messages.success(request, f"Đã Check-in: {app.customer.name}")
+        
     return redirect('reception_home')
 
 
