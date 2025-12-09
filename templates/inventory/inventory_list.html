@@ -47,13 +47,9 @@
                     <tr>
                         <th class="ps-3">Tên sản phẩm</th>
                         <th>Đơn vị</th>
-                        
                         <th class="text-center text-primary bg-primary bg-opacity-10">Tồn đầu (T{{ current_month }})</th>
-                        
                         <th class="text-center text-success bg-success bg-opacity-10">Nhập</th>
-                        
                         <th class="text-center text-danger bg-danger bg-opacity-10">Xuất</th>
-                        
                         <th class="text-center fw-bold">Tồn cuối</th>
                         <th>Định mức</th>
                         <th>Trạng thái</th>
@@ -139,12 +135,16 @@
                                 <input type="text" name="name" class="form-control" required placeholder="Nhập tên thuốc/vật tư...">
                             </div>
                             <div class="row">
-                                <div class="col-6 mb-3">
+                                <div class="col-4 mb-3">
                                     <label class="fw-bold small">Đơn vị</label>
                                     <input type="text" name="unit" class="form-control" value="Hộp">
                                 </div>
-                                <div class="col-6 mb-3">
-                                    <label class="fw-bold small">Cảnh báo tồn</label>
+                                <div class="col-4 mb-3">
+                                    <label class="fw-bold small text-primary">Tồn đầu</label>
+                                    <input type="number" name="stock" class="form-control fw-bold text-primary" value="0">
+                                </div>
+                                <div class="col-4 mb-3">
+                                    <label class="fw-bold small">Cảnh báo</label>
                                     <input type="number" name="min_stock" class="form-control" value="10">
                                 </div>
                             </div>

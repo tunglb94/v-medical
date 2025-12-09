@@ -13,14 +13,16 @@ from .models import Product, InventoryLog
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def inventory_list(request):
-    # --- 1. TÍNH TOÁN SỐ LIỆU TRONG KỲ (THÁNG HIỆN TẠI) ---
+    # --- 1. TÍNH TOÁN SỐ LIỆU (THEO THÁNG) ---
     today = timezone.now()
+    # Lấy mốc thời gian là 00:00 ngày mùng 1 tháng này
     start_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # Logic: 
-    # 1. import_period: Chỉ tính tổng các phiếu NHẬP trong tháng này.
-    # 2. export_period: Chỉ tính tổng các phiếu XUẤT trong tháng này.
-    # 3. beginning_stock: Suy ngược lại từ Tồn kho hiện tại.
+    # import_period: Tổng các phiếu CHANGE_TYPE='IMPORT' trong tháng
+    # export_period: Tổng các phiếu CHANGE_TYPE='EXPORT' trong tháng
+    # beginning_stock: Tồn hiện tại - Nhập + Xuất
+    # Lưu ý: Các phiếu loại 'ADJUST' (Kiểm kê/Tồn đầu) sẽ KHÔNG tính vào Nhập/Xuất -> Sẽ tự động chui vào Tồn Đầu.
     
     products = Product.objects.annotate(
         import_period=Coalesce(
@@ -32,11 +34,10 @@ def inventory_list(request):
             0
         ))
     ).annotate(
-        # Tồn đầu = Tồn hiện tại - Nhập + Xuất
         beginning_stock=F('stock') - F('import_period') + F('export_period')
     ).order_by('name')
     
-    # --- 2. LỌC VÀ TÌM KIẾM ---
+    # --- 2. LỌC & TÌM KIẾM ---
     q = request.GET.get('q')
     if q:
         products = products.filter(Q(name__icontains=q) | Q(code__icontains=q))
@@ -54,12 +55,30 @@ def inventory_list(request):
 
     # --- 3. XỬ LÝ POST ---
     if request.method == 'POST':
+        # >>> XỬ LÝ THÊM MỚI (CẬP NHẬT LOGIC TỒN ĐẦU) <<<
         if 'add_product' in request.POST:
             name = request.POST.get('name')
             unit = request.POST.get('unit') or 'Hộp' 
             min_stock = request.POST.get('min_stock') or 10
+            initial_stock = int(request.POST.get('stock') or 0) # Lấy tồn đầu từ form
+            
             try:
-                Product.objects.create(name=name, unit=unit, min_stock=min_stock)
+                # Tạo sản phẩm với số tồn đầu luôn
+                prod = Product.objects.create(
+                    name=name, unit=unit, min_stock=min_stock, stock=initial_stock
+                )
+                
+                # Nếu có tồn đầu > 0, tạo log ADJUST (để không tính vào Nhập trong kỳ)
+                if initial_stock > 0:
+                    InventoryLog.objects.create(
+                        product=prod,
+                        change_type='ADJUST', # Loại này không hiện vào cột Nhập
+                        quantity=initial_stock,
+                        stock_after=initial_stock,
+                        user=request.user,
+                        note="Tồn đầu kỳ (Khởi tạo)"
+                    )
+                    
                 messages.success(request, f"Đã thêm: {name}")
             except Exception as e:
                 messages.error(request, f"Lỗi: {str(e)}")
@@ -75,14 +94,19 @@ def inventory_list(request):
                     if name:
                         unit = str(row.get('DonVi', 'Hộp')).strip()
                         stock = int(row.get('TonDau', 0))
-                        # Hàm get_or_create sẽ lấy sp cũ hoặc tạo mới.
-                        # Nếu tạo mới thì stock sẽ là Tồn Đầu (không tạo log nhập).
+                        
                         obj, created = Product.objects.get_or_create(
                             name=name,
                             defaults={'unit': unit, 'stock': stock}
                         )
+                        # Nếu tạo mới và có tồn đầu, tạo log ADJUST để lịch sử đẹp
+                        if created and stock > 0:
+                             InventoryLog.objects.create(
+                                product=obj, change_type='ADJUST', quantity=stock,
+                                stock_after=stock, user=request.user, note="Import Excel"
+                            )
                         count += 1
-                messages.success(request, f"Đã nhập thành công {count} sản phẩm!")
+                messages.success(request, f"Đã nhập {count} sản phẩm!")
             except Exception as e:
                 messages.error(request, f"Lỗi file: {str(e)}")
             return redirect('inventory_list')
@@ -122,7 +146,7 @@ def inventory_transaction(request, product_id):
                 return redirect('inventory_list')
             product.stock -= qty
             final_qty = -qty
-        else: 
+        else: # IMPORT (Chỉ dùng khi nhập hàng mới về)
             product.stock += qty
             final_qty = qty
 
@@ -136,7 +160,7 @@ def inventory_transaction(request, product_id):
         
     return redirect('inventory_list')
 
-# Hàm Report giữ nguyên như cũ
+# --- BÁO CÁO (GIỮ NGUYÊN) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def inventory_report(request):
