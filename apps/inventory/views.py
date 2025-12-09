@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import models # <--- ĐÃ THÊM DÒNG NÀY
 from django.db.models import Q
 from apps.authentication.decorators import allowed_users
 from .models import Product, InventoryLog
@@ -15,7 +16,7 @@ def inventory_list(request):
     if q:
         products = products.filter(Q(name__icontains=q) | Q(code__icontains=q))
 
-    # Cảnh báo sắp hết hàng
+    # Cảnh báo sắp hết hàng (So sánh trường stock với trường min_stock)
     low_stock_products = products.filter(stock__lte=models.F('min_stock'))
 
     if request.method == 'POST':
@@ -44,8 +45,13 @@ def inventory_transaction(request, product_id):
     
     if request.method == 'POST':
         trans_type = request.POST.get('type') # IMPORT / EXPORT
-        qty = int(request.POST.get('quantity', 0))
+        qty_str = request.POST.get('quantity', '0')
         note = request.POST.get('note', '')
+
+        try:
+            qty = int(qty_str)
+        except ValueError:
+            qty = 0
 
         if qty <= 0:
             messages.error(request, "Số lượng phải lớn hơn 0")
