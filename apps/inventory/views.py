@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models import Q, Sum, F
 from django.db.models.functions import Coalesce, Abs
 from django.utils import timezone
+from datetime import datetime # <--- ĐÃ THÊM DÒNG NÀY
 import pandas as pd 
 
 from apps.authentication.decorators import allowed_users
@@ -146,7 +147,7 @@ def inventory_transaction(request, product_id):
                 return redirect('inventory_list')
             product.stock -= qty
             final_qty = -qty
-        else: # IMPORT (Chỉ dùng khi nhập hàng mới về)
+        else: 
             product.stock += qty
             final_qty = qty
 
@@ -160,7 +161,7 @@ def inventory_transaction(request, product_id):
         
     return redirect('inventory_list')
 
-# --- BÁO CÁO (GIỮ NGUYÊN) ---
+# --- BÁO CÁO ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def inventory_report(request):
