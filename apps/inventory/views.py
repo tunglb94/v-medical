@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import models
 from django.db.models import Q, Sum, F
-from django.db.models.functions import Coalesce, Abs # Import thêm Abs
+from django.db.models.functions import Coalesce, Abs
 from django.utils import timezone
 import pandas as pd 
 
@@ -17,26 +17,30 @@ def inventory_list(request):
     today = timezone.now()
     start_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Lấy danh sách và tính tổng Nhập/Xuất ngay trong query
+    # Logic: 
+    # 1. import_period: Chỉ tính tổng các phiếu NHẬP trong tháng này.
+    # 2. export_period: Chỉ tính tổng các phiếu XUẤT trong tháng này.
+    # 3. beginning_stock: Suy ngược lại từ Tồn kho hiện tại.
+    
     products = Product.objects.annotate(
         import_period=Coalesce(
             Sum('logs__quantity', filter=Q(logs__change_type='IMPORT', logs__created_at__gte=start_month)), 
             0
         ),
-        # Xuất kho lưu số âm, dùng Abs để lấy giá trị tuyệt đối (số dương)
         export_period=Abs(Coalesce(
             Sum('logs__quantity', filter=Q(logs__change_type='EXPORT', logs__created_at__gte=start_month)), 
             0
         ))
+    ).annotate(
+        # Tồn đầu = Tồn hiện tại - Nhập + Xuất
+        beginning_stock=F('stock') - F('import_period') + F('export_period')
     ).order_by('name')
     
     # --- 2. LỌC VÀ TÌM KIẾM ---
-    # Tìm kiếm từ khóa
     q = request.GET.get('q')
     if q:
         products = products.filter(Q(name__icontains=q) | Q(code__icontains=q))
 
-    # Lọc theo trạng thái
     status_filter = request.GET.get('status')
     if status_filter == 'out_of_stock':
         products = products.filter(stock=0)
@@ -45,11 +49,10 @@ def inventory_list(request):
     elif status_filter == 'in_stock':
         products = products.filter(stock__gt=F('min_stock'))
 
-    # Đếm số lượng hiển thị
     total_count = Product.objects.count()
     low_stock_count = Product.objects.filter(stock__lte=F('min_stock')).count()
 
-    # --- 3. XỬ LÝ POST (THÊM MỚI / IMPORT) ---
+    # --- 3. XỬ LÝ POST ---
     if request.method == 'POST':
         if 'add_product' in request.POST:
             name = request.POST.get('name')
@@ -72,6 +75,8 @@ def inventory_list(request):
                     if name:
                         unit = str(row.get('DonVi', 'Hộp')).strip()
                         stock = int(row.get('TonDau', 0))
+                        # Hàm get_or_create sẽ lấy sp cũ hoặc tạo mới.
+                        # Nếu tạo mới thì stock sẽ là Tồn Đầu (không tạo log nhập).
                         obj, created = Product.objects.get_or_create(
                             name=name,
                             defaults={'unit': unit, 'stock': stock}
@@ -88,7 +93,7 @@ def inventory_list(request):
         'total_count': total_count,
         'current_filter': status_filter,
         'search_query': q,
-        'current_month': today.month # Để hiển thị tiêu đề cột
+        'current_month': today.month
     }
     return render(request, 'inventory/inventory_list.html', context)
 
@@ -131,7 +136,7 @@ def inventory_transaction(request, product_id):
         
     return redirect('inventory_list')
 
-# --- BÁO CÁO (GIỮ NGUYÊN) ---
+# Hàm Report giữ nguyên như cũ
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def inventory_report(request):

@@ -47,9 +47,14 @@
                     <tr>
                         <th class="ps-3">Tên sản phẩm</th>
                         <th>Đơn vị</th>
-                        <th class="text-center text-success bg-success bg-opacity-10">Nhập (T{{ current_month }})</th>
-                        <th class="text-center text-danger bg-danger bg-opacity-10">Xuất (T{{ current_month }})</th>
-                        <th class="text-center">Tồn kho</th>
+                        
+                        <th class="text-center text-primary bg-primary bg-opacity-10">Tồn đầu (T{{ current_month }})</th>
+                        
+                        <th class="text-center text-success bg-success bg-opacity-10">Nhập</th>
+                        
+                        <th class="text-center text-danger bg-danger bg-opacity-10">Xuất</th>
+                        
+                        <th class="text-center fw-bold">Tồn cuối</th>
                         <th>Định mức</th>
                         <th>Trạng thái</th>
                         <th class="text-end pe-3">Thao tác</th>
@@ -61,17 +66,24 @@
                         <td class="ps-3 fw-bold text-primary">{{ item.name }}</td>
                         <td>{{ item.unit }}</td>
                         
+                        <td class="text-center fw-bold text-primary bg-primary bg-opacity-10">
+                            {{ item.beginning_stock }}
+                        </td>
+
                         <td class="text-center fw-bold text-success bg-success bg-opacity-10">
                             {% if item.import_period > 0 %}+{{ item.import_period }}{% else %}-{% endif %}
                         </td>
+                        
                         <td class="text-center fw-bold text-danger bg-danger bg-opacity-10">
                             {% if item.export_period > 0 %}-{{ item.export_period }}{% else %}-{% endif %}
                         </td>
+
                         <td class="text-center">
                             <span class="fs-6 fw-bold {% if item.stock <= item.min_stock %}text-danger{% else %}text-dark{% endif %}">
                                 {{ item.stock }}
                             </span>
                         </td>
+                        
                         <td class="text-muted small">Min: {{ item.min_stock }}</td>
                         <td>
                             {% if item.stock == 0 %}
@@ -96,7 +108,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="8" class="text-center py-5 text-muted">Không tìm thấy sản phẩm nào.</td></tr>
+                    <tr><td colspan="9" class="text-center py-5 text-muted">Không tìm thấy sản phẩm nào.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
