@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import Q, Sum, F
 from django.db.models.functions import Coalesce, Abs
 from django.utils import timezone
-from datetime import datetime # <--- ĐÃ THÊM DÒNG NÀY
+from datetime import datetime
 import pandas as pd 
 
 from apps.authentication.decorators import allowed_users
@@ -14,17 +14,10 @@ from .models import Product, InventoryLog
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def inventory_list(request):
-    # --- 1. TÍNH TOÁN SỐ LIỆU (THEO THÁNG) ---
+    # --- 1. TÍNH TOÁN SỐ LIỆU ---
     today = timezone.now()
-    # Lấy mốc thời gian là 00:00 ngày mùng 1 tháng này
     start_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Logic: 
-    # import_period: Tổng các phiếu CHANGE_TYPE='IMPORT' trong tháng
-    # export_period: Tổng các phiếu CHANGE_TYPE='EXPORT' trong tháng
-    # beginning_stock: Tồn hiện tại - Nhập + Xuất
-    # Lưu ý: Các phiếu loại 'ADJUST' (Kiểm kê/Tồn đầu) sẽ KHÔNG tính vào Nhập/Xuất -> Sẽ tự động chui vào Tồn Đầu.
-    
     products = Product.objects.annotate(
         import_period=Coalesce(
             Sum('logs__quantity', filter=Q(logs__change_type='IMPORT', logs__created_at__gte=start_month)), 
@@ -54,32 +47,23 @@ def inventory_list(request):
     total_count = Product.objects.count()
     low_stock_count = Product.objects.filter(stock__lte=F('min_stock')).count()
 
-    # --- 3. XỬ LÝ POST ---
+    # --- 3. XỬ LÝ THÊM MỚI (POST) ---
     if request.method == 'POST':
-        # >>> XỬ LÝ THÊM MỚI (CẬP NHẬT LOGIC TỒN ĐẦU) <<<
         if 'add_product' in request.POST:
             name = request.POST.get('name')
             unit = request.POST.get('unit') or 'Hộp' 
             min_stock = request.POST.get('min_stock') or 10
-            initial_stock = int(request.POST.get('stock') or 0) # Lấy tồn đầu từ form
+            initial_stock = int(request.POST.get('stock') or 0)
             
             try:
-                # Tạo sản phẩm với số tồn đầu luôn
                 prod = Product.objects.create(
                     name=name, unit=unit, min_stock=min_stock, stock=initial_stock
                 )
-                
-                # Nếu có tồn đầu > 0, tạo log ADJUST (để không tính vào Nhập trong kỳ)
                 if initial_stock > 0:
                     InventoryLog.objects.create(
-                        product=prod,
-                        change_type='ADJUST', # Loại này không hiện vào cột Nhập
-                        quantity=initial_stock,
-                        stock_after=initial_stock,
-                        user=request.user,
-                        note="Tồn đầu kỳ (Khởi tạo)"
+                        product=prod, change_type='ADJUST', quantity=initial_stock,
+                        stock_after=initial_stock, user=request.user, note="Tồn đầu kỳ (Khởi tạo)"
                     )
-                    
                 messages.success(request, f"Đã thêm: {name}")
             except Exception as e:
                 messages.error(request, f"Lỗi: {str(e)}")
@@ -95,12 +79,10 @@ def inventory_list(request):
                     if name:
                         unit = str(row.get('DonVi', 'Hộp')).strip()
                         stock = int(row.get('TonDau', 0))
-                        
                         obj, created = Product.objects.get_or_create(
                             name=name,
                             defaults={'unit': unit, 'stock': stock}
                         )
-                        # Nếu tạo mới và có tồn đầu, tạo log ADJUST để lịch sử đẹp
                         if created and stock > 0:
                              InventoryLog.objects.create(
                                 product=obj, change_type='ADJUST', quantity=stock,
@@ -121,6 +103,44 @@ def inventory_list(request):
         'current_month': today.month
     }
     return render(request, 'inventory/inventory_list.html', context)
+
+# --- 4. HÀM SỬA SẢN PHẨM (MỚI THÊM) ---
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
+def edit_product(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+
+    if request.method == 'POST':
+        old_stock = product.stock
+        
+        # Cập nhật thông tin cơ bản
+        product.name = request.POST.get('name')
+        product.unit = request.POST.get('unit')
+        product.min_stock = int(request.POST.get('min_stock', 0))
+        
+        # Xử lý sửa tồn kho (Nếu có thay đổi số lượng)
+        new_stock_str = request.POST.get('stock')
+        if new_stock_str:
+            new_stock = int(new_stock_str)
+            if new_stock != old_stock:
+                diff = new_stock - old_stock
+                product.stock = new_stock
+                
+                # Ghi log điều chỉnh (Để báo cáo vẫn đúng)
+                InventoryLog.objects.create(
+                    product=product,
+                    change_type='ADJUST',
+                    quantity=diff,
+                    stock_after=new_stock,
+                    user=request.user,
+                    note=f"Sửa sai sót: {old_stock} -> {new_stock}"
+                )
+        
+        product.save()
+        messages.success(request, f"Đã cập nhật thông tin: {product.name}")
+        return redirect('inventory_list')
+        
+    return redirect('inventory_list') 
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
@@ -161,7 +181,6 @@ def inventory_transaction(request, product_id):
         
     return redirect('inventory_list')
 
-# --- BÁO CÁO ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def inventory_report(request):
