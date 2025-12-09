@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.hr',
     'apps.chat',
     'apps.resources',
+    'apps.inventory',
 ]
 
 MIDDLEWARE = [

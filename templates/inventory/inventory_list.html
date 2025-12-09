@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Quản lý Kho - V-Medical{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-primary"><i class="bi bi-box-seam-fill me-2"></i>KHO THUỐC & VẬT TƯ</h4>
+        <button class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="bi bi-plus-lg me-1"></i> THÊM SẢN PHẨM MỚI
+        </button>
+    </div>
+
+    {% if low_stock_count > 0 %}
+    <div class="alert alert-warning border-warning shadow-sm d-flex align-items-center mb-3">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
+        <div>
+            <strong>CẢNH BÁO:</strong> Có {{ low_stock_count }} sản phẩm sắp hết hàng (dưới định mức). Vui lòng kiểm tra và nhập thêm.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card card-box shadow-sm">
+        <div class="card-header bg-white py-3">
+            <form method="GET" class="d-flex gap-2" style="max-width: 400px;">
+                <input type="text" name="q" class="form-control" placeholder="Tìm tên thuốc, mã..." value="{{ request.GET.q }}">
+                <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+            </form>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Tên sản phẩm</th>
+                        <th>Đơn vị</th>
+                        <th class="text-center">Tồn kho</th>
+                        <th>Định mức</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end pe-3">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in products %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-primary">{{ item.name }}</td>
+                        <td>{{ item.unit }}</td>
+                        <td class="text-center">
+                            <span class="fs-5 fw-bold {% if item.stock <= item.min_stock %}text-danger{% else %}text-dark{% endif %}">
+                                {{ item.stock }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">Min: {{ item.min_stock }}</td>
+                        <td>
+                            {% if item.stock == 0 %}
+                                <span class="badge bg-danger">Hết hàng</span>
+                            {% elif item.stock <= item.min_stock %}
+                                <span class="badge bg-warning text-dark">Sắp hết</span>
+                            {% else %}
+                                <span class="badge bg-success">Còn hàng</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <button class="btn btn-sm btn-outline-success fw-bold me-1" 
+                                    data-bs-toggle="modal" data-bs-target="#transModal"
+                                    onclick="openTransModal('{{ item.id }}', '{{ item.name }}', 'IMPORT')">
+                                <i class="bi bi-download"></i> Nhập
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger fw-bold" 
+                                    data-bs-toggle="modal" data-bs-target="#transModal"
+                                    onclick="openTransModal('{{ item.id }}', '{{ item.name }}', 'EXPORT')">
+                                <i class="bi bi-upload"></i> Xuất
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center py-4 text-muted">Chưa có dữ liệu kho.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">THÊM SẢN PHẨM MỚI</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="add_product" value="1">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="fw-bold small">Tên sản phẩm *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="fw-bold small">Đơn vị tính *</label>
+                            <input type="text" name="unit" class="form-control" placeholder="Hộp/Viên..." required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="fw-bold small">Cảnh báo khi còn dưới</label>
+                            <input type="number" name="min_stock" class="form-control" value="10">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success w-100 fw-bold">LƯU SẢN PHẨM</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="transModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" id="transHeader">
+                <h5 class="modal-title fw-bold" id="transTitle">NHẬP KHO</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="transForm" action="">
+                {% csrf_token %}
+                <input type="hidden" name="type" id="transType">
+                <div class="modal-body">
+                    <h6 class="fw-bold text-center mb-3 text-primary" id="transProductName"></h6>
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold small">Số lượng *</label>
+                        <input type="number" name="quantity" class="form-control form-control-lg text-center fw-bold" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold small">Ghi chú (Lý do)</label>
+                        <textarea name="note" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn w-100 fw-bold" id="transBtn">XÁC NHẬN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openTransModal(id, name, type) {
+        document.getElementById('transForm').action = `/inventory/transaction/${id}/`;
+        document.getElementById('transProductName').innerText = name;
+        document.getElementById('transType').value = type;
+        
+        const header = document.getElementById('transHeader');
+        const title = document.getElementById('transTitle');
+        const btn = document.getElementById('transBtn');
+        
+        if (type === 'IMPORT') {
+            header.className = 'modal-header bg-success text-white';
+            title.innerText = 'NHẬP KHO';
+            btn.className = 'btn btn-success w-100 fw-bold';
+            btn.innerText = 'XÁC NHẬN NHẬP';
+        } else {
+            header.className = 'modal-header bg-danger text-white';
+            title.innerText = 'XUẤT KHO / SỬ DỤNG';
+            btn.className = 'btn btn-danger w-100 fw-bold';
+            btn.innerText = 'XÁC NHẬN XUẤT';
+        }
+    }
+</script>
+{% endblock %}

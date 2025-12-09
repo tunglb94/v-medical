@@ -66,6 +66,7 @@ urlpatterns = [
     path('chat/', include('apps.chat.urls')), 
 
     path('resources/', include('apps.resources.urls')),
+    path('inventory/', include('apps.inventory.urls')),
 ]
 
 if settings.DEBUG:
