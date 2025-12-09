@@ -190,10 +190,10 @@
         <li><a href="{% url 'marketing_dashboard' %}" class="{% if request.resolver_match.url_name == 'marketing_dashboard' %}active{% endif %}"><i class="bi bi-megaphone-fill"></i> <span>Báo Cáo Ads</span></a></li>
         <li><a href="{% url 'content_ads_list' %}" class="{% if 'content-ads' in request.path %}active{% endif %}"><i class="bi bi-collection-play-fill"></i> <span>Kho Content & Ads</span></a></li>
         <li><a href="{% url 'marketing_workspace' %}" class="{% if 'workspace' in request.path %}active{% endif %}"><i class="bi bi-kanban-fill"></i> <span>Lịch Marketing</span></a></li>
-        
-        <li><a href="{% url 'document_list' %}" class="{% if 'resources' in request.path %}active{% endif %}"><i class="bi bi-journal-medical"></i> <span>Tài liệu & Đào tạo</span></a></li>
         {% endif %}
 
+        <li class="menu-header">Đào tạo nội bộ</li>
+        <li><a href="{% url 'document_list' %}" class="{% if 'resources' in request.path %}active{% endif %}"><i class="bi bi-journal-medical"></i> <span>Tài liệu & Đào tạo</span></a></li>
         {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
         <li class="menu-header">Nhân sự (HRM)</li>
         <li><a href="{% url 'contract_management' %}" class="{% if 'contracts' in request.path %}active{% endif %}"><i class="bi bi-file-earmark-person-fill"></i> <span>Hợp Đồng & Lương</span></a></li>
