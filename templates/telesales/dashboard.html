@@ -35,14 +35,29 @@
     <div class="col-lg-3 d-flex flex-column" style="height: calc(100vh - 140px);">
         <div class="card card-box flex-grow-1 overflow-hidden d-flex flex-column">
             <div class="p-2 border-bottom bg-light">
+                {# SỬA 1: Form tìm kiếm (q) cần mang theo TẤT CẢ các bộ lọc hiện tại #}
                 <form method="GET" class="mb-2">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
                         <input type="text" name="q" class="form-control border-start-0" placeholder="Tìm tên, SĐT..." value="{{ search_query }}">
+                        {# Thêm toàn bộ filter hiện tại trừ 'q' và 'id' #}
+                        {% for key, value in request.GET.items %}
+                            {% if key != 'q' and key != 'id' %}
+                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% endif %}
+                        {% endfor %}
                     </div>
                 </form>
                 
+                {# SỬA 2: Bộ lọc mặc định (type) cần mang theo TẤT CẢ các bộ lọc khác #}
                 <form method="GET" class="d-flex justify-content-between">
+                    {# Thêm các trường ẩn cho bộ lọc drill-down (status, date_start, fanpage,...) #}
+                    {% for key, value in request.GET.items %}
+                        {% if key != 'type' and key != 'q' and key != 'id' %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endif %}
+                    {% endfor %}
+                    
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="type" id="btnNew" value="new" {% if filter_type == 'new' %}checked{% endif %} onchange="this.form.submit()">
                         <label class="btn btn-outline-success btn-sm" for="btnNew">Mới</label>
@@ -58,7 +73,8 @@
             
             <div class="list-group list-group-flush overflow-auto flex-grow-1">
                 {% for customer in customers %}
-                    <a href="?id={{ customer.id|stringformat:'d' }}&type={{ filter_type }}&q={{ search_query }}" 
+                    {# SỬA 3: Link chọn khách hàng cần mang theo filter_query_string #}
+                    <a href="?id={{ customer.id|stringformat:'d' }}{% if filter_query_string %}&{{ filter_query_string }}{% endif %}" 
                        class="list-group-item list-group-item-action {% if selected_customer.id == customer.id %}active{% endif %} py-3">
                         <div class="d-flex w-100 justify-content-between align-items-center mb-1">
                             <div class="fw-bold text-truncate" style="max-width: 140px;">{{ customer.name }}</div>
@@ -96,7 +112,8 @@
                         <span class="badge bg-info text-dark">{{ selected_customer.get_ranking_display }}</span>
                     </div>
                     <div class="card-body">
-                        <form method="POST" class="row g-2">
+                        {# SỬA 4: Form POST cũng cần mang theo filter_query_string để sau khi POST thì link redirect vẫn giữ nguyên bộ lọc #}
+                        <form method="POST" class="row g-2" action="?id={{ selected_customer.id|stringformat:'d' }}{% if filter_query_string %}&{{ filter_query_string }}{% endif %}">
                             {% csrf_token %}
                             <div class="col-md-6 mb-2">
                                 <label class="form-label small fw-bold text-muted">Họ và Tên</label>
