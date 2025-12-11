@@ -1,3 +1,5 @@
+# v-medical/apps/telesales/views.py
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -46,21 +48,26 @@ def telesale_dashboard(request):
     is_report_filter = any([req_source, req_fanpage, req_city, req_gender, req_age_min, req_age_max, req_status])
 
     if is_report_filter:
-        # 1. Lọc theo Date Range
+        # 1. Lọc theo Date Range (Luôn lọc theo created_at trong drill-down, trừ khi lọc theo trạng thái)
         if req_date_start and req_date_end:
+            # Nếu lọc theo trạng thái (req_status), ta cần xem khách hàng có log TRONG KỲ không
             if req_status:
                 # CHỈ LỌC THEO call_time khi có req_status
                 customers = customers.filter(call_logs__call_time__date__range=[req_date_start, req_date_end]).distinct()
             else:
-                # BỎ LỌC theo created_at__date__range cho các thuộc tính khác (source, fanpage, city, gender, age)
-                pass
+                # LỌC THEO created_at cho các thuộc tính khác (source, fanpage, city, gender, age)
+                customers = customers.filter(created_at__date__range=[req_date_start, req_date_end])
 
         # 2. Lọc thuộc tính cơ bản
         if req_source: customers = customers.filter(source=req_source)
-        if req_fanpage: customers = customers.filter(fanpage=req_fanpage)
+        if req_fanpage: 
+            # XỬ LÝ TRƯỜNG HỢP FANPAGE KHÁC/NULL
+            if req_fanpage == 'None': customers = customers.filter(fanpage__isnull=True)
+            else: customers = customers.filter(fanpage=req_fanpage)
+            
         if req_city: 
             if req_city == 'None': customers = customers.filter(city__isnull=True)
-            else: customers = customers.filter(city=req_city)
+            else: customers = customers.filter(city=req_city) # Lọc chính xác
         if req_gender: customers = customers.filter(gender=req_gender)
 
         # 3. Lọc Độ tuổi (Tính toán từ năm sinh)
@@ -136,11 +143,9 @@ def telesale_dashboard(request):
         
         # --- CẬP NHẬT SALE PHỤ TRÁCH (MỚI) ---
         new_telesale_id = request.POST.get('assigned_telesale_id')
-        if new_telesale_id:
-            # Nếu chọn nhân viên, cập nhật ID
-            selected_customer.assigned_telesale_id = new_telesale_id
+        if new_telesale_id and new_telesale_id.isdigit(): # Kiểm tra id là số
+            selected_customer.assigned_telesale_id = int(new_telesale_id)
         else:
-            # Nếu chọn "-- Chưa gán --", set về None (bỏ phụ trách)
             selected_customer.assigned_telesale_id = None
         # --------------------------------------
 
@@ -203,6 +208,8 @@ def telesale_dashboard(request):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['TELESALE', 'ADMIN'])
 def add_customer_manual(request):
+    # Code giữ nguyên
+    # ...
     if request.method == "POST":
         phone = request.POST.get('phone', '').strip()
         name = request.POST.get('name')
@@ -263,19 +270,22 @@ def telesale_report(request):
     req_fanpage = request.GET.get('filter_fanpage')
     req_telesale = request.GET.get('filter_telesale')
     
-    # 1. Data đầu vào (Input): Dùng để tính mẫu số (%)
+    # 1. Data đầu vào (Input): Tập khách hàng được tạo trong kỳ BÁO CÁO
     customers = Customer.objects.filter(created_at__date__range=[date_start_str, date_end_str])
     
     # ÁP DỤNG CÁC BỘ LỌC NÂNG CAO VÀO TẬP DỮ LIỆU ĐẦU VÀO
     if req_city:
         if req_city == 'None': customers = customers.filter(city__isnull=True)
-        else: customers = customers.filter(city__icontains=req_city) # Dùng icontains để lọc linh hoạt
+        # SỬA: Lọc chính xác cho City
+        else: customers = customers.filter(city=req_city) 
     if req_gender: customers = customers.filter(gender=req_gender)
     if req_fanpage: customers = customers.filter(fanpage=req_fanpage)
     if req_telesale: customers = customers.filter(assigned_telesale_id=req_telesale)
     
-    # 2. Data hoạt động (Logs): Dùng để tìm khách đã được chăm sóc
-    logs = CallLog.objects.filter(call_time__date__range=[date_start_str, date_end_str], customer__in=customers.values('pk'))
+    # 2. Data hoạt động (Logs)
+    # Lấy TẤT CẢ log của TẬP KHÁCH HÀNG ĐÃ LỌC, không cần lọc theo date range của log
+    # để đảm bảo lấy được trạng thái cuối cùng chính xác.
+    logs = CallLog.objects.filter(customer__in=customers.values('pk')) 
 
     total_leads = customers.count()
     
@@ -297,13 +307,10 @@ def telesale_report(request):
 
     for x in fanpage_stats:
         code = x['fanpage']
-        
-        # Thử lấy nhãn từ choices, nếu không có, dùng mã đặc biệt 'UNMAPPED_CODE'
-        # Các mã không hợp lệ bao gồm: None, chuỗi rỗng '', hoặc mã string sai
         label = fanpage_dict.get(code, 'UNMAPPED_CODE') 
         
-        if label == 'UNMAPPED_CODE':
-            # Nếu là mã không xác định, cộng dồn số lượng
+        # SỬA: Nếu mã là 'UNMAPPED_CODE' (Không khớp choices) hoặc `None` (chưa gán) thì gom lại
+        if label == 'UNMAPPED_CODE' or not code:
             unmapped_fanpage_count += x['count']
             continue
 
@@ -315,7 +322,7 @@ def telesale_report(request):
     if unmapped_fanpage_count > 0:
         unmapped_percent = round(unmapped_fanpage_count/total_leads*100, 1) if total_leads else 0
         final_fanpage_data.append({
-            'code': None, # Đặt code là None để chặn tạo link drill-down không chính xác
+            'code': 'None', # Dùng 'None' để drill-down vào khách hàng chưa có Fanpage
             'label': "Chưa cập nhật/Mã lỗi",
             'count': unmapped_fanpage_count, 
             'percent': unmapped_percent
@@ -325,7 +332,14 @@ def telesale_report(request):
     fanpage_data = final_fanpage_data
 
     # --- THỐNG KÊ TỈNH THÀNH ---
-    city_stats = customers.values('city').annotate(count=Count('id')).order_by('-count')
+    # SỬA: Thay thế logic cũ để xử lý khách hàng có city=None
+    city_stats_raw = customers.values('city').annotate(count=Count('id')).order_by('-count')
+    city_stats = []
+    for item in city_stats_raw:
+        city = item['city']
+        # Dùng mã 'None' cho drill-down
+        code = 'None' if city is None or city == '' else city
+        city_stats.append({'city': city, 'count': item['count'], 'code': code})
     
     # --- THỐNG KÊ GIỚI TÍNH (Có mã code) ---
     gender_stats_raw = customers.values('gender').annotate(count=Count('id'))
@@ -348,46 +362,48 @@ def telesale_report(request):
 
     # --- CHẤT LƯỢNG DATA (SMART LOGIC: LẤY TRẠNG THÁI MỚI NHẤT) ---
     
-    # B1: Lấy danh sách khách hàng có tương tác trong kỳ
-    involved_customers = Customer.objects.filter(
-        call_logs__call_time__date__range=[date_start_str, date_end_str]
-    ).distinct()
-    
-    # BỔ SUNG: Áp dụng các bộ lọc nâng cao cho involved_customers (đảm bảo tính nhất quán của report)
-    if req_city:
-        if req_city == 'None': involved_customers = involved_customers.filter(city__isnull=True)
-        else: involved_customers = involved_customers.filter(city__icontains=req_city) 
-    if req_gender: involved_customers = involved_customers.filter(gender=req_gender)
-    if req_fanpage: involved_customers = involved_customers.filter(fanpage=req_fanpage)
-    if req_telesale: involved_customers = involved_customers.filter(assigned_telesale_id=req_telesale)
-    
-    # B2, B3, B4, B5 (Giữ nguyên logic tính Status Counts)
+    # B1: Lấy trạng thái cuối cùng của các khách hàng TRONG TẬP `customers` đã lọc
     latest_log_subquery = CallLog.objects.filter(
         customer=OuterRef('pk')
     ).order_by('-call_time').values('status')[:1]
 
-    status_counts_query = involved_customers.annotate(
+    status_counts_query = customers.annotate(
         final_status=Subquery(latest_log_subquery)
     ).values('final_status').annotate(total=Count('id'))
 
     status_map = {item['final_status']: item['total'] for item in status_counts_query}
 
     data_quality_list = []
-    excluded_statuses = ['NEW'] 
-    all_statuses = CallLog.CallStatus.choices
     
-    for code, label in all_statuses:
-        if code in excluded_statuses:
-            continue
+    # Khởi tạo tổng số lượng khách hàng chưa được tính
+    total_counted = 0
+    
+    # Lấy tất cả các status trừ NEW
+    for code, label in CallLog.CallStatus.choices:
+        if code == 'NEW': continue
             
         count = status_map.get(code, 0) 
-        rate = round(count/total_leads*100, 1) if total_leads else 0
-        
+        if count > 0:
+            rate = round(count/total_leads*100, 1) if total_leads else 0
+            
+            data_quality_list.append({
+                'code': code, 
+                'label': label,
+                'count': count,
+                'rate': rate
+            })
+            total_counted += count
+
+    # Gom các khách hàng còn lại (chưa có log nào (None) + log cuối là NEW)
+    count_uncontacted = total_leads - total_counted
+    
+    if count_uncontacted > 0:
+        rate_uncontacted = round(count_uncontacted/total_leads*100, 1) if total_leads else 0
         data_quality_list.append({
-            'code': code, 
-            'label': label,
-            'count': count,
-            'rate': rate
+            'code': 'NEW', 
+            'label': dict(CallLog.CallStatus.choices).get('NEW', 'Mới / Chưa gọi'),
+            'count': count_uncontacted,
+            'rate': rate_uncontacted
         })
 
     data_quality_list.sort(key=lambda x: x['count'], reverse=True)
@@ -401,29 +417,33 @@ def telesale_report(request):
         assigned_count = customers.filter(assigned_telesale=sale).count() 
         
         # 2. Tổng cuộc gọi (Vẫn lấy từ Log)
+        # Lấy log của khách hàng trong tập `customers` đã lọc và có người gọi là `sale`
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
         
-        # 3. SỐ LỊCH ĐẶT (QUAN TRỌNG: Sửa để đếm từ bảng Appointment)
-        # Logic: Đếm số khách hàng CỦA TELESALE ĐÓ mà có phát sinh lịch hẹn trong kỳ
+        # 3. SỐ LỊCH ĐẶT (Đếm số khách hàng DUY NHẤT đã được đặt lịch trong kỳ)
         booked_unique = Appointment.objects.filter(
             # Lọc lịch hẹn được TẠO trong khoảng thời gian báo cáo
             created_at__date__range=[date_start_str, date_end_str],
-            # Chỉ tính nếu khách hàng đó do Telesale này phụ trách
-            customer__assigned_telesale=sale
+            # Khách hàng này phải nằm trong TẬP customers ĐÃ LỌC
+            customer__in=customers,
+            # Và khách hàng đó do Telesale này phụ trách (hoặc Telesale này là người tạo lịch - tạm giữ logic cũ)
+            customer__assigned_telesale=sale,
+            # Lọc theo trạng thái là Đã đặt lịch (SCHEDULED)
+            status='SCHEDULED' 
         ).values('customer').distinct().count()
         
         # Tính tỷ lệ chốt
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
         
         # Chỉ hiển thị nhân viên có data hoặc có gọi điện
-        if assigned_count > 0 or total_calls > 0:
+        if assigned_count > 0 or total_calls > 0 or booked_unique > 0:
             performance_data.append({
                 'fullname': f"{sale.last_name} {sale.first_name}",
                 'username': sale.username,
                 'assigned': assigned_count,
                 'total_calls': total_calls,
-                'booked': booked_unique, # Số liệu này giờ sẽ khớp với thực tế lịch hẹn
+                'booked': booked_unique, 
                 'rate': round(rate_on_assigned, 1)
             })
     
