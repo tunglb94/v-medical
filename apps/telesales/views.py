@@ -41,11 +41,21 @@ def telesale_dashboard(request):
     req_age_min = request.GET.get('age_min')
     req_age_max = request.GET.get('age_max')
     req_status = request.GET.get('status') # Trạng thái cuối (Booked, Far away...)
+    
+    # Nhận các bộ lọc nâng cao TỪ FORM REPORT (được truyền qua link Drill-down)
+    # Các tham số này cần phải được giữ lại để Dashboard áp dụng đồng thời
+    req_report_city = request.GET.get('filter_city')
+    req_report_gender = request.GET.get('filter_gender')
+    req_report_fanpage = request.GET.get('filter_fanpage')
+    req_report_telesale = request.GET.get('filter_telesale')
+    
+    # Kiểm tra xem có đang ở ngữ cảnh báo cáo/lọc phức tạp không
+    is_drill_down = any([req_source, req_fanpage, req_city, req_gender, req_age_min, req_age_max, req_status])
+    is_report_filter_active = any([req_report_city, req_report_gender, req_report_fanpage, req_report_telesale])
+    
+    is_report_context = is_drill_down or is_report_filter_active
 
-    # Kiểm tra xem request này có phải là lọc từ báo cáo không
-    is_report_filter = any([req_source, req_fanpage, req_city, req_gender, req_age_min, req_age_max, req_status])
-
-    if is_report_filter:
+    if is_report_context:
         # 1. Lọc theo Date Range
         if req_date_start and req_date_end:
             if req_status:
@@ -55,16 +65,39 @@ def telesale_dashboard(request):
                 # LỌC THEO created_at cho các thuộc tính khác (source, fanpage, city, gender, age)
                 customers = customers.filter(created_at__date__range=[req_date_start, req_date_end])
 
-        # 2. Lọc thuộc tính cơ bản
+        # 2. Lọc thuộc tính cơ bản (Phải áp dụng CẢ drill-down params VÀ advanced filter params)
+        
+        # Lọc Drill-down (Source, City, Gender, Fanpage nếu được click trực tiếp)
         if req_source: customers = customers.filter(source=req_source)
-        if req_fanpage: 
-            if req_fanpage == 'None': customers = customers.filter(fanpage__isnull=True)
-            else: customers = customers.filter(fanpage=req_fanpage)
-            
         if req_city: 
             if req_city == 'None': customers = customers.filter(city__isnull=True)
-            else: customers = customers.filter(city=req_city) # Lọc chính xác
+            else: customers = customers.filter(city=req_city) 
         if req_gender: customers = customers.filter(gender=req_gender)
+        
+        # Lọc Fanpage (ưu tiên Fanpage click drill-down)
+        if req_fanpage:
+            if req_fanpage == 'None': customers = customers.filter(fanpage__isnull=True)
+            else: customers = customers.filter(fanpage=req_fanpage)
+        
+        # Lọc Nâng Cao (filter_...) - Khi người dùng áp dụng bộ lọc TỪ FORM REPORT
+        # Các bộ lọc này cần được áp dụng sau khi lọc drill-down để đảm bảo chúng vẫn hoạt động
+        
+        # Lọc City từ form Report (filter_city)
+        if req_report_city and not req_city: # Chỉ áp dụng nếu drill-down không có City
+            if req_report_city == 'None': customers = customers.filter(city__isnull=True)
+            else: customers = customers.filter(city=req_report_city)
+            
+        # Lọc Gender từ form Report (filter_gender)
+        if req_report_gender and not req_gender: # Chỉ áp dụng nếu drill-down không có Gender
+            customers = customers.filter(gender=req_report_gender)
+        
+        # Lọc Fanpage từ form Report (filter_fanpage)
+        if req_report_fanpage and not req_fanpage: # CHỐT LỖI TẠI ĐÂY: Áp dụng Fanpage từ form Report
+            if req_report_fanpage == 'None': customers = customers.filter(fanpage__isnull=True)
+            else: customers = customers.filter(fanpage=req_report_fanpage)
+
+        if req_report_telesale: customers = customers.filter(assigned_telesale_id=req_report_telesale)
+
 
         # 3. Lọc Độ tuổi (Tính toán từ năm sinh)
         if req_age_min or req_age_max:
@@ -86,9 +119,11 @@ def telesale_dashboard(request):
                 current_status=Subquery(latest_log.values('status')[:1])
             ).filter(current_status=req_status)
             
+        # NẾU LỌC TỪ BÁO CÁO, KHÔNG áp dụng bộ lọc mặc định của Dashboard
+        filter_type = ''
+        
     else:
         # --- C. BỘ LỌC MẶC ĐỊNH (KHI DÙNG DASHBOARD BÌNH THƯỜNG) ---
-        # SỬA LỖI TẠI ĐÂY: Nếu đang tìm kiếm (có search_query) thì KHÔNG áp dụng bộ lọc ngày tháng mặc định
         if not search_query:
             filter_type = request.GET.get('type', 'new') 
             if filter_type == 'new':
@@ -107,6 +142,7 @@ def telesale_dashboard(request):
                 customers = customers.annotate(
                     last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
                 ).filter(last_visit__lt=cutoff_date).exclude(appointments__status='SCHEDULED', appointments__appointment_date__gte=today)
+        filter_type = request.GET.get('type', 'new')
     
     # Sắp xếp mặc định: Mới nhất lên đầu
     customers = customers.order_by('-created_at')
@@ -188,7 +224,7 @@ def telesale_dashboard(request):
     if 'id' in current_params:
         del current_params['id']
         
-    # Chuỗi query string chứa TẤT CẢ các bộ lọc hiện tại (status, date_start, type, q, etc.)
+    # Chuỗi query string chứa TẤT CẢ các bộ lọc hiện tại (status, date_start, type, q, filter_city, etc.)
     filter_query_string = current_params.urlencode() 
 
 
@@ -197,8 +233,8 @@ def telesale_dashboard(request):
         'selected_customer': selected_customer,
         'call_history': call_history,
         'search_query': search_query,
-        # Sửa: filter_type = rỗng khi drill-down để nút New/Old/Callback không bị active
-        'filter_type': request.GET.get('type', 'new') if not is_report_filter else '', 
+        # Sửa: filter_type = rỗng khi ở ngữ cảnh báo cáo/lọc phức tạp
+        'filter_type': request.GET.get('type', 'new') if not is_report_context else '', 
         'filter_query_string': filter_query_string, # <-- MỚI DÙNG CHO TEMPLATE
         'source_choices': Customer.Source.choices,
         'skin_choices': Customer.SkinIssue.choices,
@@ -464,7 +500,7 @@ def telesale_report(request):
         'date_end': date_end_str,
         'total_leads': total_leads,
         'source_data': source_data,
-        'fanpage_data': fanpage_data,
+        'fanpage_data': final_fanpage_data,
         'city_stats': city_stats,
         'gender_data': gender_data,
         'age_groups': age_groups,
