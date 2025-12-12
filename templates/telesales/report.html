@@ -58,7 +58,7 @@
                         <select name="filter_telesale" id="filter_telesale" class="form-select form-select-sm">
                             <option value="">-- Tất cả --</option>
                             {% for sale in telesales_list %}
-                                <option value="{{ sale.id }}" {% if req_telesale|slugformat:"s" == sale.id|stringformat:"s" %}selected{% endif %}>{{ sale.first_name }} {{ sale.last_name }}</option>
+                                <option value="{{ sale.id }}" {% if req_telesale|stringformat:'s' == sale.id|stringformat:'s' %}selected{% endif %}>{{ sale.first_name }} {{ sale.last_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
