@@ -24,10 +24,8 @@ class Service(models.Model):
 class Order(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, verbose_name="Khách hàng")
     
-    # Dịch vụ đã mua (có thể là nhiều dịch vụ, sử dụng ManyToMany nếu cần, nhưng giữ nguyên 1 dịch vụ chính cho đơn giản)
     service = models.ForeignKey(Service, on_delete=models.PROTECT, verbose_name="Dịch vụ chính")
     
-    # Giá cố định của dịch vụ tại thời điểm tạo đơn (Base price from Service model)
     original_price = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Giá gốc")
     
     # THAY ĐỔI QUAN TRỌNG: Thêm trường cho phép Sale điều chỉnh giá trị thực tế
