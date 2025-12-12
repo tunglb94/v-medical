@@ -44,7 +44,7 @@ urlpatterns = [
     # path('telesale/report/', telesale_report, name='telesale_report'), # ĐÃ XÓA
 
     # --- 5. RECEPTION (LỄ TÂN) ---
-    # Sửa lỗi: Đổi name='reception_home' thành name='reception_dashboard'
+    # Đã sửa lỗi: Đổi name='reception_home' thành name='reception_dashboard'
     path('reception/', reception_dashboard, name='reception_dashboard'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
