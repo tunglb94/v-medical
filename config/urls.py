@@ -1,30 +1,21 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
 
-# Import views từ Authentication (để lấy root_view và global_search)
-from apps.authentication.views import root_view, global_search 
-
-# Import views từ Telesales (Xóa imports không cần thiết ở đây)
-# Giữ lại telesale_dashboard để mapping đường dẫn gốc
-from apps.telesales.views import telesale_dashboard #, add_customer_manual, telesale_report
-
-# Import views từ Bookings
+from apps.authentication.views import root_view, admin_dashboard, global_search
 from apps.bookings.views import (
-    reception_dashboard, checkin_appointment, create_appointment_reception,
-    finish_appointment, add_walkin_appointment, get_appointments_api
+    reception_dashboard, 
+    checkin_appointment, 
+    create_appointment_reception, 
+    finish_appointment, 
+    add_walkin_appointment, 
+    get_appointments_api
 )
-
-# Import views từ Sales
-from apps.sales.views import (
-    revenue_dashboard, print_invoice, admin_dashboard
-)
+from apps.sales.views import revenue_dashboard, print_invoice
 
 urlpatterns = [
     # --- 0. TRANG CHỦ ĐIỀU HƯỚNG ---
     path('', root_view, name='root'), 
-    path('search/', global_search, name='global_search'), # <--- MỚI THÊM
+    path('search/', global_search, name='global_search'), 
 
     # --- 1. ADMIN DJANGO ---
     path('admin/', admin.site.urls),
@@ -36,18 +27,14 @@ urlpatterns = [
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
     # --- 4. TELESALE (Sử dụng include để gom tất cả URL Telesale) ---
-    # Thay thế 3 dòng cũ bằng 1 dòng include duy nhất
-    path('telesale/', include('apps.telesales.urls')), # Sửa thành include
-    
-    # URL Telesale cũ bị dư ra khỏi block TELESALE, phải xóa
-    # path('add-customer/', add_customer_manual, name='add_customer'), # ĐÃ XÓA
-    # path('telesale/report/', telesale_report, name='telesale_report'), # ĐÃ XÓA
+    path('telesale/', include('apps.telesales.urls')), 
 
     # --- 5. RECEPTION (LỄ TÂN) ---
     path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
-    path('reception/finish/', finish_appointment, name='reception_finish'),
+    # ĐÃ SỬA: Đổi tên thành 'finish_appointment' để khớp với template HTML
+    path('reception/finish/', finish_appointment, name='finish_appointment'), 
     path('reception/walk-in/', add_walkin_appointment, name='reception_walkin'),
     
     # API cho Lịch
@@ -59,7 +46,7 @@ urlpatterns = [
 
     # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 
-    path('marketing/', include('apps.marketing.urls')), # GIỮ NGUYÊN
+    path('marketing/', include('apps.marketing.urls')), 
     path('hr/', include('apps.hr.urls')),
     
     # --- 8. CHAT ---
@@ -68,7 +55,3 @@ urlpatterns = [
     path('resources/', include('apps.resources.urls')),
     path('inventory/', include('apps.inventory.urls')),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
