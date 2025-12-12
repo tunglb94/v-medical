@@ -38,8 +38,8 @@ urlpatterns = [
     path('telesale/', include('apps.telesales.urls')),
     
     # --- 5. RECEPTION (LỄ TÂN) ---
-    # KHẮC PHỤC LỖI: Đặt name='reception_home' để khớp với template
-    path('reception/', reception_dashboard, name='reception_home'),
+    # KHẮC PHỤC LỖI: Đặt name='reception_dashboard' để khớp với yêu cầu của template trong log mới nhất
+    path('reception/', reception_dashboard, name='reception_dashboard'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
     path('reception/finish/', finish_appointment, name='finish_appointment'),
