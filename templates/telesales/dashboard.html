@@ -31,8 +31,86 @@
     </div>
 </div>
 
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header py-2" data-bs-toggle="collapse" data-bs-target="#advancedFilterCollapse" aria-expanded="true" aria-controls="advancedFilterCollapse" style="cursor: pointer;">
+                <h6 class="mb-0">Bộ Lọc Nâng Cao (Theo Báo Cáo) <i class="fas fa-caret-down float-end"></i></h6>
+            </div>
+            <div id="advancedFilterCollapse" class="collapse show">
+                <div class="card-body">
+                    <form method="GET" action="{% url 'telesale_home' %}">
+                        {% for key, value in request.GET.items %}
+                            {% if key != 'id' %}
+                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% endif %}
+                        {% endfor %}
+
+                        <div class="row g-2">
+                            <div class="col-md-3 col-sm-6">
+                                <select class="form-select form-select-sm" name="filter_telesale">
+                                    <option value="">-- Telesale phụ trách --</option>
+                                    <option value="None" {% if req_report_telesale == 'None' %}selected{% endif %}>Chưa gán</option>
+                                    {% for sale in telesales_list %}
+                                        <option value="{{ sale.id }}" {% if req_report_telesale|slugify == sale.id|slugify %}selected{% endif %}>{{ sale.get_full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 col-sm-6">
+                                <select class="form-select form-select-sm" name="filter_city">
+                                    <option value="">-- Tỉnh/Thành phố --</option>
+                                    <option value="None" {% if req_report_city == 'None' %}selected{% endif %}>Chưa cập nhật</option>
+                                    {% for city in city_list %}
+                                        <option value="{{ city.code }}" {% if req_report_city == city.code %}selected{% endif %}>{{ city.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 col-sm-6">
+                                <select class="form-select form-select-sm" name="filter_fanpage">
+                                    <option value="">-- Fanpage nguồn --</option>
+                                    <option value="None" {% if req_report_fanpage == 'None' %}selected{% endif %}>Chưa cập nhật</option>
+                                    {% for code, label in fanpage_choices %}
+                                        <option value="{{ code }}" {% if req_report_fanpage == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-3 col-sm-6">
+                                <select class="form-select form-select-sm" name="filter_gender">
+                                    <option value="">-- Giới tính --</option>
+                                    {% for code, label in gender_choices %}
+                                        <option value="{{ code }}" {% if req_report_gender == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 col-sm-6">
+                                <label class="form-label small fw-bold text-muted mb-0">Ngày tạo từ</label>
+                                <input type="date" class="form-control form-control-sm" name="date_start" placeholder="Ngày bắt đầu" value="{{ req_date_start }}">
+                            </div>
+                            <div class="col-md-3 col-sm-6">
+                                <label class="form-label small fw-bold text-muted mb-0">đến ngày</label>
+                                <input type="date" class="form-control form-control-sm" name="date_end" placeholder="Ngày kết thúc" value="{{ req_date_end }}">
+                            </div>
+
+                            <div class="col-md-3 col-sm-6 d-flex align-items-end">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">Áp dụng lọc</button>
+                            </div>
+                            
+                            <div class="col-md-3 col-sm-6 d-flex align-items-end">
+                                <a href="{% url 'telesale_home' %}" class="btn btn-sm btn-outline-secondary w-100">Xóa lọc</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="row g-3 h-100">
-    <div class="col-lg-3 d-flex flex-column" style="height: calc(100vh - 140px);">
+    <div class="col-lg-3 d-flex flex-column" style="height: calc(100vh - 140px - 70px);">
         <div class="card card-box flex-grow-1 overflow-hidden d-flex flex-column">
             <div class="p-2 border-bottom bg-light">
                 {# SỬA 1: Form tìm kiếm (q) cần mang theo TẤT CẢ các bộ lọc hiện tại #}
@@ -102,7 +180,7 @@
         </div>
     </div>
 
-    <div class="col-lg-9 d-flex flex-column" style="height: calc(100vh - 140px);">
+    <div class="col-lg-9 d-flex flex-column" style="height: calc(100vh - 140px - 70px);">
         {% if selected_customer %}
         <div class="row h-100 g-3">
             <div class="col-md-7 h-100 d-flex flex-column">

@@ -43,7 +43,6 @@ def telesale_dashboard(request):
     req_status = request.GET.get('status') # Trạng thái cuối (Booked, Far away...)
     
     # Nhận các bộ lọc nâng cao TỪ FORM REPORT (được truyền qua link Drill-down)
-    # Các tham số này cần phải được giữ lại để Dashboard áp dụng đồng thời
     req_report_city = request.GET.get('filter_city')
     req_report_gender = request.GET.get('filter_gender')
     req_report_fanpage = request.GET.get('filter_fanpage')
@@ -56,46 +55,46 @@ def telesale_dashboard(request):
     is_report_context = is_drill_down or is_report_filter_active
 
     if is_report_context:
-        # 1. Lọc theo Date Range
+        # 1. Lọc theo Date Range (Đã sửa: LUÔN LỌC THEO created_at để khớp với tập dữ liệu đầu vào của Báo cáo)
         if req_date_start and req_date_end:
-            if req_status:
-                # CHỈ LỌC THEO call_time khi có req_status
-                customers = customers.filter(call_logs__call_time__date__range=[req_date_start, req_date_end]).distinct()
-            else:
-                # LỌC THEO created_at cho các thuộc tính khác (source, fanpage, city, gender, age)
-                customers = customers.filter(created_at__date__range=[req_date_start, req_date_end])
+            customers = customers.filter(created_at__date__range=[req_date_start, req_date_end])
 
         # 2. Lọc thuộc tính cơ bản (Phải áp dụng CẢ drill-down params VÀ advanced filter params)
         
         # Lọc Drill-down (Source, City, Gender, Fanpage nếu được click trực tiếp)
         if req_source: customers = customers.filter(source=req_source)
+        
+        # Lọc City (ưu tiên req_city nếu có)
         if req_city: 
             if req_city == 'None': customers = customers.filter(city__isnull=True)
             else: customers = customers.filter(city=req_city) 
+        
+        # Lọc Gender (ưu tiên req_gender nếu có)
         if req_gender: customers = customers.filter(gender=req_gender)
         
-        # Lọc Fanpage (ưu tiên Fanpage click drill-down)
+        # Lọc Fanpage (ưu tiên req_fanpage nếu có)
         if req_fanpage:
             if req_fanpage == 'None': customers = customers.filter(fanpage__isnull=True)
             else: customers = customers.filter(fanpage=req_fanpage)
         
         # Lọc Nâng Cao (filter_...) - Khi người dùng áp dụng bộ lọc TỪ FORM REPORT
-        # Các bộ lọc này cần được áp dụng sau khi lọc drill-down để đảm bảo chúng vẫn hoạt động
+        # Logic ưu tiên: Drill-down click (req_...) sẽ ghi đè filter form (req_report_...)
         
-        # Lọc City từ form Report (filter_city)
-        if req_report_city and not req_city: # Chỉ áp dụng nếu drill-down không có City
+        # Lọc City từ form Report (filter_city) - chỉ áp dụng nếu không có click city
+        if req_report_city and not req_city:
             if req_report_city == 'None': customers = customers.filter(city__isnull=True)
             else: customers = customers.filter(city=req_report_city)
             
-        # Lọc Gender từ form Report (filter_gender)
-        if req_report_gender and not req_gender: # Chỉ áp dụng nếu drill-down không có Gender
+        # Lọc Gender từ form Report (filter_gender) - chỉ áp dụng nếu không có click gender
+        if req_report_gender and not req_gender:
             customers = customers.filter(gender=req_report_gender)
         
-        # Lọc Fanpage từ form Report (filter_fanpage)
-        if req_report_fanpage and not req_fanpage: # CHỐT LỖI TẠI ĐÂY: Áp dụng Fanpage từ form Report
+        # Lọc Fanpage từ form Report (filter_fanpage) - chỉ áp dụng nếu không có click fanpage
+        if req_report_fanpage and not req_fanpage: 
             if req_report_fanpage == 'None': customers = customers.filter(fanpage__isnull=True)
             else: customers = customers.filter(fanpage=req_report_fanpage)
 
+        # Lọc Telesale phụ trách từ form Report
         if req_report_telesale: customers = customers.filter(assigned_telesale_id=req_report_telesale)
 
 
@@ -117,7 +116,14 @@ def telesale_dashboard(request):
             latest_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
             customers = customers.annotate(
                 current_status=Subquery(latest_log.values('status')[:1])
-            ).filter(current_status=req_status)
+            )
+            
+            if req_status == 'NEW':
+                # *** FIX LỖI QUAN TRỌNG: Bao gồm cả khách hàng có log cuối là NEW HOẶC chưa có log nào (current_status IS NULL) ***
+                customers = customers.filter(Q(current_status='NEW') | Q(current_status__isnull=True))
+            else:
+                # Các trạng thái khác vẫn lọc bình thường
+                customers = customers.filter(current_status=req_status)
             
         # NẾU LỌC TỪ BÁO CÁO, KHÔNG áp dụng bộ lọc mặc định của Dashboard
         filter_type = ''
@@ -265,7 +271,7 @@ def add_customer_manual(request):
 
         # Check định dạng SĐT
         if not re.match(r'^0\d{9}$', phone):
-            messages.error(request, f"SĐT '{phone}' không hợp lệ! Phải là 10 số và bắt đầu bằng số 0.")
+            messages.error(request, f"SĐT {phone} không hợp lệ! Phải là 10 số và bắt đầu bằng số 0.")
             return redirect('telesale_home')
 
         # Check trùng
@@ -438,6 +444,7 @@ def telesale_report(request):
             total_counted += count
 
     # Gom các khách hàng còn lại (chưa có log nào (None) + log cuối là NEW)
+    # Lấy số lượng khách hàng chưa được gán status nào trong vòng lặp trên (final_status là NULL hoặc NEW)
     count_uncontacted = total_leads - total_counted
     
     if count_uncontacted > 0:
