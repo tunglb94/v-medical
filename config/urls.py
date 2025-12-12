@@ -38,7 +38,7 @@ urlpatterns = [
     path('telesale/', include('apps.telesales.urls')),
     
     # --- 5. RECEPTION (LỄ TÂN) ---
-    # Sửa lỗi NoReverseMatch: Đặt lại name='reception_home' để khớp với template đang gọi
+    # KHẮC PHỤC LỖI: Đặt name='reception_home' để khớp với template
     path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
