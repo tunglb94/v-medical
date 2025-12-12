@@ -5,8 +5,7 @@ from django.db.models import Sum
 from datetime import date
 
 class Customer(models.Model):
-    # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue (Không đổi thành ServiceInterest nữa)
-    # Để tránh lỗi ở Sales Report và các module khác
+    # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue
     class SkinIssue(models.TextChoices):
         # CÁC DỊCH VỤ MỚI ĐƯỢC BỔ SUNG:
         PROFHILO = "PROFHILO", "Profhilo" 
