@@ -1,18 +1,17 @@
 from django.contrib import admin
 from django.urls import path, include
 
-# FIX: Đã loại bỏ admin_dashboard khỏi đây, chỉ giữ lại các hàm của Authentication
+# FIX: Chỉ import root_view và global_search từ Authentication
 from apps.authentication.views import root_view, global_search 
 
-# Import views từ Bookings
+# FIX: Import admin_dashboard từ apps.sales.views (vị trí đúng)
+from apps.sales.views import (
+    revenue_dashboard, print_invoice, admin_dashboard
+)
+
 from apps.bookings.views import (
     reception_dashboard, checkin_appointment, create_appointment_reception,
     finish_appointment, add_walkin_appointment, get_appointments_api
-)
-
-# FIX: Đã import admin_dashboard từ apps.sales.views (hoặc nơi nó được định nghĩa)
-from apps.sales.views import (
-    revenue_dashboard, print_invoice, admin_dashboard
 )
 
 urlpatterns = [
