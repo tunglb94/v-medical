@@ -8,6 +8,14 @@ class Customer(models.Model):
     # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue (Không đổi thành ServiceInterest nữa)
     # Để tránh lỗi ở Sales Report và các module khác
     class SkinIssue(models.TextChoices):
+        # CÁC DỊCH VỤ MỚI ĐƯỢC BỔ SUNG:
+        PROFHILO = "PROFHILO", "Profhilo" 
+        EXOSONE = "EXOSONE", "Exosone"   
+        REJURAN = "REJURAN", "Rejuran"   
+        KARISMA = "KARISMA", "Karisma"   
+        HAIR_TREATMENT = "HAIR_TREATMENT", "Tóc" 
+        
+        # CÁC DỊCH VỤ CŨ:
         ULTHERAPY = "ULTHERAPY", "Ultherapy"
         THERMA = "THERMA", "Therma"
         PRP = "PRP", "PRP"
