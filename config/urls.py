@@ -6,9 +6,8 @@ from django.conf.urls.static import static
 # Import views từ Authentication (để lấy root_view và global_search)
 from apps.authentication.views import root_view, global_search 
 
-# Import views từ Telesales (Xóa imports không cần thiết ở đây)
-# Giữ lại telesale_dashboard để mapping đường dẫn gốc
-from apps.telesales.views import telesale_dashboard #, add_customer_manual, telesale_report
+# Import views từ Telesales (để lấy telesale_dashboard)
+from apps.telesales.views import telesale_dashboard 
 
 # Import views từ Bookings
 from apps.bookings.views import (
@@ -24,7 +23,7 @@ from apps.sales.views import (
 urlpatterns = [
     # --- 0. TRANG CHỦ ĐIỀU HƯỚNG ---
     path('', root_view, name='root'), 
-    path('search/', global_search, name='global_search'), # <--- MỚI THÊM
+    path('search/', global_search, name='global_search'),
 
     # --- 1. ADMIN DJANGO ---
     path('admin/', admin.site.urls),
@@ -35,17 +34,12 @@ urlpatterns = [
     # --- 3. DASHBOARD ---
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
-    # --- 4. TELESALE (Sử dụng include để gom tất cả URL Telesale) ---
-    # Thay thế 3 dòng cũ bằng 1 dòng include duy nhất
-    path('telesale/', include('apps.telesales.urls')), # Sửa thành include
+    # --- 4. TELESALE ---
+    path('telesale/', include('apps.telesales.urls')),
     
-    # URL Telesale cũ bị dư ra khỏi block TELESALE, phải xóa
-    # path('add-customer/', add_customer_manual, name='add_customer'), # ĐÃ XÓA
-    # path('telesale/report/', telesale_report, name='telesale_report'), # ĐÃ XÓA
-
     # --- 5. RECEPTION (LỄ TÂN) ---
-    # Đã sửa lỗi: Đổi name='reception_home' thành name='reception_dashboard'
-    path('reception/', reception_dashboard, name='reception_dashboard'),
+    # Sửa lỗi NoReverseMatch: Đặt lại name='reception_home' để khớp với template đang gọi
+    path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
     path('reception/finish/', finish_appointment, name='finish_appointment'),
@@ -60,7 +54,7 @@ urlpatterns = [
 
     # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 
-    path('marketing/', include('apps.marketing.urls')), # GIỮ NGUYÊN
+    path('marketing/', include('apps.marketing.urls')), 
     path('hr/', include('apps.hr.urls')),
     
     # --- 8. CHAT ---
