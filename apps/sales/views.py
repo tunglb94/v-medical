@@ -221,11 +221,13 @@ def admin_dashboard(request):
     chart_data = [float(item['total']) for item in revenue_trend]
 
     # --- D. TOP DỊCH VỤ ---
-    # Sửa lỗi FieldError: treatment_name -> service__name. Đảm bảo căn chỉnh đúng.
-    top_services = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
-        .values('service__name').annotate(total=Sum('total_amount')).order_by('-total')[:5]
+    # Đã sửa lỗi FieldError: treatment_name -> service__name, và lỗi IndentationError
+    top_services = Order.objects.filter(
+        order_date__range=[date_start, date_end], 
+        is_paid=True
+    ).values('service__name').annotate(total=Sum('total_amount')).order_by('-total')[:5]
     
-    # Sửa lỗi: item['treatment_name'] -> item['service__name']
+    # Đã sửa lỗi: item['treatment_name'] -> item['service__name']
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
