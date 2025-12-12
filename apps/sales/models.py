@@ -4,6 +4,8 @@ from apps.customers.models import Customer
 from apps.bookings.models import Appointment
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from datetime import date # <-- ĐÃ THÊM IMPORT THIẾU NÀY
+
 
 # Service (Dịch vụ) - Mô hình riêng
 class Service(models.Model):
@@ -43,7 +45,9 @@ class Order(models.Model):
     
     appointment = models.OneToOneField(Appointment, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lịch hẹn liên quan")
     
-    order_date = models.DateField(default=models.DateField.today, verbose_name="Ngày chốt đơn")
+    # FIX LỖI: Dùng date.today thay vì models.DateField.today
+    order_date = models.DateField(default=date.today, verbose_name="Ngày chốt đơn")
+    
     note = models.TextField(blank=True, verbose_name="Ghi chú đơn hàng")
     is_paid = models.BooleanField(default=False, verbose_name="Đã thanh toán (Hoàn thành)")
 
