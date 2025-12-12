@@ -13,14 +13,11 @@ class ServiceAdmin(admin.ModelAdmin):
 # Admin cho Order model
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    # FIX: 
-    # [1] 'treatment_name' -> 'service_name'
-    # [3] 'sale_consultant' -> 'consultant_name'
-    # [4] 'created_at' -> 'order_date'
+    # FIX: Thay thế các trường cũ bằng trường mới
     list_display = (
         'customer', 
         'service_name', 
-        'actual_revenue', # NEW: Thêm trường thực thu
+        'actual_revenue', 
         'total_amount', 
         'consultant_name', 
         'order_date', 

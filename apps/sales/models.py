@@ -4,7 +4,7 @@ from apps.customers.models import Customer
 from apps.bookings.models import Appointment
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from datetime import date # <-- ĐÃ THÊM IMPORT THIẾU NÀY
+from datetime import date # <-- Cần import date
 
 
 # Service (Dịch vụ) - Mô hình riêng
@@ -28,7 +28,6 @@ class Order(models.Model):
     
     original_price = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Giá gốc")
     
-    # THAY ĐỔI QUAN TRỌNG: Thêm trường cho phép Sale điều chỉnh giá trị thực tế
     actual_revenue = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Thực thu (VND)")
     
     total_amount = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Tổng giá trị đơn hàng")
@@ -43,19 +42,16 @@ class Order(models.Model):
     
     appointment = models.OneToOneField(Appointment, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lịch hẹn liên quan")
     
-    # FIX LỖI: Dùng date.today thay vì models.DateField.today
+    # FIX LỖI: Dùng date.today
     order_date = models.DateField(default=date.today, verbose_name="Ngày chốt đơn")
     
     note = models.TextField(blank=True, verbose_name="Ghi chú đơn hàng")
     is_paid = models.BooleanField(default=False, verbose_name="Đã thanh toán (Hoàn thành)")
 
     def save(self, *args, **kwargs):
-        # Đảm bảo original_price được thiết lập từ Service khi tạo mới
         if not self.pk:
             self.original_price = self.service.base_price
             
-        # Nếu actual_revenue không được set, mặc định lấy total_amount (hoặc original_price tùy logic kinh doanh)
-        # Tạm thời để Sale nhập thủ công cả actual_revenue và total_amount
         if self.actual_revenue == 0 and self.total_amount > 0:
             self.actual_revenue = self.total_amount
             
@@ -72,6 +68,5 @@ class Order(models.Model):
 # Signal để cập nhật Ranking của Customer khi Order được lưu hoặc xóa
 @receiver([post_save, post_delete], sender=Order)
 def update_customer_ranking(sender, instance, **kwargs):
-    # Đảm bảo tín hiệu chỉ chạy nếu đơn hàng đã được thanh toán
     if instance.is_paid:
         instance.customer.update_ranking()
