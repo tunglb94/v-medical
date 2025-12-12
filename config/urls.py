@@ -44,10 +44,10 @@ urlpatterns = [
     # path('telesale/report/', telesale_report, name='telesale_report'), # ĐÃ XÓA
 
     # --- 5. RECEPTION (LỄ TÂN) ---
-    path('reception/', reception_dashboard, name='reception_home'),
+    # Sửa lỗi: Đổi name='reception_home' thành name='reception_dashboard'
+    path('reception/', reception_dashboard, name='reception_dashboard'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
-    # Sửa lỗi NoReverseMatch: Đổi name='reception_finish' thành name='finish_appointment'
     path('reception/finish/', finish_appointment, name='finish_appointment'),
     path('reception/walk-in/', add_walkin_appointment, name='reception_walkin'),
     

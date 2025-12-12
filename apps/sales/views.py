@@ -28,31 +28,31 @@ def revenue_dashboard(request):
     consultant_id = request.GET.get('consultant_id')
 
     orders = Order.objects.filter(
-        # Sửa lỗi: created_at -> order_date
+        # Đã sửa: created_at__date__range -> order_date__range
         order_date__range=[date_start, date_end],
         is_paid=True
     )
 
     if doctor_id: orders = orders.filter(appointment__assigned_doctor_id=doctor_id)
-    # Sửa lỗi: sale_consultant_id -> assigned_consultant_id
+    # Đã sửa: sale_consultant_id -> assigned_consultant_id
     if consultant_id: orders = orders.filter(assigned_consultant_id=consultant_id)
 
     total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     total_orders = orders.count()
     avg_order_value = round(total_revenue / total_orders) if total_orders > 0 else 0
 
-    # Sửa lỗi: TruncDate('created_at') -> TruncDate('order_date')
+    # Đã sửa: TruncDate('created_at') -> TruncDate('order_date')
     revenue_by_date = orders.annotate(date=TruncDate('order_date')).values('date').annotate(daily_revenue=Sum('total_amount')).order_by('date')
     chart_dates = [item['date'].strftime('%d/%m') for item in revenue_by_date]
     chart_revenues = [float(item['daily_revenue']) for item in revenue_by_date]
     revenue_table = [{'date': item['date'], 'amount': item['daily_revenue']} for item in revenue_by_date]
 
-    # Sửa lỗi: sale_consultant__username -> assigned_consultant__username
+    # Đã sửa: sale_consultant__username -> assigned_consultant__username
     revenue_by_sale = orders.values('assigned_consultant__username').annotate(total=Sum('total_amount')).order_by('-total')
-    # Sửa lỗi: item['sale_consultant__username'] -> item['assigned_consultant__username']
+    # Đã sửa: item['sale_consultant__username'] -> item['assigned_consultant__username']
     sale_labels = [item['assigned_consultant__username'] or 'Chưa gán' for item in revenue_by_sale]
     sale_data = [float(item['total']) for item in revenue_by_sale]
-    # Sửa lỗi: item['sale_consultant__username'] -> item['assigned_consultant__username']
+    # Đã sửa: item['sale_consultant__username'] -> item['assigned_consultant__username']
     sale_table = [{'name': item['assigned_consultant__username'] or 'Chưa gán', 'amount': item['total']} for item in revenue_by_sale]
 
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
@@ -104,7 +104,7 @@ def revenue_dashboard(request):
     consultants = User.objects.filter(role='CONSULTANT')
 
     context = {
-        # Sửa lỗi: orders.order_by('-created_at') -> orders.order_by('-order_date')
+        # Đã sửa: orders.order_by('-created_at') -> orders.order_by('-order_date')
         'orders': orders.order_by('-order_date'),
         'total_revenue': total_revenue, 'total_orders': total_orders, 'avg_order_value': avg_order_value,
         'chart_dates': chart_dates, 'chart_revenues': chart_revenues,
@@ -180,12 +180,12 @@ def admin_dashboard(request):
 
     # --- A. KPI TÀI CHÍNH (DOANH THU TRONG KỲ) ---
     revenue_current = Order.objects.filter(
-        # Sửa lỗi: created_at -> order_date
+        # Đã sửa: created_at -> order_date
         order_date__range=[date_start, date_end], is_paid=True
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     
     revenue_previous = Order.objects.filter(
-        # Sửa lỗi: created_at -> order_date
+        # Đã sửa: created_at -> order_date
         order_date__range=[previous_start, previous_end], is_paid=True
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     
@@ -222,9 +222,11 @@ def admin_dashboard(request):
 
     # --- D. TOP DỊCH VỤ ---
     top_services = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
-        .values('treatment_name').annotate(total=Sum('total_amount')).order_by('-total')[:5]
+        # Sửa lỗi: treatment_name -> service__name
+        .values('service__name').annotate(total=Sum('total_amount')).order_by('-total')[:5]
     
-    service_labels = [item['treatment_name'] for item in top_services]
+    # Sửa lỗi: item['treatment_name'] -> item['service__name']
+    service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
     # --- E. TOP NHÂN VIÊN ---
