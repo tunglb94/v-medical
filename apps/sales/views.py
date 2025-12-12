@@ -19,7 +19,6 @@ User = get_user_model()
 @allowed_users(allowed_roles=['ADMIN'])
 def revenue_dashboard(request):
     # (Giữ nguyên code hàm revenue_dashboard như cũ)
-    # ... Copy lại nội dung hàm revenue_dashboard từ phiên bản trước ...
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
     
@@ -29,26 +28,32 @@ def revenue_dashboard(request):
     consultant_id = request.GET.get('consultant_id')
 
     orders = Order.objects.filter(
-        created_at__date__range=[date_start, date_end],
+        # Sửa lỗi: created_at -> order_date
+        order_date__range=[date_start, date_end],
         is_paid=True
     )
 
     if doctor_id: orders = orders.filter(appointment__assigned_doctor_id=doctor_id)
-    if consultant_id: orders = orders.filter(sale_consultant_id=consultant_id)
+    # Sửa lỗi: sale_consultant_id -> assigned_consultant_id
+    if consultant_id: orders = orders.filter(assigned_consultant_id=consultant_id)
 
     total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     total_orders = orders.count()
     avg_order_value = round(total_revenue / total_orders) if total_orders > 0 else 0
 
-    revenue_by_date = orders.annotate(date=TruncDate('created_at')).values('date').annotate(daily_revenue=Sum('total_amount')).order_by('date')
+    # Sửa lỗi: TruncDate('created_at') -> TruncDate('order_date')
+    revenue_by_date = orders.annotate(date=TruncDate('order_date')).values('date').annotate(daily_revenue=Sum('total_amount')).order_by('date')
     chart_dates = [item['date'].strftime('%d/%m') for item in revenue_by_date]
     chart_revenues = [float(item['daily_revenue']) for item in revenue_by_date]
     revenue_table = [{'date': item['date'], 'amount': item['daily_revenue']} for item in revenue_by_date]
 
-    revenue_by_sale = orders.values('sale_consultant__username').annotate(total=Sum('total_amount')).order_by('-total')
-    sale_labels = [item['sale_consultant__username'] or 'Chưa gán' for item in revenue_by_sale]
+    # Sửa lỗi: sale_consultant__username -> assigned_consultant__username
+    revenue_by_sale = orders.values('assigned_consultant__username').annotate(total=Sum('total_amount')).order_by('-total')
+    # Sửa lỗi: item['sale_consultant__username'] -> item['assigned_consultant__username']
+    sale_labels = [item['assigned_consultant__username'] or 'Chưa gán' for item in revenue_by_sale]
     sale_data = [float(item['total']) for item in revenue_by_sale]
-    sale_table = [{'name': item['sale_consultant__username'] or 'Chưa gán', 'amount': item['total']} for item in revenue_by_sale]
+    # Sửa lỗi: item['sale_consultant__username'] -> item['assigned_consultant__username']
+    sale_table = [{'name': item['assigned_consultant__username'] or 'Chưa gán', 'amount': item['total']} for item in revenue_by_sale]
 
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
@@ -99,7 +104,8 @@ def revenue_dashboard(request):
     consultants = User.objects.filter(role='CONSULTANT')
 
     context = {
-        'orders': orders.order_by('-created_at'),
+        # Sửa lỗi: orders.order_by('-created_at') -> orders.order_by('-order_date')
+        'orders': orders.order_by('-order_date'),
         'total_revenue': total_revenue, 'total_orders': total_orders, 'avg_order_value': avg_order_value,
         'chart_dates': chart_dates, 'chart_revenues': chart_revenues,
         'sale_labels': sale_labels, 'sale_data': sale_data,
@@ -174,11 +180,13 @@ def admin_dashboard(request):
 
     # --- A. KPI TÀI CHÍNH (DOANH THU TRONG KỲ) ---
     revenue_current = Order.objects.filter(
-        created_at__date__range=[date_start, date_end], is_paid=True
+        # Sửa lỗi: created_at -> order_date
+        order_date__range=[date_start, date_end], is_paid=True
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     
     revenue_previous = Order.objects.filter(
-        created_at__date__range=[previous_start, previous_end], is_paid=True
+        # Sửa lỗi: created_at -> order_date
+        order_date__range=[previous_start, previous_end], is_paid=True
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     
     growth_rate = 0
@@ -206,26 +214,26 @@ def admin_dashboard(request):
     leads_total = Customer.objects.filter(created_at__date__range=[date_start, date_end]).count()
 
     # --- C. BIỂU ĐỒ (TREND) TRONG KỲ ---
-    revenue_trend = Order.objects.filter(created_at__date__range=[date_start, date_end], is_paid=True)\
-        .annotate(date=TruncDate('created_at')).values('date').annotate(total=Sum('total_amount')).order_by('date')
+    revenue_trend = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
+        .annotate(date=TruncDate('order_date')).values('date').annotate(total=Sum('total_amount')).order_by('date')
     
     chart_labels = [item['date'].strftime('%d/%m') for item in revenue_trend]
     chart_data = [float(item['total']) for item in revenue_trend]
 
     # --- D. TOP DỊCH VỤ ---
-    top_services = Order.objects.filter(created_at__date__range=[date_start, date_end], is_paid=True)\
+    top_services = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('treatment_name').annotate(total=Sum('total_amount')).order_by('-total')[:5]
     
     service_labels = [item['treatment_name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
     # --- E. TOP NHÂN VIÊN ---
-    top_sales = Order.objects.filter(created_at__date__range=[date_start, date_end], is_paid=True)\
-        .values('sale_consultant__username', 'sale_consultant__first_name', 'sale_consultant__last_name')\
+    top_sales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
+        .values('assigned_consultant__username', 'assigned_consultant__first_name', 'assigned_consultant__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
 
     # Giao dịch gần đây (trong kỳ)
-    recent_orders = Order.objects.filter(created_at__date__range=[date_start, date_end]).order_by('-created_at')[:10]
+    recent_orders = Order.objects.filter(order_date__range=[date_start, date_end]).order_by('-order_date')[:10]
 
     context = {
         'date_start': date_start.strftime('%Y-%m-%d'),

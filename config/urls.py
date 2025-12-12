@@ -47,7 +47,8 @@ urlpatterns = [
     path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
     path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
-    path('reception/finish/', finish_appointment, name='reception_finish'),
+    # Sửa lỗi NoReverseMatch: Đổi name='reception_finish' thành name='finish_appointment'
+    path('reception/finish/', finish_appointment, name='finish_appointment'),
     path('reception/walk-in/', add_walkin_appointment, name='reception_walkin'),
     
     # API cho Lịch

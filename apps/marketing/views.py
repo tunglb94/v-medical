@@ -102,7 +102,8 @@ def delete_report(request, pk):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_list(request):
-    services = Service.objects.filter(is_active=True)
+    # Sửa lỗi: Bỏ filter(is_active=True) vì model Service không có trường này
+    services = Service.objects.all()
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
     
     tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by', 'service')
