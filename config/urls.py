@@ -1,21 +1,24 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from apps.authentication.views import root_view, admin_dashboard, global_search
+# FIX: Đã loại bỏ admin_dashboard khỏi đây, chỉ giữ lại các hàm của Authentication
+from apps.authentication.views import root_view, global_search 
+
+# Import views từ Bookings
 from apps.bookings.views import (
-    reception_dashboard, 
-    checkin_appointment, 
-    create_appointment_reception, 
-    finish_appointment, 
-    add_walkin_appointment, 
-    get_appointments_api
+    reception_dashboard, checkin_appointment, create_appointment_reception,
+    finish_appointment, add_walkin_appointment, get_appointments_api
 )
-from apps.sales.views import revenue_dashboard, print_invoice
+
+# FIX: Đã import admin_dashboard từ apps.sales.views (hoặc nơi nó được định nghĩa)
+from apps.sales.views import (
+    revenue_dashboard, print_invoice, admin_dashboard
+)
 
 urlpatterns = [
     # --- 0. TRANG CHỦ ĐIỀU HƯỚNG ---
     path('', root_view, name='root'), 
-    path('search/', global_search, name='global_search'), 
+    path('search/', global_search, name='global_search'),
 
     # --- 1. ADMIN DJANGO ---
     path('admin/', admin.site.urls),
@@ -23,7 +26,7 @@ urlpatterns = [
     # --- 2. AUTHENTICATION ---
     path('auth/', include('apps.authentication.urls')), 
 
-    # --- 3. DASHBOARD ---
+    # --- 3. DASHBOARD (Sử dụng admin_dashboard đã được import đúng) ---
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
     # --- 4. TELESALE (Sử dụng include để gom tất cả URL Telesale) ---
