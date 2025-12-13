@@ -44,7 +44,7 @@
                        data-customer-code="{{ appointment.customer.customer_code|default:'' }}">
                         
                         <div class="d-flex align-items-center">
-                            <span class="badge rounded-pill me-3" style="width: 50px;">
+                            <span class="badge rounded-pill bg-light text-primary me-3 border" style="width: 60px;">
                                 <div class="fw-bold fs-5">{{ appointment.appointment_date|date:"H:i" }}</div>
                             </span>
                             <div>
@@ -93,7 +93,6 @@
         </div>
     </div>
 </div>
-
 
 <div class="modal fade" id="appointmentDetailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -148,7 +147,6 @@
         </div>
     </div>
 </div>
-
 
 <div class="modal fade" id="finishAppointmentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -348,21 +346,21 @@
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
 
-        // Hàm chung để mở Modal và điền dữ liệu (FIX BUG LOGIC)
-        // Hàm này đảm bảo ID luôn được điền dù click từ Lịch hay từ Danh sách
+        // Hàm mở Modal và điền dữ liệu (Dùng chung cho cả Click Calendar và Click List)
+        // Hàm này khắc phục lỗi "Không tìm thấy ID" bằng cách điền ID chính xác vào hidden input
         window.openAppointmentModal = function(data) {
-            // Điền thông tin vào UI
+            // Điền thông tin vào Modal
             $('#customerNameDetail').text(data.customerName);
             $('#customerPhoneDetail').text(data.customerPhone);
             $('#appointmentTimeDetail').text(data.apptTime);
             $('#customerCodeDisplay').text(data.customerCode || 'Chưa có');
             $('#appointmentStatusDetail').text(data.status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(data.statusCode));
 
-            // LOGIC QUAN TRỌNG: Cập nhật hidden ID và Form Action
+            // LOGIC QUAN TRỌNG: Cập nhật hidden ID và Form Action cho Check-in
             const baseUrl = '{% url "checkin" appointment_id=0 %}';
             $('#checkinForm').attr('action', baseUrl.replace('0', data.id));
             
-            // Cập nhật ID cho form Chốt đơn (Lỗi "Không tìm thấy ID" là do thiếu dòng này khi click danh sách)
+            // LOGIC QUAN TRỌNG: Cập nhật hidden ID cho form Chốt đơn
             $('#finishApptId').val(data.id);
             $('#finishForm').attr('action', '{% url "finish_appointment" %}');
 
@@ -371,13 +369,13 @@
             $('#finishCustomerName').text(data.customerName);
             $('#customerCodeInput').val(data.customerCode);
 
-            // Ẩn hiện nút bấm
+            // Ẩn hiện nút bấm tùy trạng thái
             $('.checkin-btn').toggle(data.statusCode === 'SCHEDULED');
             $('.finish-btn').toggle(data.statusCode === 'ARRIVED');
             $('.cancel-btn').toggle(data.statusCode !== 'CANCELLED' && data.statusCode !== 'COMPLETED');
             $('.cancel-btn').data('id', data.id);
 
-            // Mở Modal
+            // Hiển thị Modal
             $('#appointmentDetailModal').modal('show');
         }
 
@@ -396,7 +394,7 @@
                 hour12: false
             },
             eventClick: function(info) {
-                // Click từ Calendar
+                // Click từ Lịch
                 const data = {
                     id: info.event.id,
                     customerName: info.event.extendedProps.customerName,
@@ -411,8 +409,7 @@
         });
         calendar.render();
 
-        // Click từ Danh sách (Sidebar) - FIX LOGIC
-        // Sử dụng event delegation để bắt sự kiện click cho class .appointment-list-item
+        // Click từ Danh sách bên trái
         $(document).on('click', '.appointment-list-item', function() {
             const data = {
                 id: $(this).data('id'),
