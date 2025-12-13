@@ -18,7 +18,7 @@ User = get_user_model()
 
 # --- 1. DASHBOARD LỄ TÂN ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN']) # Thêm ADMIN để linh hoạt
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN']) 
 def reception_dashboard(request):
     # Lấy ngày hiện tại
     today = timezone.now().date()
@@ -107,7 +107,7 @@ def get_appointments_api(request):
 
 # --- 3. CHECK-IN ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN']) # Thêm ADMIN
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
 def checkin_appointment(request, appointment_id):
     app = get_object_or_404(Appointment.objects.select_related('customer'), pk=appointment_id)
 
@@ -148,7 +148,7 @@ def checkin_appointment(request, appointment_id):
 
 # --- 4. TẠO LỊCH NHANH (KHÁCH CŨ) ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN']) # Thêm ADMIN
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
 def create_appointment_reception(request):
     if request.method == "POST":
         customer_id = request.POST.get('customer_id')
@@ -168,13 +168,13 @@ def create_appointment_reception(request):
 
 # --- 5. KHÁCH VÃNG LAI (CHỈ LỄ TÂN) ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN']) # Thêm ADMIN
+@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN'])
 def add_walkin_appointment(request):
     if request.method == "POST":
         name = request.POST.get('name')
         phone = request.POST.get('phone')
         appt_date = request.POST.get('appointment_date')
-        age = request.POST.get('age') # Age không dùng trong model Customer hiện tại
+        age = request.POST.get('age')
         city = request.POST.get('city')
         
         if not name or not phone:
@@ -208,20 +208,29 @@ def add_walkin_appointment(request):
 
 # --- 6. CHỐT CA (CHỈ LỄ TÂN) ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN']) # Thêm ADMIN
+@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN'])
 def finish_appointment(request):
     if request.method == "POST":
         appt_id = request.POST.get('appointment_id')
-        doctor_id = request.POST.get('doctor_id')
-        technician_id = request.POST.get('technician_id')
-        consultant_id = request.POST.get('consultant_id')
+        
+        # FIX ERROR: Chuyển chuỗi rỗng '' thành None để tránh lỗi "Field 'id' expected a number"
+        doctor_id = request.POST.get('doctor_id') or None
+        technician_id = request.POST.get('technician_id') or None
+        consultant_id = request.POST.get('consultant_id') or None
+        
         result_status = request.POST.get('result_status')
         
         try:
+            if not appt_id:
+                raise ValueError("Không tìm thấy ID lịch hẹn")
+
             appt = Appointment.objects.get(id=appt_id)
+            
+            # Cập nhật thông tin nhân viên (nếu có chọn)
             if doctor_id: appt.assigned_doctor_id = doctor_id
             if technician_id: appt.assigned_technician_id = technician_id
             if consultant_id: appt.assigned_consultant_id = consultant_id
+            
             appt.status = 'COMPLETED'
             appt.save()
 
@@ -229,18 +238,15 @@ def finish_appointment(request):
                 service_id = request.POST.get('service_id')
                 original_price = request.POST.get('original_price') or 0
                 
-                # --- THAY ĐỔI QUAN TRỌNG CHO YÊU CẦU THỰC THU ---
-                actual_revenue = request.POST.get('actual_revenue') # Lấy giá trị thực thu mới
-                total_amount = request.POST.get('total_amount') # Lấy giá trị tổng đơn
+                actual_revenue = request.POST.get('actual_revenue')
+                total_amount = request.POST.get('total_amount')
                 
                 if not total_amount:
                     messages.error(request, "Vui lòng nhập số tiền Tổng đơn hàng!")
                     return redirect('reception_home')
                 
-                # Nếu thực thu không được nhập, mặc định bằng tổng đơn
                 if not actual_revenue:
                     actual_revenue = total_amount
-                # ------------------------------------------------
                 
                 service_obj = None
                 service_name = "Dịch vụ khác"
@@ -251,15 +257,11 @@ def finish_appointment(request):
                 Order.objects.create(
                     customer=appt.customer,
                     appointment=appt,
-                    # FIX: Đổi sale_consultant_id (đã xóa) thành assigned_consultant_id (mới)
+                    # FIX: Sử dụng biến consultant_id đã được xử lý (None nếu rỗng)
                     assigned_consultant_id=consultant_id,
                     service=service_obj,
-                    
-                    # XÓA: treatment_name (không còn trong model)
-                    # XÓA: discount (không còn trong model)
-
                     original_price=original_price, 
-                    actual_revenue=actual_revenue, # NEW FIELD
+                    actual_revenue=actual_revenue,
                     total_amount=total_amount,
                     is_paid=True,
                     note=f"Chốt đơn ngày {timezone.now().date()}"
@@ -267,7 +269,6 @@ def finish_appointment(request):
                 
                 CallLog.objects.create(
                     customer=appt.customer, caller=request.user, status='BOOKED',
-                    # Cập nhật ghi chú CallLog để phản ánh giá trị thực thu
                     note=f"Đã mua: {service_name}. Tổng: {total_amount}. Thực thu: {actual_revenue}"
                 )
                 messages.success(request, f"✅ Đã chốt đơn: {service_name}. Thực thu: {actual_revenue}")
