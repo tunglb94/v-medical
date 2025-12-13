@@ -346,7 +346,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
 
-        // Hàm mở Modal Chi tiết và điền dữ liệu
+        // Hàm mở Modal Chi tiết và điền dữ liệu (LOGIC SỬA LỖI)
         window.openAppointmentModal = function(data) {
             // Điền thông tin vào Modal
             $('#customerNameDetail').text(data.customerName);
@@ -355,11 +355,11 @@
             $('#customerCodeDisplay').text(data.customerCode || 'Chưa có');
             $('#appointmentStatusDetail').text(data.status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(data.statusCode));
 
-            // Cập nhật Form Action cho Check-in (Để sẵn)
+            // FIX URL CHECKIN: Dùng placeholder ID=0
             const baseUrl = '{% url "checkin" appointment_id=0 %}';
             $('#checkinForm').attr('action', baseUrl.replace('0', data.id));
             
-            // Cập nhật ID và Form Action cho Chốt đơn (Để sẵn)
+            // Cập nhật ID và Form Action cho Chốt đơn
             $('#finishApptId').val(data.id);
             $('#finishForm').attr('action', '{% url "finish_appointment" %}');
 
@@ -368,10 +368,9 @@
             $('#finishCustomerName').text(data.customerName);
             $('#customerCodeInput').val(data.customerCode);
 
-            // Ẩn hiện nút bấm tùy trạng thái
+            // LOGIC ẨN/HIỆN NÚT (Quan trọng)
             // SCHEDULED: Hiện Check-in
-            // ARRIVED: Hiện Chốt đơn
-            // IN_CONSULTATION: Hiện Chốt đơn (nếu có dùng trạng thái này)
+            // ARRIVED: Hiện Chốt đơn (Lúc này Check-in sẽ ẩn, nên bạn thấy "mất nút" là đúng, nhưng nút Chốt đơn phải hiện)
             
             if (data.statusCode === 'SCHEDULED') {
                 $('#btnOpenCheckin').show();
@@ -380,6 +379,7 @@
                 $('#btnOpenCheckin').hide();
                 $('#btnOpenFinish').show();
             } else {
+                // Đã hoàn thành hoặc Hủy -> Ẩn hết
                 $('#btnOpenCheckin').hide();
                 $('#btnOpenFinish').hide();
             }
@@ -391,17 +391,17 @@
             $('#appointmentDetailModal').modal('show');
         }
 
-        // --- XỬ LÝ CHUYỂN MODAL (FIX LỖI KẸT GIAO DIỆN) ---
-        // Khi bấm nút Check-in trong Modal Chi tiết
+        // --- XỬ LÝ CHUYỂN MODAL (KHẮC PHỤC LỖI KẸT) ---
+        // Khi bấm nút Check-in: Đóng modal chi tiết -> Mở modal Check-in
         $('#btnOpenCheckin').on('click', function() {
-            $('#appointmentDetailModal').modal('hide'); // Đóng Modal chi tiết trước
-            $('#checkinModal').modal('show');           // Mở Modal Check-in sau
+            $('#appointmentDetailModal').modal('hide'); 
+            setTimeout(function() { $('#checkinModal').modal('show'); }, 200); // Delay nhẹ để tránh xung đột animation
         });
 
-        // Khi bấm nút Chốt đơn trong Modal Chi tiết
+        // Khi bấm nút Chốt đơn: Đóng modal chi tiết -> Mở modal Chốt đơn
         $('#btnOpenFinish').on('click', function() {
-            $('#appointmentDetailModal').modal('hide'); // Đóng Modal chi tiết trước
-            $('#finishAppointmentModal').modal('show'); // Mở Modal Chốt đơn sau
+            $('#appointmentDetailModal').modal('hide'); 
+            setTimeout(function() { $('#finishAppointmentModal').modal('show'); }, 200);
         });
         // ----------------------------------------------------
 
