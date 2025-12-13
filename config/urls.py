@@ -38,15 +38,17 @@ urlpatterns = [
     path('telesale/', include('apps.telesales.urls')),
     
     # --- 5. RECEPTION (LỄ TÂN) ---
-    # SỬA LỖI CUỐI CÙNG: Đặt name='reception_home' để khớp với template đang bị lỗi NoReverseMatch
     path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
-    path('reception/create-appointment/', create_appointment_reception, name='reception_create_appointment'),
+    # SỬA LỖI TIỀM ẨN: Đổi name='reception_create_appointment' -> name='create_appointment_reception'
+    path('reception/create-appointment/', create_appointment_reception, name='create_appointment_reception'),
     path('reception/finish/', finish_appointment, name='finish_appointment'),
-    path('reception/walk-in/', add_walkin_appointment, name='reception_walkin'),
+    # SỬA LỖI 500: Đổi name='reception_walkin' -> name='add_walkin_appointment'
+    path('reception/walk-in/', add_walkin_appointment, name='add_walkin_appointment'),
     
     # API cho Lịch
-    path('api/calendar/appointments/', get_appointments_api, name='api_appointments'),
+    # SỬA LỖI TIỀM ẨN: Đổi name='api_appointments' -> name='get_appointments_api' (để khớp với JS)
+    path('api/calendar/appointments/', get_appointments_api, name='get_appointments_api'),
 
     # --- 6. SALES & BÁO CÁO ---
     path('sales/report/', revenue_dashboard, name='sales_report'),
