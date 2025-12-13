@@ -34,7 +34,15 @@
             <div class="card-body p-0 flex-grow-1 overflow-auto">
                 <div class="list-group list-group-flush">
                     {% for appointment in appointments %}
-                    <a href="#" class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#appointmentDetailModal" data-id="{{ appointment.id }}">
+                    <a href="javascript:void(0);" class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center appointment-list-item" 
+                       data-id="{{ appointment.id }}"
+                       data-customer-name="{{ appointment.customer.name }}"
+                       data-customer-phone="{{ appointment.customer.phone }}"
+                       data-time="{{ appointment.appointment_date|date:'H:i d/m/Y' }}"
+                       data-status="{{ appointment.get_status_display }}"
+                       data-status-code="{{ appointment.status }}"
+                       data-customer-code="{{ appointment.customer.customer_code|default:'' }}">
+                        
                         <div class="d-flex align-items-center">
                             <span class="badge rounded-pill me-3" style="width: 50px;">
                                 <div class="fw-bold fs-5">{{ appointment.appointment_date|date:"H:i" }}</div>
@@ -339,6 +347,40 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
+
+        // Hàm chung để mở Modal và điền dữ liệu (FIX BUG LOGIC)
+        // Hàm này đảm bảo ID luôn được điền dù click từ Lịch hay từ Danh sách
+        window.openAppointmentModal = function(data) {
+            // Điền thông tin vào UI
+            $('#customerNameDetail').text(data.customerName);
+            $('#customerPhoneDetail').text(data.customerPhone);
+            $('#appointmentTimeDetail').text(data.apptTime);
+            $('#customerCodeDisplay').text(data.customerCode || 'Chưa có');
+            $('#appointmentStatusDetail').text(data.status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(data.statusCode));
+
+            // LOGIC QUAN TRỌNG: Cập nhật hidden ID và Form Action
+            const baseUrl = '{% url "checkin" appointment_id=0 %}';
+            $('#checkinForm').attr('action', baseUrl.replace('0', data.id));
+            
+            // Cập nhật ID cho form Chốt đơn (Lỗi "Không tìm thấy ID" là do thiếu dòng này khi click danh sách)
+            $('#finishApptId').val(data.id);
+            $('#finishForm').attr('action', '{% url "finish_appointment" %}');
+
+            // Điền tên khách vào các form con
+            $('#checkinCustomerName').text(data.customerName);
+            $('#finishCustomerName').text(data.customerName);
+            $('#customerCodeInput').val(data.customerCode);
+
+            // Ẩn hiện nút bấm
+            $('.checkin-btn').toggle(data.statusCode === 'SCHEDULED');
+            $('.finish-btn').toggle(data.statusCode === 'ARRIVED');
+            $('.cancel-btn').toggle(data.statusCode !== 'CANCELLED' && data.statusCode !== 'COMPLETED');
+            $('.cancel-btn').data('id', data.id);
+
+            // Mở Modal
+            $('#appointmentDetailModal').modal('show');
+        }
+
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'vi',
@@ -354,62 +396,45 @@
                 hour12: false
             },
             eventClick: function(info) {
-                // Mở modal chi tiết khi click vào event
-                $('#appointmentDetailModal').modal('show');
-                
-                // Lấy thông tin từ event
-                const apptId = info.event.id;
-                const customerName = info.event.extendedProps.customerName;
-                const customerPhone = info.event.extendedProps.phone;
-                const apptTime = info.event.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + info.event.start.toLocaleDateString('vi-VN');
-                const status = info.event.extendedProps.status;
-                const statusCode = info.event.extendedProps.statusCode;
-                const customerCode = info.event.extendedProps.customerCode;
-
-                // Điền thông tin vào Modal chi tiết
-                $('#customerNameDetail').text(customerName);
-                $('#customerPhoneDetail').text(customerPhone);
-                $('#appointmentTimeDetail').text(apptTime);
-                $('#customerCodeDisplay').text(customerCode || 'Chưa có');
-                
-                $('#appointmentStatusDetail').text(status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(statusCode));
-
-                // Cập nhật URL và ID cho các form Check-in, Chốt đơn
-                // ĐÃ SỬA: Tạo URL tạm với id=0, sau đó replace bằng JS
-                const baseUrl = '{% url "checkin" appointment_id=0 %}';
-                $('#checkinForm').attr('action', baseUrl.replace('0', apptId));
-                
-                // Sửa lỗi: Thay URL cứng bằng URL name finish_appointment
-                $('#finishForm').attr('action', '{% url "finish_appointment" %}');
-                $('#finishApptId').val(apptId);
-
-                // Điền tên khách hàng vào modal Check-in/Chốt đơn
-                $('#checkinCustomerName').text(customerName);
-                $('#finishCustomerName').text(customerName);
-                $('#customerCodeInput').val(customerCode);
-
-                // Điều khiển nút bấm dựa trên trạng thái
-                $('.checkin-btn').toggle(statusCode === 'SCHEDULED');
-                $('.finish-btn').toggle(statusCode === 'ARRIVED');
-                $('.cancel-btn').toggle(statusCode !== 'CANCELLED' && statusCode !== 'COMPLETED');
-                
-                // Gán ID cho nút hủy (vì nó không phải form)
-                $('.cancel-btn').data('id', apptId);
+                // Click từ Calendar
+                const data = {
+                    id: info.event.id,
+                    customerName: info.event.extendedProps.customerName,
+                    customerPhone: info.event.extendedProps.phone,
+                    apptTime: info.event.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + info.event.start.toLocaleDateString('vi-VN'),
+                    status: info.event.extendedProps.status,
+                    statusCode: info.event.extendedProps.statusCode,
+                    customerCode: info.event.extendedProps.customerCode
+                };
+                openAppointmentModal(data);
             }
         });
         calendar.render();
 
-        // Xử lý khi modal chi tiết được đóng, đảm bảo modal Check-in/Finish không bị mất
+        // Click từ Danh sách (Sidebar) - FIX LOGIC
+        // Sử dụng event delegation để bắt sự kiện click cho class .appointment-list-item
+        $(document).on('click', '.appointment-list-item', function() {
+            const data = {
+                id: $(this).data('id'),
+                customerName: $(this).data('customer-name'),
+                customerPhone: $(this).data('customer-phone'),
+                apptTime: $(this).data('time'),
+                status: $(this).data('status'),
+                statusCode: $(this).data('status-code'),
+                customerCode: $(this).data('customer-code')
+            };
+            openAppointmentModal(data);
+        });
+
+        // Xử lý khi modal chi tiết được đóng
         $('#appointmentDetailModal').on('hidden.bs.modal', function () {
-            // Đóng modal chi tiết, nhưng giữ lại modal con nếu nó được mở (ví dụ: Check-in, Finish)
             if ($('#checkinModal').hasClass('show') || $('#finishAppointmentModal').hasClass('show')) {
                 $('body').addClass('modal-open');
-                $('.modal-backdrop').first().css('z-index', 1040); // Điều chỉnh z-index nếu cần
+                $('.modal-backdrop').first().css('z-index', 1040);
             }
         });
     });
 
-    // Hàm lấy màu theo status code
     function getStatusColor(statusCode) {
         switch (statusCode) {
             case 'SCHEDULED': return 'primary';
@@ -421,17 +446,12 @@
         }
     }
     
-    // --- JS mới cho TRƯỜNG THỰC THU ---
     function copyToActualRevenue() {
         var totalAmount = document.getElementById('finalTotalAmount').value;
         var actualRevenue = document.getElementById('actualRevenue');
-        
-        // Tự động điền giá trị Tổng đơn hàng vào Thực thu
         actualRevenue.value = totalAmount;
     }
-    // ------------------------------------
 
-    // Xử lý logic ẩn/hiện form chốt đơn/từ chối
     function toggleOrderFields() {
         var status = document.getElementById('resultStatus').value;
         if (status === 'buy') {
@@ -443,11 +463,6 @@
         }
     }
     
-    // Xử lý Modal Lên lịch nhanh
-    $('#searchCustomerModal').on('show.bs.modal', function(event) {
-        // ... (Không cần thiết nếu search_results được xử lý trong Django)
-    });
-    
     $('#scheduleModal').on('show.bs.modal', function(event) {
         var button = $(event.relatedTarget);
         var customerId = button.data('customer-id');
@@ -458,11 +473,9 @@
         modal.find('#scheduleCustomerName').text(customerName);
     });
 
-    // Xử lý nút Hủy lịch hẹn
     $('.cancel-btn').on('click', function() {
         if (confirm('Bạn có chắc chắn muốn HỦY lịch hẹn này không?')) {
             const apptId = $(this).data('id');
-            // Chuyển hướng hoặc dùng form POST ẩn để cập nhật status CANCELLED
             const form = $('<form action="{% url "reception_home" %}" method="POST" style="display:none;"></form>');
             form.append('{% csrf_token %}');
             form.append('<input type="hidden" name="appointment_id" value="' + apptId + '">');
@@ -472,15 +485,10 @@
         }
     });
 
-    // Thiết lập giá gốc khi chọn dịch vụ (Cần AJAX hoặc data-attribute)
     document.getElementById('serviceIdSelect').addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const basePrice = selectedOption.getAttribute('data-price');
         document.getElementById('originalPrice').value = basePrice || 0;
-        
-        // Tự động điền giá gốc vào tổng đơn (giả định chưa có chiết khấu)
-        // document.getElementById('finalTotalAmount').value = basePrice || 0;
-        // copyToActualRevenue();
     });
 </script>
 {% endblock %}
