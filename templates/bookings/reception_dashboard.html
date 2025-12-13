@@ -249,7 +249,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form method="GET" action="{% url 'reception_dashboard' %}">
+                <form method="GET" action="{% url 'reception_home' %}">
                     <div class="input-group mb-3">
                         <input type="text" name="q" class="form-control" placeholder="Tên hoặc SĐT khách hàng" value="{{ search_query }}">
                         <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
@@ -461,8 +461,7 @@
         if (confirm('Bạn có chắc chắn muốn HỦY lịch hẹn này không?')) {
             const apptId = $(this).data('id');
             // Chuyển hướng hoặc dùng form POST ẩn để cập nhật status CANCELLED
-            // Sửa lỗi: Thay URL cứng bằng URL name reception_dashboard
-            const form = $('<form action="{% url "reception_dashboard" %}" method="POST" style="display:none;"></form>');
+            const form = $('<form action="{% url "reception_home" %}" method="POST" style="display:none;"></form>');
             form.append('{% csrf_token %}');
             form.append('<input type="hidden" name="appointment_id" value="' + apptId + '">');
             form.append('<input type="hidden" name="new_status" value="CANCELLED">');
