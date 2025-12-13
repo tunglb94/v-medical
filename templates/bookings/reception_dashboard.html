@@ -375,8 +375,10 @@
                 $('#appointmentStatusDetail').text(status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(statusCode));
 
                 // Cập nhật URL và ID cho các form Check-in, Chốt đơn
-                $('#checkinForm').attr('action', '/bookings/checkin/' + apptId + '/');
-                $('#finishForm').attr('action', '/bookings/finish_appointment/');
+                // Sửa lỗi: Thay URL cứng bằng URL name checkin
+                $('#checkinForm').attr('action', '{% url "checkin" appointment.id %}'.replace(appointment.id, apptId));
+                // Sửa lỗi: Thay URL cứng bằng URL name finish_appointment
+                $('#finishForm').attr('action', '{% url "finish_appointment" %}');
                 $('#finishApptId').val(apptId);
 
                 // Điền tên khách hàng vào modal Check-in/Chốt đơn
@@ -459,7 +461,8 @@
         if (confirm('Bạn có chắc chắn muốn HỦY lịch hẹn này không?')) {
             const apptId = $(this).data('id');
             // Chuyển hướng hoặc dùng form POST ẩn để cập nhật status CANCELLED
-            const form = $('<form action="/bookings/reception/" method="POST" style="display:none;"></form>');
+            // Sửa lỗi: Thay URL cứng bằng URL name reception_dashboard
+            const form = $('<form action="{% url "reception_dashboard" %}" method="POST" style="display:none;"></form>');
             form.append('{% csrf_token %}');
             form.append('<input type="hidden" name="appointment_id" value="' + apptId + '">');
             form.append('<input type="hidden" name="new_status" value="CANCELLED">');
