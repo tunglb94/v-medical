@@ -21,7 +21,6 @@ def customer_list(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
 
-    # Customer model có field created_at, nên dòng này ĐÚNG
     customers = Customer.objects.all().order_by('-created_at')
     
     if query: customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query))
@@ -50,15 +49,10 @@ def customer_list(request):
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def customer_detail(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
-    
-    # CallLog thường dùng call_time hoặc created_at (kiểm tra model CallLog nếu lỗi)
     call_logs = CallLog.objects.filter(customer=customer).order_by('-call_time')
-    
-    # Appointment dùng appointment_date
     appointments = Appointment.objects.filter(customer=customer).order_by('-appointment_date')
     
-    # FIX LỖI 500: Order model dùng 'order_date', KHÔNG phải 'created_at'
-    # Đã đối chiếu với apps/sales/models.py
+    # SỬA LỖI 500: Sử dụng order_date thay vì created_at
     orders = Order.objects.filter(customer=customer).order_by('-order_date')
     
     total_spent = orders.filter(is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0

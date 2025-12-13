@@ -2,145 +2,225 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Hồ sơ: {{ customer.name }}{% endblock %}
-
-{% block extra_css %}
-<style>
-    .nav-tabs .nav-link.active { font-weight:bold; border-top: 3px solid #3498db; background: #fff; border-bottom-color: transparent; color: #3498db; }
-    .timeline-item { border-left: 2px solid #dee2e6; padding-left: 15px; padding-bottom: 20px; position: relative; }
-    .timeline-item::before { content:''; position:absolute; left:-6px; top:5px; width:10px; height:10px; border-radius:50%; background:#adb5bd; }
-    .timeline-item.success::before { background: #198754; }
-</style>
-{% endblock %}
+{% block title %}Hồ sơ khách hàng: {{ customer.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <a href="{% url 'customer_list' %}" class="text-decoration-none text-muted fw-bold"><i class="bi bi-arrow-left me-1"></i> Quay lại danh sách</a>
-</div>
-
-<div class="row">
-    <div class="col-lg-4 mb-4">
-        <div class="card card-box h-100">
-            <div class="card-body">
-                <div class="text-center mb-4">
-                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width:80px; height:80px;">
-                        <i class="bi bi-person-fill display-4 text-secondary"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">{{ customer.name }}</h4>
-                    
-                    <div class="mb-2">
-                        {% if customer.ranking == 'DIAMOND' %}
-                            <span class="badge bg-info"><i class="bi bi-gem me-1"></i>Thành viên Kim Cương</span>
-                        {% elif customer.ranking == 'GOLD' %}
-                            <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Thành viên Vàng</span>
-                        {% elif customer.ranking == 'SILVER' %}
-                            <span class="badge bg-secondary"><i class="bi bi-star-half me-1"></i>Thành viên Bạc</span>
-                        {% else %}
-                            <span class="badge bg-light text-dark border">Thành viên Mới</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="text-muted fw-bold">{{ customer.phone }}</div>
-                    
-                    <div class="d-flex justify-content-center gap-2 mt-3">
-                        <div class="bg-light p-2 rounded text-center" style="min-width: 100px;">
-                            <div class="small text-muted text-uppercase" style="font-size: 0.7rem;">Doanh số (LTV)</div>
-                            <div class="fw-bold text-success">{{ total_spent|intcomma }} đ</div>
-                        </div>
-                        <div class="bg-light p-2 rounded text-center" style="min-width: 100px;">
-                            <div class="small text-muted text-uppercase" style="font-size: 0.7rem;">Lần đến</div>
-                            <div class="fw-bold text-dark">{{ visit_count }}</div>
-                        </div>
-                    </div>
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body text-center">
+                <div class="avatar-circle bg-primary text-white fs-2 fw-bold mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; border-radius: 50%;">
+                    {{ customer.name|slice:":1" }}
                 </div>
+                <h5 class="fw-bold mb-1">{{ customer.name }}</h5>
+                <p class="text-muted mb-2">{{ customer.phone }}</p>
                 
-                <hr class="opacity-25">
+                <span class="badge rounded-pill 
+                    {% if customer.ranking == 'DIAMOND' %}bg-info text-dark
+                    {% elif customer.ranking == 'GOLD' %}bg-warning text-dark
+                    {% elif customer.ranking == 'SILVER' %}bg-secondary
+                    {% else %}bg-light text-dark border{% endif %}">
+                    <i class="bi bi-gem me-1"></i> {{ customer.get_ranking_display }}
+                </span>
                 
-                <form method="POST">
-                    {% csrf_token %}
-                    <div class="row g-2">
-                        <div class="col-12 mb-2"><label class="small fw-bold text-muted">Họ Tên</label>{{ form.name }}</div>
-                        <div class="col-6 mb-2"><label class="small fw-bold text-muted">SĐT</label>{{ form.phone }}</div>
-                        <div class="col-6 mb-2"><label class="small fw-bold text-muted">Ngày sinh</label>{{ form.dob }}</div>
-                        <div class="col-6 mb-2"><label class="small fw-bold text-muted">Tỉnh</label>{{ form.city }}</div>
-                        <div class="col-6 mb-2"><label class="small fw-bold text-muted">Nguồn</label>{{ form.source }}</div>
-                        <div class="col-12 mb-2"><label class="small fw-bold text-muted">Địa chỉ</label>{{ form.address }}</div>
-                        <div class="col-12 mb-2"><label class="small fw-bold text-danger">Vấn đề Da</label>{{ form.skin_condition }}</div>
-                        <div class="col-12 mb-3"><label class="small fw-bold text-muted">Ghi chú Telesale</label>{{ form.note_telesale }}</div>
-                    </div>
-                    <div class="d-grid"><button type="submit" class="btn btn-primary fw-bold">CẬP NHẬT HỒ SƠ</button></div>
-                </form>
-
-                {% if request.user.is_superuser %}
-                <div class="text-center mt-3">
-                    <form action="{% url 'customer_delete' customer.pk %}" method="POST" onsubmit="return confirm('Bạn chắc chắn muốn xóa khách này? Hành động không thể hoàn tác!');">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-link text-danger btn-sm text-decoration-none">Xóa khách hàng này</button>
-                    </form>
+                <div class="mt-3 d-flex justify-content-center gap-2">
+                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                        <i class="bi bi-pencil-square"></i> Sửa hồ sơ
+                    </button>
+                    {% if request.user.role == 'ADMIN' %}
+                    <a href="{% url 'customer_delete' customer.pk %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Bạn chắc chắn muốn xóa khách này? Dữ liệu đơn hàng và lịch sử sẽ mất hết!')">
+                        <i class="bi bi-trash"></i> Xóa
+                    </a>
+                    {% endif %}
                 </div>
-                {% endif %}
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-bold">
+                <i class="bi bi-person-lines-fill me-2 text-primary"></i>THÔNG TIN CHI TIẾT
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Mã Khách hàng:</span>
+                        <span class="fw-bold text-primary">{{ customer.customer_code|default:"Chưa có" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Giới tính:</span>
+                        <span class="fw-bold">{{ customer.get_gender_display }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Ngày sinh (Tuổi):</span>
+                        <span>
+                            {{ customer.dob|date:"d/m/Y"|default:"--" }}
+                            {% if customer.age %}({{ customer.age }}t){% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item">
+                        <span class="text-muted small d-block mb-1">Địa chỉ:</span>
+                        <span class="fw-bold">{{ customer.address|default:"--" }}</span>
+                        {% if customer.city %}<span class="badge bg-light text-dark border ms-1">{{ customer.city }}</span>{% endif %}
+                    </li>
+
+                    <li class="list-group-item bg-light fw-bold text-muted small mt-2">
+                        DỮ LIỆU TELESALE & MARKETING
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Nguồn khách:</span>
+                        <span class="badge bg-info text-dark">{{ customer.get_source_display }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Fanpage nguồn:</span>
+                        <span class="fw-bold text-end" style="max-width: 60%;">{{ customer.get_fanpage_display|default:"--" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Dịch vụ quan tâm:</span>
+                        <span class="fw-bold text-danger">{{ customer.get_skin_condition_display }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted small">Telesale phụ trách:</span>
+                        <span class="fw-bold text-success">{{ customer.assigned_telesale.last_name|default:"Chưa gán" }} {{ customer.assigned_telesale.first_name }}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <span class="text-muted small d-block mb-1">Ghi chú Telesale/CSKH:</span>
+                        <div class="p-2 bg-light rounded small text-secondary fst-italic border">
+                            {{ customer.note_telesale|linebreaks|default:"Không có ghi chú." }}
+                        </div>
+                    </li>
+                    
+                    <li class="list-group-item bg-light fw-bold text-muted small mt-2">
+                        TỔNG QUAN TÀI CHÍNH
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Tổng chi tiêu:</span>
+                        <span class="fw-bold fs-5 text-success">{{ total_spent|intcomma }} đ</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Số lần đến:</span>
+                        <span class="badge bg-primary rounded-pill">{{ visit_count }}</span>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
 
     <div class="col-lg-8">
-        <div class="card card-box h-100">
-            <div class="card-header bg-white p-0 border-bottom">
-                <ul class="nav nav-tabs card-header-tabs m-0 border-0 ps-3" id="myTab" role="tablist">
-                    <li class="nav-item"><button class="nav-link active py-3 px-4 rounded-0" data-bs-toggle="tab" data-bs-target="#logs">CSKH ({{ call_logs.count }})</button></li>
-                    <li class="nav-item"><button class="nav-link py-3 px-4 rounded-0" data-bs-toggle="tab" data-bs-target="#appts">Lịch Hẹn ({{ appointments.count }})</button></li>
-                    <li class="nav-item"><button class="nav-link py-3 px-4 rounded-0" data-bs-toggle="tab" data-bs-target="#orders">Đơn Hàng ({{ orders.count }})</button></li>
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white">
+                <ul class="nav nav-tabs card-header-tabs" id="customerTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#history">
+                            <i class="bi bi-telephone-inbound me-1"></i> LS Cuộc gọi
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#appointments">
+                            <i class="bi bi-calendar-check me-1"></i> Lịch hẹn
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#orders">
+                            <i class="bi bi-receipt me-1"></i> Đơn hàng
+                        </button>
+                    </li>
                 </ul>
             </div>
-            <div class="card-body bg-light p-3" style="max-height: 800px; overflow-y: auto;">
+            <div class="card-body">
                 <div class="tab-content">
-                    <div class="tab-pane fade show active" id="logs">
-                        <div class="bg-white p-4 rounded border shadow-sm">
-                            {% for log in call_logs %}
-                            <div class="timeline-item">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <strong class="text-dark small">{{ log.caller.username|default:"Hệ thống" }}</strong>
-                                    <small class="text-muted">{{ log.call_time|date:"d/m H:i" }}</small>
-                                </div>
-                                <div class="mb-1"><span class="badge bg-light text-dark border">{{ log.get_status_display }}</span></div>
-                                <p class="mb-0 small fst-italic text-secondary">"{{ log.note }}"</p>
-                            </div>
-                            {% empty %}<div class="text-center text-muted py-4">Chưa có lịch sử chăm sóc.</div>{% endfor %}
+                    <div class="tab-pane fade show active" id="history">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light small">
+                                    <tr>
+                                        <th>Thời gian</th>
+                                        <th>Nhân viên</th>
+                                        <th>Trạng thái</th>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in call_logs %}
+                                    <tr>
+                                        <td class="small">{{ log.call_time|date:"H:i d/m/Y" }}</td>
+                                        <td class="small fw-bold">{{ log.caller.username }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ log.get_status_display }}</span>
+                                        </td>
+                                        <td class="small text-muted">{{ log.note|truncatechars:50 }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4" class="text-center text-muted py-3">Chưa có lịch sử cuộc gọi.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    
-                    <div class="tab-pane fade" id="appts">
-                        <div class="bg-white rounded border shadow-sm overflow-hidden">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="bg-light"><tr><th>Ngày</th><th>Trạng thái</th><th>Người tạo</th><th>BS/KTV</th></tr></thead>
-                                <tbody>
-                                    {% for app in appointments %}
+
+                    <div class="tab-pane fade" id="appointments">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light small">
                                     <tr>
-                                        <td class="fw-bold text-primary">{{ app.appointment_date|date:"d/m H:i" }}</td>
-                                        <td>{{ app.get_status_display }}</td>
-                                        <td>{{ app.created_by.username }}</td>
-                                        <td><small>BS: {{ app.assigned_doctor.last_name|default:"--" }}</small></td>
+                                        <th>Ngày hẹn</th>
+                                        <th>Trạng thái</th>
+                                        <th>Bác sĩ</th>
+                                        <th>Lễ tân Check-in</th>
                                     </tr>
-                                    {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Chưa có lịch hẹn.</td></tr>{% endfor %}
+                                </thead>
+                                <tbody>
+                                    {% for appt in appointments %}
+                                    <tr>
+                                        <td class="fw-bold text-primary">{{ appt.appointment_date|date:"H:i d/m/Y" }}</td>
+                                        <td>
+                                            {% if appt.status == 'COMPLETED' %}<span class="badge bg-success">Hoàn thành</span>
+                                            {% elif appt.status == 'ARRIVED' %}<span class="badge bg-warning text-dark">Đã đến</span>
+                                            {% elif appt.status == 'CANCELLED' %}<span class="badge bg-danger">Hủy</span>
+                                            {% else %}<span class="badge bg-primary">Đặt lịch</span>{% endif %}
+                                        </td>
+                                        <td class="small">{{ appt.assigned_doctor.last_name|default:"--" }}</td>
+                                        <td class="small">{{ appt.receptionist.username|default:"--" }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4" class="text-center text-muted py-3">Chưa có lịch hẹn nào.</td></tr>
+                                    {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     <div class="tab-pane fade" id="orders">
-                        <div class="bg-white rounded border shadow-sm overflow-hidden">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="bg-success text-white"><tr><th>Ngày</th><th>Dịch vụ</th><th>Thành tiền</th><th>Sale</th><th></th></tr></thead>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light small">
+                                    <tr>
+                                        <th>Ngày mua</th>
+                                        <th>Dịch vụ</th>
+                                        <th class="text-end">Thực thu</th>
+                                        <th class="text-end">Tổng tiền</th>
+                                        <th class="text-center">TT</th>
+                                        <th>Sale</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     {% for order in orders %}
                                     <tr>
-                                        <td>{{ order.created_at|date:"d/m/Y" }}</td>
-                                        <td class="fw-bold">{{ order.treatment_name }}</td>
-                                        <td class="text-danger fw-bold">{{ order.total_amount|intcomma }} đ</td>
-                                        <td>{{ order.sale_consultant.username }}</td>
-                                        <td><a href="{% url 'print_invoice' order.id %}" target="_blank" class="text-dark"><i class="bi bi-printer"></i></a></td>
+                                        <td class="small">{{ order.order_date|date:"d/m/Y" }}</td>
+                                        <td class="fw-bold text-primary small">{{ order.service.name }}</td>
+                                        <td class="text-end fw-bold text-success">{{ order.actual_revenue|intcomma }}</td>
+                                        <td class="text-end text-muted small">{{ order.total_amount|intcomma }}</td>
+                                        <td class="text-center">
+                                            {% if order.is_paid %}
+                                            <i class="bi bi-check-circle-fill text-success" title="Đã thanh toán"></i>
+                                            {% else %}
+                                            <i class="bi bi-x-circle-fill text-danger" title="Chưa thanh toán"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td class="small">{{ order.assigned_consultant.last_name|default:"--" }}</td>
                                     </tr>
-                                    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Chưa có đơn hàng.</td></tr>{% endfor %}
+                                    {% empty %}
+                                    <tr><td colspan="6" class="text-center text-muted py-3">Chưa có đơn hàng nào.</td></tr>
+                                    {% endfor %}
                                 </tbody>
                             </table>
                         </div>
@@ -150,4 +230,105 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editCustomerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">CẬP NHẬT HỒ SƠ KHÁCH HÀNG</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12"><h6 class="fw-bold text-primary border-bottom pb-2">1. Thông tin cá nhân</h6></div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Họ và Tên *</label>
+                            {{ form.name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Số điện thoại *</label>
+                            {{ form.phone }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Mã Khách hàng</label>
+                            {{ form.customer_code }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Giới tính</label>
+                            {{ form.gender }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Ngày sinh</label>
+                            {{ form.dob }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Tỉnh/Thành phố</label>
+                            {{ form.city }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Địa chỉ chi tiết</label>
+                            {{ form.address }}
+                        </div>
+
+                        <div class="col-12 mt-3"><h6 class="fw-bold text-primary border-bottom pb-2">2. Dữ liệu Marketing & Telesale</h6></div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Nguồn khách</label>
+                            {{ form.source }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Fanpage nguồn</label>
+                            {{ form.fanpage }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Dịch vụ quan tâm</label>
+                            {{ form.skin_condition }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Telesale phụ trách</label>
+                            {{ form.assigned_telesale }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Ghi chú Telesale/CSKH</label>
+                            {{ form.note_telesale }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold">LƯU THAY ĐỔI</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Làm đẹp các input được render từ Django Form */
+    .modal-body input[type="text"], 
+    .modal-body input[type="email"], 
+    .modal-body input[type="date"],
+    .modal-body select,
+    .modal-body textarea {
+        display: block;
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        appearance: none;
+        border-radius: 0.25rem;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    }
+    .modal-body textarea {
+        min-height: 80px;
+    }
+</style>
 {% endblock %}
