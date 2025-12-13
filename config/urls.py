@@ -40,14 +40,17 @@ urlpatterns = [
     # --- 5. RECEPTION (LỄ TÂN) ---
     path('reception/', reception_dashboard, name='reception_home'),
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin'),
-    # SỬA LỖI TIỀM ẨN: Đổi name='reception_create_appointment' -> name='create_appointment_reception'
+    
+    # FIX TIỀM ẨN: Đổi name thành 'create_appointment_reception' để khớp với template
     path('reception/create-appointment/', create_appointment_reception, name='create_appointment_reception'),
+    
     path('reception/finish/', finish_appointment, name='finish_appointment'),
-    # SỬA LỖI 500: Đổi name='reception_walkin' -> name='add_walkin_appointment'
+    
+    # FIX LỖI CHÍNH: Đổi name='reception_walkin' thành name='add_walkin_appointment'
     path('reception/walk-in/', add_walkin_appointment, name='add_walkin_appointment'),
     
     # API cho Lịch
-    # SỬA LỖI TIỀM ẨN: Đổi name='api_appointments' -> name='get_appointments_api' (để khớp với JS)
+    # FIX TIỀM ẨN: Đổi name thành 'get_appointments_api' để khớp với JS trong template
     path('api/calendar/appointments/', get_appointments_api, name='get_appointments_api'),
 
     # --- 6. SALES & BÁO CÁO ---
