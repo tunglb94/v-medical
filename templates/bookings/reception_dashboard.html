@@ -110,10 +110,10 @@
                 <hr>
 
                 <div class="d-flex gap-2">
-                    <button class="btn btn-success checkin-btn fw-bold" data-bs-toggle="modal" data-bs-target="#checkinModal">
+                    <button class="btn btn-success checkin-btn fw-bold" id="btnOpenCheckin">
                         <i class="bi bi-box-arrow-in-right"></i> CHECK-IN
                     </button>
-                    <button class="btn btn-warning finish-btn fw-bold" data-bs-toggle="modal" data-bs-target="#finishAppointmentModal">
+                    <button class="btn btn-warning finish-btn fw-bold" id="btnOpenFinish">
                         <i class="bi bi-cash-stack"></i> CHỐT ĐƠN/KẾT THÚC
                     </button>
                     <button class="btn btn-danger cancel-btn fw-bold" data-status="CANCELLED"><i class="bi bi-x-octagon"></i> HỦY</button>
@@ -346,8 +346,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
 
-        // Hàm mở Modal và điền dữ liệu (Dùng chung cho cả Click Calendar và Click List)
-        // Hàm này khắc phục lỗi "Không tìm thấy ID" bằng cách điền ID chính xác vào hidden input
+        // Hàm mở Modal Chi tiết và điền dữ liệu
         window.openAppointmentModal = function(data) {
             // Điền thông tin vào Modal
             $('#customerNameDetail').text(data.customerName);
@@ -356,11 +355,11 @@
             $('#customerCodeDisplay').text(data.customerCode || 'Chưa có');
             $('#appointmentStatusDetail').text(data.status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(data.statusCode));
 
-            // LOGIC QUAN TRỌNG: Cập nhật hidden ID và Form Action cho Check-in
+            // Cập nhật Form Action cho Check-in (Để sẵn)
             const baseUrl = '{% url "checkin" appointment_id=0 %}';
             $('#checkinForm').attr('action', baseUrl.replace('0', data.id));
             
-            // LOGIC QUAN TRỌNG: Cập nhật hidden ID cho form Chốt đơn
+            // Cập nhật ID và Form Action cho Chốt đơn (Để sẵn)
             $('#finishApptId').val(data.id);
             $('#finishForm').attr('action', '{% url "finish_appointment" %}');
 
@@ -370,14 +369,41 @@
             $('#customerCodeInput').val(data.customerCode);
 
             // Ẩn hiện nút bấm tùy trạng thái
-            $('.checkin-btn').toggle(data.statusCode === 'SCHEDULED');
-            $('.finish-btn').toggle(data.statusCode === 'ARRIVED');
+            // SCHEDULED: Hiện Check-in
+            // ARRIVED: Hiện Chốt đơn
+            // IN_CONSULTATION: Hiện Chốt đơn (nếu có dùng trạng thái này)
+            
+            if (data.statusCode === 'SCHEDULED') {
+                $('#btnOpenCheckin').show();
+                $('#btnOpenFinish').hide();
+            } else if (data.statusCode === 'ARRIVED' || data.statusCode === 'IN_CONSULTATION') {
+                $('#btnOpenCheckin').hide();
+                $('#btnOpenFinish').show();
+            } else {
+                $('#btnOpenCheckin').hide();
+                $('#btnOpenFinish').hide();
+            }
+            
             $('.cancel-btn').toggle(data.statusCode !== 'CANCELLED' && data.statusCode !== 'COMPLETED');
             $('.cancel-btn').data('id', data.id);
 
-            // Hiển thị Modal
+            // Mở Modal Chi tiết
             $('#appointmentDetailModal').modal('show');
         }
+
+        // --- XỬ LÝ CHUYỂN MODAL (FIX LỖI KẸT GIAO DIỆN) ---
+        // Khi bấm nút Check-in trong Modal Chi tiết
+        $('#btnOpenCheckin').on('click', function() {
+            $('#appointmentDetailModal').modal('hide'); // Đóng Modal chi tiết trước
+            $('#checkinModal').modal('show');           // Mở Modal Check-in sau
+        });
+
+        // Khi bấm nút Chốt đơn trong Modal Chi tiết
+        $('#btnOpenFinish').on('click', function() {
+            $('#appointmentDetailModal').modal('hide'); // Đóng Modal chi tiết trước
+            $('#finishAppointmentModal').modal('show'); // Mở Modal Chốt đơn sau
+        });
+        // ----------------------------------------------------
 
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
@@ -422,20 +448,13 @@
             };
             openAppointmentModal(data);
         });
-
-        // Xử lý khi modal chi tiết được đóng
-        $('#appointmentDetailModal').on('hidden.bs.modal', function () {
-            if ($('#checkinModal').hasClass('show') || $('#finishAppointmentModal').hasClass('show')) {
-                $('body').addClass('modal-open');
-                $('.modal-backdrop').first().css('z-index', 1040);
-            }
-        });
     });
 
     function getStatusColor(statusCode) {
         switch (statusCode) {
             case 'SCHEDULED': return 'primary';
-            case 'ARRIVED': return 'warning';
+            case 'ARRIVED': 
+            case 'IN_CONSULTATION': return 'warning';
             case 'COMPLETED': return 'success';
             case 'CANCELLED': 
             case 'NO_SHOW': return 'danger';

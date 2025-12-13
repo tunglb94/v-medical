@@ -9,7 +9,6 @@ from django.http import JsonResponse
 
 from apps.bookings.models import Appointment
 from apps.customers.models import Customer
-# Đảm bảo import Order và Service
 from apps.sales.models import Order, Service
 from apps.telesales.models import CallLog
 from apps.authentication.decorators import allowed_users
@@ -20,7 +19,6 @@ User = get_user_model()
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN']) 
 def reception_dashboard(request):
-    # Lấy ngày hiện tại
     today = timezone.now().date()
     
     selected_date_str = request.GET.get('date')
@@ -29,20 +27,16 @@ def reception_dashboard(request):
     else:
         current_date = today
     
-    # Lấy danh sách lịch hẹn
     appointments = Appointment.objects.filter(
         appointment_date__date=current_date
     ).select_related('customer').order_by('status', 'appointment_date')
 
-    # --- TÍNH NĂNG SINH NHẬT (AUTOMATION) ---
     birthdays_today = Customer.objects.filter(dob__day=today.day, dob__month=today.month)
 
-    # Data cho Dropdown
     doctors = User.objects.filter(role='DOCTOR')
     technicians = User.objects.filter(role='TECHNICIAN')
     consultants = User.objects.filter(role='CONSULTANT')
     
-    # FIX LỖI: Loại bỏ filter(is_active=True) vì trường này đã bị xóa khỏi Service model
     services = Service.objects.order_by('name')
 
     search_query = request.GET.get('q', '')
@@ -115,19 +109,14 @@ def checkin_appointment(request, appointment_id):
         customer_code = request.POST.get('customer_code', '').strip()
         
         if app.status == 'SCHEDULED':
-            
             if customer_code:
-                # 1. Kiểm tra trùng lặp (trừ chính khách hàng này)
                 if Customer.objects.filter(customer_code=customer_code).exclude(pk=app.customer.pk).exists():
                     messages.error(request, f"LỖI: Mã khách hàng '{customer_code}' đã được sử dụng cho khách hàng khác.")
                     return redirect('reception_home') 
-                
-                # 2. Lưu mã khách hàng
                 customer = app.customer
                 customer.customer_code = customer_code
                 customer.save()
 
-            # Thực hiện Check-in
             app.status = 'ARRIVED' 
             app.receptionist = request.user
             app.checkin_time = timezone.now()
@@ -136,7 +125,6 @@ def checkin_appointment(request, appointment_id):
         
         return redirect('reception_home')
     
-    # Giữ nguyên logic cũ cho GET request (ví dụ: từ fullcalendar)
     if app.status == 'SCHEDULED':
         app.status = 'ARRIVED' 
         app.receptionist = request.user
@@ -146,7 +134,7 @@ def checkin_appointment(request, appointment_id):
     return redirect('reception_home')
 
 
-# --- 4. TẠO LỊCH NHANH (KHÁCH CŨ) ---
+# --- 4. TẠO LỊCH NHANH ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
 def create_appointment_reception(request):
@@ -166,7 +154,7 @@ def create_appointment_reception(request):
     return redirect('reception_home')
 
 
-# --- 5. KHÁCH VÃNG LAI (CHỈ LỄ TÂN) ---
+# --- 5. KHÁCH VÃNG LAI ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN'])
 def add_walkin_appointment(request):
@@ -174,7 +162,6 @@ def add_walkin_appointment(request):
         name = request.POST.get('name')
         phone = request.POST.get('phone')
         appt_date = request.POST.get('appointment_date')
-        age = request.POST.get('age')
         city = request.POST.get('city')
         
         if not name or not phone:
@@ -206,14 +193,13 @@ def add_walkin_appointment(request):
     return redirect('reception_home')
 
 
-# --- 6. CHỐT CA (CHỈ LỄ TÂN) ---
+# --- 6. CHỐT CA ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN'])
 def finish_appointment(request):
     if request.method == "POST":
         appt_id = request.POST.get('appointment_id')
         
-        # FIX ERROR: Chuyển chuỗi rỗng '' thành None để tránh lỗi "Field 'id' expected a number"
         doctor_id = request.POST.get('doctor_id') or None
         technician_id = request.POST.get('technician_id') or None
         consultant_id = request.POST.get('consultant_id') or None
@@ -226,7 +212,6 @@ def finish_appointment(request):
 
             appt = Appointment.objects.get(id=appt_id)
             
-            # Cập nhật thông tin nhân viên (nếu có chọn)
             if doctor_id: appt.assigned_doctor_id = doctor_id
             if technician_id: appt.assigned_technician_id = technician_id
             if consultant_id: appt.assigned_consultant_id = consultant_id
@@ -237,7 +222,6 @@ def finish_appointment(request):
             if result_status == 'buy':
                 service_id = request.POST.get('service_id')
                 original_price = request.POST.get('original_price') or 0
-                
                 actual_revenue = request.POST.get('actual_revenue')
                 total_amount = request.POST.get('total_amount')
                 
@@ -257,7 +241,6 @@ def finish_appointment(request):
                 Order.objects.create(
                     customer=appt.customer,
                     appointment=appt,
-                    # FIX: Sử dụng biến consultant_id đã được xử lý (None nếu rỗng)
                     assigned_consultant_id=consultant_id,
                     service=service_obj,
                     original_price=original_price, 
