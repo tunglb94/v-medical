@@ -375,8 +375,10 @@
                 $('#appointmentStatusDetail').text(status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(statusCode));
 
                 // Cập nhật URL và ID cho các form Check-in, Chốt đơn
-                // Sửa lỗi: Thay URL cứng bằng URL name checkin
-                $('#checkinForm').attr('action', '{% url "checkin" appointment.id %}'.replace(appointment.id, apptId));
+                // ĐÃ SỬA: Tạo URL tạm với id=0, sau đó replace bằng JS
+                const baseUrl = '{% url "checkin" appointment_id=0 %}';
+                $('#checkinForm').attr('action', baseUrl.replace('0', apptId));
+                
                 // Sửa lỗi: Thay URL cứng bằng URL name finish_appointment
                 $('#finishForm').attr('action', '{% url "finish_appointment" %}');
                 $('#finishApptId').val(apptId);
