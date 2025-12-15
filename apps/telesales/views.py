@@ -127,33 +127,63 @@ def telesale_dashboard(request):
                 # Các trạng thái khác vẫn lọc bình thường
                 customers = customers.filter(current_status=status_to_filter)
             
-        # NẾU LỌC TỪ BÁO CÁO, KHÔNG áp dụng bộ lọc mặc định của Dashboard
-        filter_type = ''
+        # [ĐÃ SỬA] Không set filter_type = '' ở đây nữa để logic bên dưới vẫn chạy được
+        pass
         
-    else:
-        # --- C. BỘ LỌC MẶC ĐỊNH (KHI DÙNG DASHBOARD BÌNH THƯỜNG) ---
-        if not search_query:
-            filter_type = request.GET.get('type', 'new') 
-            if filter_type == 'new':
-                customers = customers.filter(created_at__date=today)
-            elif filter_type == 'old':
-                customers = customers.exclude(created_at__date=today)
-            elif filter_type == 'callback':
-                last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
-                customers = customers.annotate(
-                    last_status=Subquery(last_log.values('status')[:1])
-                ).filter(last_status__in=['FOLLOW_UP', 'BUSY', 'CONSULTING'])
-            elif filter_type == 'birthday':
-                customers = customers.filter(dob__day=today.day, dob__month=today.month)
-            elif filter_type == 'dormant':
-                cutoff_date = today - timedelta(days=90)
-                customers = customers.annotate(
-                    last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
-                ).filter(last_visit__lt=cutoff_date).exclude(appointments__status='SCHEDULED', appointments__appointment_date__gte=today)
-        filter_type = request.GET.get('type', 'new')
+    # --- C. XỬ LÝ BỘ LỌC TYPE (New / Old / Callback / Birthday ...) ---
+    # Logic sửa đổi: Ưu tiên tham số 'type' từ URL để các nút bấm luôn hoạt động
+    # Chạy độc lập và cộng dồn với bộ lọc Report (nếu có)
     
-    # Sắp xếp mặc định: Mới nhất lên đầu
-    customers = customers.order_by('-created_at')
+    req_type = request.GET.get('type')
+    
+    if req_type:
+        filter_type = req_type
+    elif not is_report_context and not search_query:
+        # Chỉ mặc định là 'new' khi KHÔNG có từ khóa tìm kiếm và KHÔNG có bộ lọc báo cáo
+        filter_type = 'new'
+    else:
+        filter_type = ''
+
+    if filter_type == 'new':
+        # --- YÊU CẦU 1: CHỈ LẤY DATA MỚI CỦA NGÀY HÔM NAY ---
+        customers = customers.filter(created_at__date=today)
+        
+    elif filter_type == 'old':
+        # Cũ: Data tạo trước hôm nay
+        customers = customers.exclude(created_at__date=today)
+        
+    elif filter_type == 'callback':
+        # --- YÊU CẦU 2: CHỈ HIỂN THỊ DATA CHĂM THÊM ĐÃ LÊN LỊCH NGÀY HÔM ĐÓ ---
+        
+        # 1. Lấy trạng thái cuối cùng và thời gian hẹn cuối cùng
+        last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
+        
+        customers = customers.annotate(
+            last_status=Subquery(last_log.values('status')[:1]),
+            last_callback_time=Subquery(last_log.values('callback_time')[:1])
+        )
+        
+        # 2. Lọc: Trạng thái là FOLLOW_UP VÀ Ngày hẹn gọi lại = Hôm nay (today)
+        customers = customers.filter(
+            last_status='FOLLOW_UP',
+            last_callback_time__date=today
+        )
+        
+        # 3. Sắp xếp theo giờ trong ngày
+        customers = customers.order_by('last_callback_time')
+
+    elif filter_type == 'birthday':
+        customers = customers.filter(dob__day=today.day, dob__month=today.month)
+        
+    elif filter_type == 'dormant':
+        cutoff_date = today - timedelta(days=90)
+        customers = customers.annotate(
+            last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
+        ).filter(last_visit__lt=cutoff_date).exclude(appointments__status='SCHEDULED', appointments__appointment_date__gte=today)
+    
+    # Sắp xếp mặc định: Mới nhất lên đầu (Trừ tab callback đã sort riêng theo giờ hẹn)
+    if not (filter_type == 'callback'):
+        customers = customers.order_by('-created_at')
 
     # --- D. XỬ LÝ CHỌN KHÁCH & HIỂN THỊ CHI TIẾT ---
     selected_customer = None
@@ -196,6 +226,7 @@ def telesale_dashboard(request):
         note_content = request.POST.get('note')
         status_value = request.POST.get('status')
         appointment_date = request.POST.get('appointment_date')
+        callback_date = request.POST.get('callback_date') # Lấy ngày hẹn gọi lại từ form
         
         if status_value == 'BOOKED':
             if not appointment_date:
@@ -212,14 +243,24 @@ def telesale_dashboard(request):
             )
             messages.success(request, f"Đã chốt hẹn: {selected_customer.name}")
 
-        CallLog.objects.create(
+        log = CallLog(
             customer=selected_customer,
             caller=request.user,
             status=status_value,
             note=note_content
         )
         
-        if status_value != 'BOOKED':
+        # Xử lý: CHĂM THÊM (FOLLOW_UP) -> Lưu giờ gọi lại
+        if status_value == 'FOLLOW_UP':
+             if callback_date:
+                 log.callback_time = callback_date
+                 messages.success(request, f"Đã lưu lịch hẹn gọi lại vào: {callback_date}")
+             else:
+                 messages.warning(request, "Lưu ý: Bạn chưa chọn giờ gọi lại (Khách sẽ ở cuối danh sách).")
+
+        log.save()
+        
+        if status_value != 'BOOKED' and status_value != 'FOLLOW_UP':
             messages.success(request, "Đã lưu kết quả.")
 
         return redirect(request.get_full_path())
@@ -238,7 +279,7 @@ def telesale_dashboard(request):
         'selected_customer': selected_customer,
         'call_history': call_history,
         'search_query': search_query,
-        'filter_type': request.GET.get('type', 'new') if not is_report_context else '', 
+        'filter_type': filter_type, # Truyền filter_type đã tính toán
         'filter_query_string': filter_query_string,
         'source_choices': Customer.Source.choices,
         'skin_choices': Customer.SkinIssue.choices, # <-- Đã thêm vào context
