@@ -121,41 +121,43 @@ def telesale_dashboard(request):
             )
             
             if status_to_filter == 'NEW':
-                # FIX LỖI QUAN TRỌNG: Bao gồm cả khách hàng có log cuối là NEW HOẶC chưa có log nào (current_status IS NULL)
+                # Bao gồm cả khách hàng có log cuối là NEW HOẶC chưa có log nào (current_status IS NULL)
                 customers = customers.filter(Q(current_status='NEW') | Q(current_status__isnull=True))
             else:
                 # Các trạng thái khác vẫn lọc bình thường
                 customers = customers.filter(current_status=status_to_filter)
-            
-        # [ĐÃ SỬA] Không set filter_type = '' ở đây nữa để logic bên dưới vẫn chạy được
-        pass
         
-    # --- C. XỬ LÝ BỘ LỌC TYPE (New / Old / Callback / Birthday ...) ---
-    # Logic sửa đổi: Ưu tiên tham số 'type' từ URL để các nút bấm luôn hoạt động
-    # Chạy độc lập và cộng dồn với bộ lọc Report (nếu có)
+        # [QUAN TRỌNG] Không reset filter_type = '' ở đây nữa để logic Tab bên dưới vẫn hoạt động
+
+    # --- C. XỬ LÝ CÁC TAB (MỚI / CŨ / DATA CHĂM THÊM) ---
+    # Logic: Ưu tiên tham số 'type' từ URL để các Tab luôn hoạt động đúng chức năng
+    # Logic này chạy độc lập và sẽ giao (intersection) với bộ lọc báo cáo nếu có
     
     req_type = request.GET.get('type')
     
+    # Nếu người dùng bấm Tab, ưu tiên lấy giá trị đó. 
+    # Nếu không bấm Tab và cũng không đang lọc báo cáo/tìm kiếm thì mặc định là 'new'
     if req_type:
         filter_type = req_type
     elif not is_report_context and not search_query:
-        # Chỉ mặc định là 'new' khi KHÔNG có từ khóa tìm kiếm và KHÔNG có bộ lọc báo cáo
         filter_type = 'new'
     else:
         filter_type = ''
 
+    # --- THỰC HIỆN LỌC THEO TAB ---
+    
     if filter_type == 'new':
-        # --- YÊU CẦU 1: CHỈ LẤY DATA MỚI CỦA NGÀY HÔM NAY ---
+        # Tab Mới: Chỉ hiển thị data tạo trong ngày hôm nay
         customers = customers.filter(created_at__date=today)
         
     elif filter_type == 'old':
-        # Cũ: Data tạo trước hôm nay
+        # Tab Cũ: Chỉ hiển thị data tạo trước ngày hôm nay
         customers = customers.exclude(created_at__date=today)
         
     elif filter_type == 'callback':
-        # --- YÊU CẦU 2: CHỈ HIỂN THỊ DATA CHĂM THÊM ĐÃ LÊN LỊCH NGÀY HÔM ĐÓ ---
+        # Tab Data chăm thêm: Data có trạng thái 'FOLLOW_UP' VÀ có lịch hẹn gọi lại LÀ HÔM NAY
         
-        # 1. Lấy trạng thái cuối cùng và thời gian hẹn cuối cùng
+        # 1. Lấy thông tin log gọi cuối cùng
         last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
         
         customers = customers.annotate(
@@ -163,25 +165,27 @@ def telesale_dashboard(request):
             last_callback_time=Subquery(last_log.values('callback_time')[:1])
         )
         
-        # 2. Lọc: Trạng thái là FOLLOW_UP VÀ Ngày hẹn gọi lại = Hôm nay (today)
+        # 2. Lọc: Trạng thái là FOLLOW_UP VÀ Ngày hẹn gọi lại = Hôm nay
         customers = customers.filter(
             last_status='FOLLOW_UP',
             last_callback_time__date=today
         )
         
-        # 3. Sắp xếp theo giờ trong ngày
+        # 3. Sắp xếp theo giờ hẹn
         customers = customers.order_by('last_callback_time')
 
     elif filter_type == 'birthday':
         customers = customers.filter(dob__day=today.day, dob__month=today.month)
         
     elif filter_type == 'dormant':
+        # Logic data ngủ đông
         cutoff_date = today - timedelta(days=90)
         customers = customers.annotate(
             last_visit=Max('appointments__appointment_date', filter=Q(appointments__status__in=['ARRIVED', 'COMPLETED']))
         ).filter(last_visit__lt=cutoff_date).exclude(appointments__status='SCHEDULED', appointments__appointment_date__gte=today)
-    
-    # Sắp xếp mặc định: Mới nhất lên đầu (Trừ tab callback đã sort riêng theo giờ hẹn)
+
+    # Sắp xếp mặc định cho các tab khác (Mới nhất lên đầu)
+    # Tab callback đã được sort riêng theo giờ hẹn ở trên
     if not (filter_type == 'callback'):
         customers = customers.order_by('-created_at')
 
