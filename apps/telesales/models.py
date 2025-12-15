@@ -20,6 +20,10 @@ class CallLog(models.Model):
     
     status = models.CharField(max_length=50, choices=CallStatus.choices, default=CallStatus.NEW, verbose_name="Kết quả cuộc gọi")
     note = models.TextField(blank=True, verbose_name="Ghi chú chi tiết")
+    
+    # --- THÊM MỚI: Lịch hẹn gọi lại (cho trạng thái FOLLOW_UP) ---
+    callback_time = models.DateTimeField(null=True, blank=True, verbose_name="Lịch hẹn gọi lại")
+    
     call_time = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian gọi")
 
     def __str__(self):
