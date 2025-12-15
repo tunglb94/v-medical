@@ -113,7 +113,9 @@ def telesale_dashboard(request):
                 customers = customers.filter(dob__year__gte=min_dob_year)
 
         # 4. Lọc Trạng thái (Logic Smart: Lấy trạng thái CUỐI CÙNG)
-        if status_to_filter:
+        # [FIX QUAN TRỌNG]: Nếu đang chọn Tab (New/Old/Callback) thì BỎ QUA bộ lọc trạng thái từ báo cáo
+        # Để tránh việc lọc cộng dồn (Ví dụ: Tab Cũ + Status FollowUp -> Chỉ ra khách cũ đang FollowUp)
+        if status_to_filter and not request.GET.get('type'):
             # Subquery lấy log mới nhất của từng khách
             latest_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
             customers = customers.annotate(
@@ -127,7 +129,7 @@ def telesale_dashboard(request):
                 # Các trạng thái khác vẫn lọc bình thường
                 customers = customers.filter(current_status=status_to_filter)
         
-        # [QUAN TRỌNG] Không reset filter_type = '' ở đây nữa để logic Tab bên dưới vẫn hoạt động
+        pass
 
     # --- C. XỬ LÝ CÁC TAB (MỚI / CŨ / DATA CHĂM THÊM) ---
     # Logic: Ưu tiên tham số 'type' từ URL để các Tab luôn hoạt động đúng chức năng
