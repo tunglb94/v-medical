@@ -129,7 +129,7 @@ def telesale_dashboard(request):
                 # Các trạng thái khác vẫn lọc bình thường
                 customers = customers.filter(current_status=status_to_filter)
         
-        pass
+        # Không reset filter_type = '' ở đây nữa
 
     # --- C. XỬ LÝ CÁC TAB (MỚI / CŨ / DATA CHĂM THÊM) ---
     # Logic: Ưu tiên tham số 'type' từ URL để các Tab luôn hoạt động đúng chức năng
@@ -356,7 +356,7 @@ def add_customer_manual(request):
     return redirect('telesale_home')
 
 
-# --- 3. BÁO CÁO TELESALE (LOGIC SMART + HỖ TRỢ CLICK CHI TIẾT) ---
+# --- 3. BÁO CÁO TELESALE (CẬP NHẬT: THÊM BÁO CÁO RE-CARE) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TELESALE'])
 def telesale_report(request):
@@ -366,91 +366,59 @@ def telesale_report(request):
     date_start_str = request.GET.get('date_start', str(start_of_month))
     date_end_str = request.GET.get('date_end', str(today))
     
-    # --- XỬ LÝ CÁC BỘ LỌC NÂNG CAO MỚI ---
+    # --- XỬ LÝ CÁC BỘ LỌC NÂNG CAO ---
     req_city = request.GET.get('filter_city')
     req_gender = request.GET.get('filter_gender')
     req_fanpage = request.GET.get('filter_fanpage')
     req_telesale = request.GET.get('filter_telesale')
-    req_skin = request.GET.get('filter_skin') # <-- Đọc giá trị lọc
+    req_skin = request.GET.get('filter_skin')
+    
+    # =================================================================================
+    # PHẦN 1: BÁO CÁO CHẤT LƯỢNG DATA (Dựa trên Data MỚI tạo trong kỳ)
+    # =================================================================================
     
     # 1. Data đầu vào (Input): Dùng để tính mẫu số (%)
     customers = Customer.objects.filter(created_at__date__range=[date_start_str, date_end_str])
     
-    # ÁP DỤNG CÁC BỘ LỌC NÂNG CAO VÀO TẬP DỮ LIỆU ĐẦU VÀO
+    # Áp dụng bộ lọc
     if req_city:
         if req_city == 'None': customers = customers.filter(city__isnull=True)
-        else: customers = customers.filter(city=req_city) # Dùng lọc chính xác
+        else: customers = customers.filter(city=req_city)
     if req_gender: customers = customers.filter(gender=req_gender)
     if req_fanpage: customers = customers.filter(fanpage=req_fanpage)
     if req_telesale: customers = customers.filter(assigned_telesale_id=req_telesale)
-    if req_skin: customers = customers.filter(skin_condition=req_skin) # <-- ÁP DỤNG LỌC SKIN ISSUE
+    if req_skin: customers = customers.filter(skin_condition=req_skin)
     
-    # 2. Data hoạt động (Logs): Dùng để tìm khách đã được chăm sóc
-    logs = CallLog.objects.filter(customer__in=customers.values('pk'))
-
     total_leads = customers.count()
     
-    # --- THỐNG KÊ NGUỒN (Có mã code) ---
+    # --- THỐNG KÊ NGUỒN ---
     source_stats = customers.values('source').annotate(count=Count('id')).order_by('-count')
-    source_data = []
-    for x in source_stats:
-        code = x['source']
-        label = dict(Customer.Source.choices).get(code, 'Khác')
-        percent = round(x['count']/total_leads*100, 1) if total_leads else 0
-        source_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
+    source_data = [{'code': x['source'], 'label': dict(Customer.Source.choices).get(x['source'], 'Khác'), 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0} for x in source_stats]
 
-    # --- THỐNG KÊ FANPAGE (Có mã code) ---
+    # --- THỐNG KÊ FANPAGE ---
     fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
     fanpage_dict = dict(Customer.Fanpage.choices)
-    
     unmapped_fanpage_count = 0
     final_fanpage_data = []
-
     for x in fanpage_stats:
         code = x['fanpage']
-        
-        # Thử lấy nhãn từ choices, nếu không có, dùng mã đặc biệt 'UNMAPPED_CODE'
-        # Các mã không hợp lệ bao gồm: None, chuỗi rỗng '', hoặc mã string sai
         label = fanpage_dict.get(code, 'UNMAPPED_CODE') 
-        
         if label == 'UNMAPPED_CODE' or not code:
-            # Nếu là mã không xác định, cộng dồn số lượng
             unmapped_fanpage_count += x['count']
             continue
-
-        # Nếu là mã hợp lệ, thêm vào danh sách kết quả cuối cùng
-        percent = round(x['count']/total_leads*100, 1) if total_leads else 0
-        final_fanpage_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
-
-    # Thêm nhóm mã không xác định (Unmapped) đã được hợp nhất vào danh sách kết quả (nếu có)
+        final_fanpage_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0})
     if unmapped_fanpage_count > 0:
-        unmapped_percent = round(unmapped_fanpage_count/total_leads*100, 1) if total_leads else 0
-        final_fanpage_data.append({
-            'code': 'None', # Dùng 'None' để drill-down vào khách hàng chưa có Fanpage
-            'label': "Chưa cập nhật/Mã lỗi",
-            'count': unmapped_fanpage_count, 
-            'percent': unmapped_percent
-        })
-        
+        final_fanpage_data.append({'code': 'None', 'label': "Chưa cập nhật/Mã lỗi", 'count': unmapped_fanpage_count, 'percent': round(unmapped_fanpage_count/total_leads*100, 1) if total_leads else 0})
     final_fanpage_data.sort(key=lambda x: x['count'], reverse=True)
     fanpage_data = final_fanpage_data
 
     # --- THỐNG KÊ TỈNH THÀNH ---
     city_stats_raw = customers.values('city').annotate(count=Count('id')).order_by('-count')
-    city_stats = []
-    for item in city_stats_raw:
-        city = item['city']
-        # Dùng mã 'None' cho drill-down
-        code = 'None' if city is None or city == '' else city
-        city_stats.append({'city': city, 'count': item['count'], 'code': code})
+    city_stats = [{'city': i['city'], 'count': i['count'], 'code': 'None' if not i['city'] else i['city']} for i in city_stats_raw]
     
-    # --- THỐNG KÊ GIỚI TÍNH (Có mã code) ---
+    # --- THỐNG KÊ GIỚI TÍNH ---
     gender_stats_raw = customers.values('gender').annotate(count=Count('id'))
-    gender_data = []
-    for x in gender_stats_raw:
-        code = x['gender']
-        label = dict(Customer.Gender.choices).get(code, 'Không rõ')
-        gender_data.append({'code': code, 'label': label, 'count': x['count']})
+    gender_data = [{'code': x['gender'], 'label': dict(Customer.Gender.choices).get(x['gender'], 'Không rõ'), 'count': x['count']} for x in gender_stats_raw]
 
     # --- THỐNG KÊ ĐỘ TUỔI ---
     age_groups = {'18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '55+': 0, 'Unknown': 0}
@@ -462,133 +430,118 @@ def telesale_report(request):
         elif 36 <= age <= 45: age_groups['36-45'] += 1
         elif 46 <= age <= 55: age_groups['46-55'] += 1
         else: age_groups['55+'] += 1
-    
-    # --- NEW: THỐNG KÊ DỊCH VỤ QUAN TÂM (SKIN ISSUE) ---
+        
+    # --- THỐNG KÊ SKIN ISSUE ---
     skin_stats_raw = customers.values('skin_condition').annotate(count=Count('id')).order_by('-count')
-    skin_data = []
-    skin_dict = dict(Customer.SkinIssue.choices)
+    skin_data = [{'code': x['skin_condition'], 'label': dict(Customer.SkinIssue.choices).get(x['skin_condition'], 'Không rõ'), 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0} for x in skin_stats_raw]
 
-    for x in skin_stats_raw:
-        code = x['skin_condition']
-        label = skin_dict.get(code, 'Không rõ')
-        percent = round(x['count']/total_leads*100, 1) if total_leads else 0
-        skin_data.append({'code': code, 'label': label, 'count': x['count'], 'percent': percent})
-    # --- END NEW: THỐNG KÊ DỊCH VỤ QUAN TÂM ---
-
-    # --- CHẤT LƯỢNG DATA (SMART LOGIC: LẤY TRẠNG THÁI MỚI NHẤT) ---
-    
-    # Lấy trạng thái cuối cùng của các khách hàng TRONG TẬP `customers` đã lọc
-    latest_log_subquery = CallLog.objects.filter(
-        customer=OuterRef('pk')
-    ).order_by('-call_time').values('status')[:1]
-
-    status_counts_query = customers.annotate(
-        final_status=Subquery(latest_log_subquery)
-    ).values('final_status').annotate(total=Count('id'))
-
+    # --- CHẤT LƯỢNG DATA ---
+    latest_log_subquery = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time').values('status')[:1]
+    status_counts_query = customers.annotate(final_status=Subquery(latest_log_subquery)).values('final_status').annotate(total=Count('id'))
     status_map = {item['final_status']: item['total'] for item in status_counts_query}
-
     data_quality_list = []
-    
-    # Khởi tạo tổng số lượng khách hàng đã được tính
     total_counted = 0
-    
-    # Lấy tất cả các status trừ NEW
     for code, label in CallLog.CallStatus.choices:
         if code == 'NEW': continue
-            
         count = status_map.get(code, 0) 
         if count > 0:
-            rate = round(count/total_leads*100, 1) if total_leads else 0
-            
-            data_quality_list.append({
-                'code': code, 
-                'label': label,
-                'count': count,
-                'rate': rate
-            })
+            data_quality_list.append({'code': code, 'label': label, 'count': count, 'rate': round(count/total_leads*100, 1) if total_leads else 0})
             total_counted += count
-
-    # Gom các khách hàng còn lại (chưa có log nào (None) + log cuối là NEW)
     count_uncontacted = total_leads - total_counted
-    
     if count_uncontacted > 0:
-        rate_uncontacted = round(count_uncontacted/total_leads*100, 1) if total_leads else 0
-        data_quality_list.append({
-            'code': 'NEW', 
-            'label': dict(CallLog.CallStatus.choices).get('NEW', 'Mới / Chưa gọi'),
-            'count': count_uncontacted,
-            'rate': rate_uncontacted
-        })
-
+        data_quality_list.append({'code': 'NEW', 'label': 'Mới / Chưa gọi', 'count': count_uncontacted, 'rate': round(count_uncontacted/total_leads*100, 1) if total_leads else 0})
     data_quality_list.sort(key=lambda x: x['count'], reverse=True)
-    
-    # --- HIỆU SUẤT TELESALE (ĐÃ SỬA: ĐẾM DỰA TRÊN LỊCH HẸN THẬT) ---
+
+    # --- HIỆU SUẤT TRÊN DATA MỚI ---
     telesales = User.objects.filter(role='TELESALE')
+    logs = CallLog.objects.filter(customer__in=customers.values('pk')) # Logs của data mới
     performance_data = []
-    
     for sale in telesales:
-        # 1. Data được phân bổ (Tính trên tập customers đã lọc input)
         assigned_count = customers.filter(assigned_telesale=sale).count() 
-        
-        # 2. Tổng cuộc gọi (Vẫn lấy từ Log)
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
-        
-        # 3. SỐ LỊCH ĐẶT (QUAN TRỌNG: Sửa để đếm từ bảng Appointment)
-        booked_unique = Appointment.objects.filter(
-            # Lọc lịch hẹn được TẠO trong khoảng thời gian báo cáo
-            created_at__date__range=[date_start_str, date_end_str],
-            # Khách hàng này phải nằm trong TẬP customers ĐÃ LỌC
-            customer__in=customers,
-            # Và khách hàng đó do Telesale này phụ trách
-            customer__assigned_telesale=sale,
-            # Lọc theo trạng thái là Đã đặt lịch (SCHEDULED)
-            status='SCHEDULED'
-        ).values('customer').distinct().count()
-        
-        # Tính tỷ lệ chốt
+        booked_unique = Appointment.objects.filter(created_at__date__range=[date_start_str, date_end_str], customer__in=customers, customer__assigned_telesale=sale, status='SCHEDULED').values('customer').distinct().count()
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
-        
-        # Chỉ hiển thị nhân viên có data hoặc có gọi điện
         if assigned_count > 0 or total_calls > 0 or booked_unique > 0:
             performance_data.append({
+                'fullname': f"{sale.last_name} {sale.first_name}", 'username': sale.username,
+                'assigned': assigned_count, 'total_calls': total_calls, 'booked': booked_unique, 'rate': round(rate_on_assigned, 1)
+            })
+    performance_data.sort(key=lambda x: x['booked'], reverse=True)
+
+    # =================================================================================
+    # PHẦN 2: BÁO CÁO NĂNG SUẤT CHĂM SÓC (RE-CARE) - ĐÂY LÀ PHẦN MỚI
+    # Logic: Tính trên toàn bộ hoạt động (Call/Booking) phát sinh trong kỳ, bất kể Data cũ hay mới
+    # =================================================================================
+    
+    recare_data = []
+    
+    # 1. Lấy tất cả Logs phát sinh trong khoảng thời gian lọc
+    period_logs = CallLog.objects.filter(call_time__date__range=[date_start_str, date_end_str])
+    
+    # 2. Lấy tất cả Lịch hẹn được tạo ra trong khoảng thời gian lọc (Status = SCHEDULED)
+    period_bookings = Appointment.objects.filter(
+        created_at__date__range=[date_start_str, date_end_str],
+        status='SCHEDULED'
+    )
+
+    for sale in telesales:
+        # Tổng số cuộc gọi Sale thực hiện trong kỳ (Cả cũ và mới)
+        my_logs = period_logs.filter(caller=sale)
+        total_calls_period = my_logs.count()
+        
+        # Số khách hàng đã tương tác (Unique)
+        total_customers_touched = my_logs.values('customer').distinct().count()
+        
+        # Số lịch hẹn Sale tạo ra trong kỳ
+        # Lưu ý: Dùng created_by để tính công cho người tạo lịch
+        my_bookings = period_bookings.filter(created_by=sale).count()
+        
+        # Tỷ lệ chốt / Số khách đã gọi
+        conversion_rate = (my_bookings / total_customers_touched * 100) if total_customers_touched > 0 else 0
+        
+        # Chỉ hiển thị nếu có hoạt động
+        if total_calls_period > 0 or my_bookings > 0:
+            recare_data.append({
                 'fullname': f"{sale.last_name} {sale.first_name}",
                 'username': sale.username,
-                'assigned': assigned_count,
-                'total_calls': total_calls,
-                'booked': booked_unique, # Số liệu này giờ sẽ khớp với thực tế lịch hẹn
-                'rate': round(rate_on_assigned, 1)
+                'total_calls': total_calls_period,
+                'customers_touched': total_customers_touched,
+                'booked': my_bookings,
+                'rate': round(conversion_rate, 1)
             })
-    
-    performance_data.sort(key=lambda x: x['booked'], reverse=True)
-    
-    # --- CHUẨN BỊ DỮ LIỆU CHO BỘ LỌC NÂNG CAO TRONG TEMPLATE ---
-    telesales_list = User.objects.filter(role='TELESALE', is_active=True).order_by('first_name')
+            
+    # Sắp xếp theo số lịch hẹn giảm dần
+    recare_data.sort(key=lambda x: x['booked'], reverse=True)
 
+    # =================================================================================
+
+    telesales_list = User.objects.filter(role='TELESALE', is_active=True).order_by('first_name')
 
     context = {
         'date_start': date_start_str,
         'date_end': date_end_str,
         'total_leads': total_leads,
         'source_data': source_data,
-        'fanpage_data': final_fanpage_data,
+        'fanpage_data': fanpage_data,
         'city_stats': city_stats,
         'gender_data': gender_data,
         'age_groups': age_groups,
-        'skin_data': skin_data, # <-- Đã truyền dữ liệu thống kê dịch vụ
+        'skin_data': skin_data,
         'data_quality_list': data_quality_list,
         'performance_data': performance_data,
         
-        # DỮ LIỆU CHO BỘ LỌC NÂNG CAO
+        # THÊM DỮ LIỆU RE-CARE VÀO CONTEXT
+        'recare_data': recare_data, 
+        
         'telesales_list': telesales_list,
         'gender_choices': Customer.Gender.choices,
         'fanpage_choices': Customer.Fanpage.choices,
-        'skin_choices': Customer.SkinIssue.choices, # <-- Đã truyền danh sách choices
-        'req_city': req_city, # Giá trị lọc đã chọn
+        'skin_choices': Customer.SkinIssue.choices,
+        'req_city': req_city,
         'req_gender': req_gender,
         'req_fanpage': req_fanpage,
         'req_telesale': req_telesale,
-        'req_skin': req_skin, # <-- Giá trị lọc đã chọn
+        'req_skin': req_skin,
     }
     return render(request, 'telesales/report.html', context)

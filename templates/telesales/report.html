@@ -328,8 +328,8 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card card-box h-100">
-                <div class="card-header bg-primary text-white"><i class="bi bi-trophy-fill me-2"></i>Hiệu Suất Telesale</div>
+            <div class="card card-box mb-4">
+                <div class="card-header bg-primary text-white"><i class="bi bi-trophy-fill me-2"></i>Hiệu Suất (Data Mới)</div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-custom m-0 align-middle">
@@ -358,6 +358,43 @@
                                 </tr>
                                 {% empty %}
                                 <tr><td colspan="4" class="text-center py-3">Chưa có dữ liệu</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-box border-top border-4 border-success">
+                <div class="card-header bg-white text-success"><i class="bi bi-arrow-repeat me-2"></i>Hiệu Suất Re-care (Chăm lại)</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-custom m-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nhân sự</th>
+                                    <th class="text-center" title="Tổng cuộc gọi thực hiện">Call</th>
+                                    <th class="text-center" title="Lịch hẹn đặt được">Book</th>
+                                    <th class="text-center" title="Tỷ lệ chốt trên số khách đã gọi">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in recare_data %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ item.fullname }}</div>
+                                        <div class="small text-muted" style="font-size: 0.75rem;">{{ item.username }}</div>
+                                    </td>
+                                    <td class="text-center">{{ item.total_calls }}</td>
+                                    <td class="text-center fw-bold text-success">{{ item.booked }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if item.rate >= 10 %}bg-success{% elif item.rate >= 5 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                            {{ item.rate }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-3 text-muted">Chưa có hoạt động</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
