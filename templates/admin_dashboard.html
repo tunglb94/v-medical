@@ -66,16 +66,9 @@
         padding: 12px 15px; 
     }
     
-    /* Đã tách dòng để tránh lỗi CSS */
-    .rank-1 { 
-        color: #ffc107; 
-    }
-    .rank-2 { 
-        color: #adb5bd; 
-    } 
-    .rank-3 { 
-        color: #cd7f32; 
-    }
+    .rank-1 { color: #ffc107; }
+    .rank-2 { color: #adb5bd; } 
+    .rank-3 { color: #cd7f32; }
 </style>
 {% endblock %}
 
@@ -199,11 +192,11 @@
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="bg-light rounded-circle fw-bold text-secondary d-flex align-items-center justify-content-center me-2" style="width:32px; height:32px;">
-                                            {{ sale.sale_consultant__username|slice:":1"|upper }}
+                                            {{ sale.assigned_consultant__username|slice:":1"|upper }}
                                         </div>
                                         <div>
-                                            <div class="fw-bold text-dark">{{ sale.sale_consultant__last_name }} {{ sale.sale_consultant__first_name }}</div>
-                                            <div class="small text-muted">{{ sale.sale_consultant__username }}</div>
+                                            <div class="fw-bold text-dark">{{ sale.assigned_consultant__last_name }} {{ sale.assigned_consultant__first_name }}</div>
+                                            <div class="small text-muted">{{ sale.assigned_consultant__username }}</div>
                                         </div>
                                     </div>
                                 </td>
@@ -238,8 +231,8 @@
                             <span class="badge bg-success bg-opacity-10 text-success border border-success">+{{ order.total_amount|intcomma }}</span>
                         </div>
                         <div class="d-flex justify-content-between small text-muted">
-                            <span>{{ order.treatment_name }}</span>
-                            <span>{{ order.created_at|date:"H:i d/m" }}</span>
+                            <span>{{ order.service.name }}</span>
+                            <span>{{ order.order_date|date:"d/m/Y" }}</span>
                         </div>
                     </div>
                     {% empty %}
