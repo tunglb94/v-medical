@@ -134,19 +134,17 @@ def telesale_dashboard(request):
         # --- C. BỘ LỌC MẶC ĐỊNH (KHI DÙNG DASHBOARD BÌNH THƯỜNG) ---
         if not search_query:
             filter_type = request.GET.get('type', 'new') 
-            
             if filter_type == 'new':
-                # --- YÊU CẦU 1: CHỈ LẤY DATA MỚI CỦA NGÀY HÔM NAY ---
-                customers = customers.filter(created_at__date=today)
-                
+                # customers = customers.filter(created_at__date=today) # Logic cũ: Chỉ lấy hôm nay
+                # Logic mở rộng: Khách chưa có log nào
+                customers = customers.filter(call_logs__isnull=True)
             elif filter_type == 'old':
-                # Cũ: Data tạo trước hôm nay
-                customers = customers.exclude(created_at__date=today)
-                
+                # customers = customers.exclude(created_at__date=today) # Logic cũ
+                # Logic mở rộng: Khách đã có log
+                customers = customers.filter(call_logs__isnull=False).distinct()
             elif filter_type == 'callback':
-                # --- YÊU CẦU 2: CHỈ HIỂN THỊ DATA CHĂM THÊM ĐÃ LÊN LỊCH NGÀY HÔM ĐÓ ---
-                
-                # 1. Lấy trạng thái cuối cùng và thời gian hẹn cuối cùng
+                # === [LOGIC MỚI CHO TAB "DATA CHĂM THÊM"] ===
+                # 1. Lấy trạng thái cuối cùng và ngày hẹn gọi lại cuối cùng
                 last_log = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time')
                 
                 customers = customers.annotate(
@@ -154,14 +152,12 @@ def telesale_dashboard(request):
                     last_callback_time=Subquery(last_log.values('callback_time')[:1])
                 )
                 
-                # 2. Lọc: Trạng thái là FOLLOW_UP VÀ Ngày hẹn gọi lại = Hôm nay (today)
-                customers = customers.filter(
-                    last_status='FOLLOW_UP',
-                    last_callback_time__date=today
-                )
+                # 2. Lọc: Trạng thái cuối là FOLLOW_UP (Chăm thêm) hoặc các trạng thái cần chăm sóc lại
+                customers = customers.filter(last_status__in=['FOLLOW_UP', 'BUSY', 'CONSULTING'])
                 
-                # 3. Sắp xếp theo giờ trong ngày
-                customers = customers.order_by('last_callback_time')
+                # 3. Sắp xếp: Ưu tiên ngày hẹn gọi lại gần nhất lên đầu (null để cuối)
+                # Dùng F expression để sắp xếp (đã import F)
+                customers = customers.order_by(F('last_callback_time').asc(nulls_last=True))
 
             elif filter_type == 'birthday':
                 customers = customers.filter(dob__day=today.day, dob__month=today.month)
@@ -215,6 +211,7 @@ def telesale_dashboard(request):
         if dob_val: selected_customer.dob = dob_val
         selected_customer.save()
 
+        # Nhận dữ liệu Log & Booking
         note_content = request.POST.get('note')
         status_value = request.POST.get('status')
         appointment_date = request.POST.get('appointment_date')
@@ -248,7 +245,7 @@ def telesale_dashboard(request):
         if status_value == 'FOLLOW_UP':
              if callback_date:
                  log.callback_time = callback_date
-                 messages.success(request, f"Đã lưu lịch hẹn gọi lại vào: {callback_date}")
+                 messages.success(request, f"Đã lưu lịch hẹn gọi lại: {selected_customer.name}")
              else:
                  messages.warning(request, "Lưu ý: Bạn chưa chọn giờ gọi lại (Khách sẽ ở cuối danh sách).")
 
