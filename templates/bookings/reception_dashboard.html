@@ -8,22 +8,18 @@
 <style>
     .card-box { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); }
     .fc-event-main-frame { cursor: pointer; }
-    .fc-event-main-frame:hover { opacity: 0.9; }
-    
-    /* Đảm bảo lịch có chiều cao hiển thị */
-    #calendar {
-        min-height: 600px;
-    }
-    .fc-toolbar-title { font-size: 1.25rem !important; font-weight: bold; }
+    #calendar { min-height: 650px; }
+    .fc-toolbar-title { font-size: 1.2rem !important; text-transform: uppercase; }
+    .appointment-list-item:hover { background-color: #f8f9fa; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="fw-bold m-0"><i class="bi bi-calendar-check-fill me-2 text-primary"></i>QUẢN LÝ LỊCH HẸN & TIẾP ĐÓN</h4>
+    <h4 class="fw-bold m-0"><i class="bi bi-calendar-check-fill me-2 text-primary"></i>QUẢN LÝ TIẾP ĐÓN</h4>
     <div>
         <button class="btn btn-primary btn-sm fw-bold ms-2" data-bs-toggle="modal" data-bs-target="#searchCustomerModal">
-            <i class="bi bi-search me-1"></i> TRA CỨU KHÁCH
+            <i class="bi bi-search me-1"></i> TRA CỨU
         </button>
         <button class="btn btn-success btn-sm fw-bold ms-2" data-bs-toggle="modal" data-bs-target="#walkinModal">
             <i class="bi bi-person-plus-fill me-1"></i> KHÁCH VÃNG LAI
@@ -32,11 +28,10 @@
 </div>
 
 <div class="row g-3">
-    <div class="col-lg-4 d-flex flex-column" style="height: calc(100vh - 140px);">
+    <div class="col-lg-3 d-flex flex-column" style="height: calc(100vh - 140px);">
         <div class="card card-box flex-grow-1 overflow-hidden d-flex flex-column">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                <span class="m-0 fw-bold text-uppercase text-muted small">Danh sách ngày: {{ current_date|date:"d/m/Y" }}</span>
-                <form method="GET" class="d-flex" style="max-width: 130px;">
+            <div class="card-header bg-white py-2">
+                <form method="GET" class="d-flex align-items-center">
                     <input type="date" name="date" class="form-control form-control-sm" value="{{ current_date|date:'Y-m-d' }}" onchange="this.form.submit()">
                 </form>
             </div>
@@ -44,7 +39,7 @@
                 <div class="list-group list-group-flush">
                     {% for appointment in appointments %}
                     <a href="javascript:void(0);" 
-                       class="list-group-item list-group-item-action py-3 appointment-list-item border-bottom" 
+                       class="list-group-item list-group-item-action py-3 appointment-list-item" 
                        data-id="{{ appointment.id }}"
                        data-customer-name="{{ appointment.customer.name }}"
                        data-customer-phone="{{ appointment.customer.phone }}"
@@ -53,33 +48,25 @@
                        data-status-code="{{ appointment.status }}"
                        data-customer-code="{{ appointment.customer.customer_code|default:'' }}">
                         
-                        <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                            <h6 class="mb-0 fw-bold text-dark">{{ appointment.customer.name }}</h6>
-                            <span class="badge rounded-pill bg-{{ appointment.get_status_color }}">{{ appointment.get_status_display }}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h6 class="mb-0 fw-bold text-truncate" style="max-width: 140px;">{{ appointment.customer.name }}</h6>
+                            <span class="badge rounded-pill bg-{{ appointment.get_status_color }}" style="font-size: 0.7rem;">{{ appointment.get_status_display }}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-end">
-                            <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ appointment.appointment_date|date:"H:i" }} | {{ appointment.customer.phone }}</small>
-                            {% if appointment.status == 'SCHEDULED' %}
-                                <span class="text-primary small fw-bold">Check-in ngay &rarr;</span>
-                            {% endif %}
-                        </div>
+                        <small class="text-muted d-block"><i class="bi bi-clock me-1"></i>{{ appointment.appointment_date|date:"H:i" }} - {{ appointment.customer.phone }}</small>
                     </a>
                     {% empty %}
-                    <div class="text-center p-5 text-muted small">
-                        <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
-                        Chưa có lịch hẹn nào.
-                    </div>
+                    <div class="text-center p-4 text-muted small">Không có lịch hẹn.</div>
                     {% endfor %}
                 </div>
             </div>
-            <div class="card-footer bg-light text-muted small text-center">
-                Tổng cộng: <b>{{ appointments.count }}</b> khách
+            <div class="card-footer bg-light text-center small py-1">
+                SL: <b>{{ appointments.count }}</b>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-8">
-        <div class="card card-box h-100 p-3">
+    <div class="col-lg-9">
+        <div class="card card-box h-100 p-2">
             <div id='calendar'></div>
         </div>
     </div>
@@ -87,53 +74,31 @@
 
 <div class="modal fade" id="appointmentDetailModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold">CHI TIẾT LỊCH HẸN</h5>
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title fw-bold">CHI TIẾT LỊCH HẸN</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4">
-                <div class="text-center mb-4">
-                    <h4 class="fw-bold mb-1" id="customerNameDetail"></h4>
-                    <span class="text-muted" id="customerPhoneDetail"></span>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <h4 class="fw-bold m-0" id="customerNameDetail"></h4>
+                    <div class="text-muted" id="customerPhoneDetail"></div>
                 </div>
                 
-                <div class="row g-3 mb-4">
-                    <div class="col-6">
-                        <div class="p-3 bg-light rounded text-center">
-                            <small class="text-muted d-block mb-1">Thời gian hẹn</small>
-                            <span class="fw-bold text-primary" id="appointmentTimeDetail"></span>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-3 bg-light rounded text-center">
-                            <small class="text-muted d-block mb-1">Trạng thái</small>
-                            <span id="appointmentStatusDetail" class="badge"></span>
-                        </div>
-                    </div>
+                <div class="row text-center mb-3 g-2">
+                    <div class="col-6"><div class="border p-2 rounded bg-light"><small>Giờ hẹn</small><div class="fw-bold text-primary" id="appointmentTimeDetail"></div></div></div>
+                    <div class="col-6"><div class="border p-2 rounded bg-light"><small>Trạng thái</small><div id="appointmentStatusDetail" class="fw-bold"></div></div></div>
                 </div>
 
-                <div class="alert alert-info d-flex align-items-center" role="alert">
-                    <i class="bi bi-qr-code me-2 fs-4"></i>
-                    <div>
-                        Mã Khách hàng: <strong id="customerCodeDisplay">---</strong>
-                    </div>
+                <div class="alert alert-light border d-flex justify-content-between align-items-center p-2 mb-3">
+                    <span class="small fw-bold text-muted">Mã Khách Hàng:</span>
+                    <span class="fw-bold text-danger fs-5" id="customerCodeDisplay"></span>
                 </div>
-
-                <hr>
 
                 <div class="d-grid gap-2">
-                    <button class="btn btn-success btn-lg fw-bold" id="btnOpenCheckin">
-                        <i class="bi bi-box-arrow-in-right me-2"></i> CHECK-IN (Đón khách)
-                    </button>
-                    
-                    <button class="btn btn-warning btn-lg fw-bold text-dark" id="btnOpenFinish">
-                        <i class="bi bi-cash-stack me-2"></i> THANH TOÁN / CHỐT DỊCH VỤ
-                    </button>
-                    
-                    <button class="btn btn-outline-danger btn-sm mt-2 cancel-btn" data-status="CANCELLED">
-                        <i class="bi bi-x-circle me-1"></i> Hủy lịch hẹn này
-                    </button>
+                    <button class="btn btn-success fw-bold" id="btnOpenCheckin"><i class="bi bi-box-arrow-in-right me-2"></i>CHECK-IN (Đón khách)</button>
+                    <button class="btn btn-warning fw-bold" id="btnOpenFinish"><i class="bi bi-cash-stack me-2"></i>THANH TOÁN / CHỐT DỊCH VỤ</button>
+                    <button class="btn btn-outline-danger btn-sm cancel-btn">Hủy lịch hẹn</button>
                 </div>
             </div>
         </div>
@@ -143,26 +108,21 @@
 <div class="modal fade" id="checkinModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">CHECK-IN KHÁCH HÀNG</h5>
+            <div class="modal-header bg-success text-white py-2">
+                <h6 class="modal-title fw-bold">XÁC NHẬN ĐÓN KHÁCH</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" id="checkinForm">
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i class="bi bi-info-circle-fill me-1"></i>
-                        Xác nhận khách hàng <strong><span id="checkinCustomerName"></span></strong> đã đến phòng khám?
-                    </div>
+                    <p>Khách hàng: <strong id="checkinCustomerName"></strong></p>
                     <div class="mb-3">
-                        <label for="customerCodeInput" class="form-label fw-bold">Nhập Mã Khách hàng (Nếu chưa có)</label>
-                        <input type="text" name="customer_code" class="form-control form-control-lg text-uppercase" id="customerCodeInput" placeholder="VD: KH001">
-                        <div class="form-text">Mã này sẽ được lưu cố định cho khách hàng.</div>
+                        <label class="form-label small fw-bold">Cập nhật Mã Khách hàng (Nếu cần)</label>
+                        <input type="text" name="customer_code" class="form-control" id="customerCodeInput" placeholder="VD: KH001">
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-success fw-bold">XÁC NHẬN CHECK-IN</button>
+                <div class="modal-footer py-1">
+                    <button type="submit" class="btn btn-success fw-bold w-100">XÁC NHẬN</button>
                 </div>
             </form>
         </div>
@@ -172,102 +132,69 @@
 <div class="modal fade" id="finishAppointmentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title fw-bold">CHỐT ĐƠN & THANH TOÁN</h5>
+            <div class="modal-header bg-warning text-dark py-2">
+                <h6 class="modal-title fw-bold">CHỐT ĐƠN & THANH TOÁN</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="finishForm" action="{% url 'finish_appointment' %}">
+            <form method="POST" action="{% url 'finish_appointment' %}" id="finishForm">
                 {% csrf_token %}
                 <input type="hidden" name="appointment_id" id="finishApptId">
                 <div class="modal-body">
-                    <p class="fw-bold border-bottom pb-2">Khách hàng: <span id="finishCustomerName" class="text-primary fs-5"></span></p>
-
-                    <h6 class="text-uppercase fw-bold text-muted small mt-3">1. Nhân sự thực hiện</h6>
-                    <div class="row g-2 mb-3 bg-light p-3 rounded">
+                    <div class="row g-2 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Bác sĩ</label>
+                            <label class="small fw-bold">Bác sĩ</label>
                             <select name="doctor_id" class="form-select form-select-sm">
-                                <option value="">-- Chọn Bác sĩ --</option>
-                                {% for doc in doctors %}
-                                    <option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>
-                                {% endfor %}
+                                <option value="">-- Chọn --</option>
+                                {% for doc in doctors %}<option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Kỹ thuật viên</label>
+                            <label class="small fw-bold">Kỹ thuật viên</label>
                             <select name="technician_id" class="form-select form-select-sm">
-                                <option value="">-- Chọn KTV --</option>
-                                {% for tech in technicians %}
-                                    <option value="{{ tech.id }}">{{ tech.last_name }} {{ tech.first_name }}</option>
-                                {% endfor %}
+                                <option value="">-- Chọn --</option>
+                                {% for tech in technicians %}<option value="{{ tech.id }}">{{ tech.last_name }} {{ tech.first_name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Sale Tư vấn</label>
+                            <label class="small fw-bold">Sale Tư vấn</label>
                             <select name="consultant_id" class="form-select form-select-sm">
-                                <option value="">-- Chọn TVV --</option>
-                                {% for cons in consultants %}
-                                    <option value="{{ cons.id }}">{{ cons.last_name }} {{ cons.first_name }}</option>
-                                {% endfor %}
+                                <option value="">-- Chọn --</option>
+                                {% for cons in consultants %}<option value="{{ cons.id }}">{{ cons.last_name }} {{ cons.first_name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
-
-                    <h6 class="text-uppercase fw-bold text-muted small mt-3">2. Thông tin đơn hàng</h6>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Kết quả *</label>
-                        <select name="result_status" id="resultStatus" class="form-select" onchange="toggleOrderFields()">
-                            <option value="buy">Khách MUA Dịch vụ (Chốt đơn)</option>
-                            <option value="reject">Khách KHÔNG MUA (Thất bại)</option>
+                    
+                    <hr>
+                    
+                    <div class="mb-2">
+                        <label class="small fw-bold">Kết quả:</label>
+                        <select name="result_status" id="resultStatus" class="form-select form-select-sm" onchange="toggleOrderFields()">
+                            <option value="buy">Khách MUA (Chốt đơn)</option>
+                            <option value="reject">Khách TỪ CHỐI</option>
                         </select>
                     </div>
 
                     <div id="orderFields">
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Dịch vụ sử dụng</label>
-                            <select name="service_id" id="serviceIdSelect" class="form-select">
+                        <div class="mb-2">
+                            <label class="small fw-bold">Dịch vụ:</label>
+                            <select name="service_id" id="serviceIdSelect" class="form-select form-select-sm">
                                 <option value="">-- Chọn dịch vụ --</option>
-                                {% for service in services %}
-                                    <option value="{{ service.id }}" data-price="{{ service.base_price }}">{{ service.name }}</option>
-                                {% endfor %}
+                                {% for service in services %}<option value="{{ service.id }}" data-price="{{ service.base_price }}">{{ service.name }}</option>{% endfor %}
                             </select>
                         </div>
-
                         <div class="row g-2">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small fw-bold">Giá niêm yết</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="number" name="original_price" id="originalPrice" class="form-control" value="0" readonly>
-                                    <span class="input-group-text">đ</span>
-                                </div>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small fw-bold text-primary">Tổng sau giảm giá *</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="number" name="total_amount" id="finalTotalAmount" class="form-control fw-bold text-primary" required oninput="copyToActualRevenue()">
-                                    <span class="input-group-text">đ</span>
-                                </div>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small fw-bold text-success">Khách thực trả *</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="number" name="actual_revenue" id="actualRevenue" class="form-control fw-bold text-success" required>
-                                    <span class="input-group-text">đ</span>
-                                </div>
-                            </div>
+                            <div class="col-4"><label class="small">Giá gốc</label><input type="number" name="original_price" id="originalPrice" class="form-control form-control-sm" readonly></div>
+                            <div class="col-4"><label class="small fw-bold">Tổng tiền</label><input type="number" name="total_amount" id="finalTotalAmount" class="form-control form-control-sm fw-bold text-primary" oninput="copyToActualRevenue()"></div>
+                            <div class="col-4"><label class="small fw-bold text-success">Thực thu</label><input type="number" name="actual_revenue" id="actualRevenue" class="form-control form-control-sm fw-bold text-success"></div>
                         </div>
                     </div>
 
-                    <div id="rejectFields" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-danger">Lý do từ chối</label>
-                            <textarea name="rejection_reason" class="form-control" rows="3" placeholder="Ghi rõ lý do khách không hài lòng..."></textarea>
-                        </div>
+                    <div id="rejectFields" style="display:none;">
+                        <textarea name="rejection_reason" class="form-control" placeholder="Nhập lý do khách không mua..."></textarea>
                     </div>
-
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-warning fw-bold w-100">HOÀN TẤT & LƯU</button>
+                <div class="modal-footer py-1">
+                    <button type="submit" class="btn btn-warning fw-bold w-100">HOÀN TẤT</button>
                 </div>
             </form>
         </div>
@@ -282,30 +209,31 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var calendarEl = document.getElementById('calendar');
-
-        // Hàm mở Modal và xử lý Logic nút bấm
+        // --- PHẦN QUAN TRỌNG SỬA LỖI URL ---
+        // Django sẽ render URL này thành chuỗi, ví dụ: /bookings/check-in/0/
+        // Ta dùng số 0 làm placeholder để replace bằng ID thật trong JS
+        const CHECKIN_URL_TEMPLATE = "{% url 'checkin_appointment' 0 %}"; 
+        
+        // Hàm mở Modal Chi tiết
         window.openAppointmentModal = function(data) {
-            // 1. Điền thông tin hiển thị
+            // Fill dữ liệu text
             $('#customerNameDetail').text(data.customerName);
             $('#customerPhoneDetail').text(data.customerPhone);
             $('#appointmentTimeDetail').text(data.apptTime);
-            $('#customerCodeDisplay').text(data.customerCode ? data.customerCode : 'Chưa cập nhật');
-            $('#appointmentStatusDetail').text(data.status).removeClass().addClass('badge rounded-pill bg-' + getStatusColor(data.statusCode));
-
-            // 2. Xử lý URL Form Check-in (SỬA LỖI QUAN TRỌNG)
-            // Ta dùng 1 URL mẫu có ID=0, sau đó replace bằng ID thật
-            var checkinUrlTemplate = "{% url 'checkin_appointment' 0 %}"; 
-            var finalCheckinUrl = checkinUrlTemplate.replace('0', data.id);
-            $('#checkinForm').attr('action', finalCheckinUrl);
-
-            // 3. Xử lý Form Chốt đơn
-            $('#finishApptId').val(data.id);
+            $('#customerCodeDisplay').text(data.customerCode || '---');
+            $('#appointmentStatusDetail').text(data.status);
+            
+            // Fill dữ liệu Form Check-in & Finish
             $('#checkinCustomerName').text(data.customerName);
-            $('#finishCustomerName').text(data.customerName);
             $('#customerCodeInput').val(data.customerCode);
+            $('#finishApptId').val(data.id);
+            
+            // Xử lý Dynamic URL cho Form Check-in
+            // Thay thế số 0 (hoặc ký tự placeholder) bằng ID thật
+            const finalUrl = CHECKIN_URL_TEMPLATE.replace('0', data.id);
+            $('#checkinForm').attr('action', finalUrl);
 
-            // 4. Logic Ẩn/Hiện nút Check-in vs Chốt đơn
+            // Điều khiển ẩn hiện nút
             if (data.statusCode === 'SCHEDULED') {
                 $('#btnOpenCheckin').show();
                 $('#btnOpenFinish').hide();
@@ -313,108 +241,70 @@
                 $('#btnOpenCheckin').hide();
                 $('#btnOpenFinish').show();
             } else {
-                // Đã xong hoặc Hủy -> Ẩn hết
                 $('#btnOpenCheckin').hide();
                 $('#btnOpenFinish').hide();
             }
-
-            // Xử lý nút Hủy
-            if (data.statusCode === 'CANCELLED' || data.statusCode === 'COMPLETED') {
-                $('.cancel-btn').hide();
-            } else {
-                $('.cancel-btn').show().data('id', data.id);
-            }
-
-            // Mở Modal
+            
             $('#appointmentDetailModal').modal('show');
         };
 
-        // --- SỰ KIỆN CHUYỂN MODAL ---
+        // Chuyển Modal
         $('#btnOpenCheckin').click(function() {
             $('#appointmentDetailModal').modal('hide');
-            setTimeout(() => { $('#checkinModal').modal('show'); }, 200);
+            setTimeout(() => $('#checkinModal').modal('show'), 200);
         });
-
         $('#btnOpenFinish').click(function() {
             $('#appointmentDetailModal').modal('hide');
-            setTimeout(() => { $('#finishAppointmentModal').modal('show'); }, 200);
+            setTimeout(() => $('#finishAppointmentModal').modal('show'), 200);
         });
 
-        // --- KHỞI TẠO FULLCALENDAR ---
+        // FullCalendar Init
+        var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth', // Mặc định xem theo Tháng
+            initialView: 'dayGridMonth',
             locale: 'vi',
-            height: '100%',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            },
-            buttonText: {
-                today: 'Hôm nay',
-                month: 'Tháng',
-                week: 'Tuần',
-                day: 'Ngày'
-            },
-            events: '{% url "get_appointments_api" %}', // URL API lấy dữ liệu
-            eventTimeFormat: {
-                hour: '2-digit', minute: '2-digit', hour12: false
-            },
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+            events: '{% url "get_appointments_api" %}', // Đảm bảo URL này cũng đúng
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
             eventClick: function(info) {
-                const props = info.event.extendedProps;
-                const data = {
+                const p = info.event.extendedProps;
+                openAppointmentModal({
                     id: info.event.id,
-                    customerName: props.customerName,
-                    customerPhone: props.phone,
-                    apptTime: info.event.start.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}) + ' ' + info.event.start.toLocaleDateString('vi-VN'),
-                    status: props.status,
-                    statusCode: props.statusCode,
-                    customerCode: props.customerCode
-                };
-                openAppointmentModal(data);
+                    customerName: p.customerName,
+                    customerPhone: p.phone,
+                    apptTime: info.event.start.toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'}),
+                    status: p.status,
+                    statusCode: p.statusCode,
+                    customerCode: p.customerCode
+                });
             }
         });
         calendar.render();
-
-        // Xử lý click từ danh sách bên trái
+        
+        // List Click
         $('.appointment-list-item').click(function() {
             openAppointmentModal($(this).data());
         });
-    });
 
-    // Helper functions
-    function getStatusColor(code) {
-        if(code === 'SCHEDULED') return 'primary';
-        if(code === 'ARRIVED') return 'warning text-dark';
-        if(code === 'COMPLETED') return 'success';
-        if(code === 'CANCELLED') return 'danger';
-        return 'secondary';
-    }
+        // Logic tính tiền
+        $('#serviceIdSelect').change(function() {
+            const price = $(this).find(':selected').data('price');
+            if(price) {
+                $('#originalPrice').val(price);
+                $('#finalTotalAmount').val(price);
+                $('#actualRevenue').val(price);
+            }
+        });
+    });
 
     function toggleOrderFields() {
-        var status = document.getElementById('resultStatus').value;
-        if (status === 'buy') {
-            document.getElementById('orderFields').style.display = 'block';
-            document.getElementById('rejectFields').style.display = 'none';
-        } else {
-            document.getElementById('orderFields').style.display = 'none';
-            document.getElementById('rejectFields').style.display = 'block';
-        }
+        const status = document.getElementById('resultStatus').value;
+        document.getElementById('orderFields').style.display = (status === 'buy') ? 'block' : 'none';
+        document.getElementById('rejectFields').style.display = (status === 'buy') ? 'none' : 'block';
     }
-
+    
     function copyToActualRevenue() {
-        var total = document.getElementById('finalTotalAmount').value;
-        document.getElementById('actualRevenue').value = total;
+        document.getElementById('actualRevenue').value = document.getElementById('finalTotalAmount').value;
     }
-
-    // Auto-fill giá tiền khi chọn dịch vụ
-    document.getElementById('serviceIdSelect').addEventListener('change', function() {
-        var price = this.options[this.selectedIndex].getAttribute('data-price');
-        if(price) {
-            document.getElementById('originalPrice').value = price;
-            document.getElementById('finalTotalAmount').value = price;
-            document.getElementById('actualRevenue').value = price;
-        }
-    });
 </script>
 {% endblock %}
