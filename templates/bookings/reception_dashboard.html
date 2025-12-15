@@ -335,9 +335,18 @@
                               </select>
                           </div>
                           <div class="row g-2">
-                              <div class="col-4"><label class="small text-muted">Giá gốc</label><input type="number" name="original_price" id="originalPrice" class="form-control form-control-sm" readonly></div>
-                              <div class="col-4"><label class="small text-muted">Giảm giá</label><input type="number" name="discount" id="discountInput" class="form-control form-control-sm" placeholder="0" oninput="calculateFinal()"></div>
-                              <div class="col-4"><label class="small fw-bold text-danger">THỰC THU</label><input type="number" name="total_amount" id="finalPrice" class="form-control form-control-sm fw-bold text-danger" readonly></div>
+                              <div class="col-4">
+                                  <label class="small text-muted">Giá gốc</label>
+                                  <input type="number" name="original_price" id="originalPrice" class="form-control form-control-sm" readonly>
+                              </div>
+                              <div class="col-4">
+                                  <label class="small text-muted">Giảm giá</label>
+                                  <input type="number" name="discount" id="discountInput" class="form-control form-control-sm" placeholder="0" oninput="calculateFinal()">
+                              </div>
+                              <div class="col-4">
+                                  <label class="small fw-bold text-danger">THỰC THU</label>
+                                  <input type="number" name="total_amount" id="finalPrice" class="form-control form-control-sm fw-bold text-danger" oninput="calculateDiscount()">
+                              </div>
                           </div>
                       </div>
 
@@ -482,35 +491,36 @@
         calculateFinal();
     }
 
+    // Tính toán khi nhập giảm giá: Thực thu = Gốc - Giảm giá
     function calculateFinal() {
         var original = parseFloat(document.getElementById('originalPrice').value) || 0;
         var discount = parseFloat(document.getElementById('discountInput').value) || 0;
         document.getElementById('finalPrice').value = Math.max(0, original - discount);
     }
+
+    // MỚI: Tính toán khi nhập thực thu: Giảm giá = Gốc - Thực thu
+    function calculateDiscount() {
+        var original = parseFloat(document.getElementById('originalPrice').value) || 0;
+        var final = parseFloat(document.getElementById('finalPrice').value) || 0;
+        // Tự động tính lại giảm giá để khớp số liệu
+        document.getElementById('discountInput').value = Math.max(0, original - final);
+    }
     
-    // --- JS MỚI CHO CHECK-IN MODAL (ĐÃ SỬA) ---
+    // --- JS CHO CHECK-IN MODAL (Dùng URL Template) ---
     function openCheckinModal(appointmentId, customerName, appointmentTime, currentCustomerCode) {
-        // Thiết lập action của form
         const checkinForm = document.getElementById('checkinForm');
-        
-        // FIX: Sử dụng tag url của Django thay vì hardcode string
-        // Thay thế ID placeholder '0' bằng ID thực tế của lịch hẹn
+        // Sử dụng url placeholder của Django
         const urlTemplate = "{% url 'checkin_appointment' 0 %}";
         checkinForm.action = urlTemplate.replace('0', appointmentId);
         
-        // Hiển thị thông tin
         document.getElementById('checkinCustomerName').innerText = customerName;
         document.getElementById('checkinAppointmentTime').innerText = appointmentTime;
-        
-        // Điền Mã khách hàng hiện tại (nếu đã có)
         document.getElementById('customerCodeInput').value = currentCustomerCode || '';
         
-        // Mở modal
-        const modal = new bootstrap.Modal(document.getElementById('checkinModal'));
-        modal.show();
+        new bootstrap.Modal(document.getElementById('checkinModal')).show();
     }
     
-    // --- CẬP NHẬT FULLCALENDAR ACTION ---
+    // --- FULLCALENDAR ACTION ---
     function showEventPopup(event) {
         document.getElementById('popupCustomerName').innerText = event.extendedProps.customerName;
         document.getElementById('popupPhone').innerText = event.extendedProps.phone;
@@ -522,7 +532,6 @@
         actionsDiv.innerHTML = '';
         
         if (event.extendedProps.statusCode === 'SCHEDULED') {
-             // Gọi hàm openCheckinModal đã được sửa
             const btn = document.createElement('button');
             btn.className = 'btn btn-warning fw-bold w-100';
             btn.innerText = 'CHECK-IN';
@@ -553,7 +562,7 @@
         new bootstrap.Modal(document.getElementById('eventDetailModal')).show();
     }
 
-    // --- FULLCALENDAR ---
+    // --- FULLCALENDAR INIT ---
     let calendar;
     function initCalendar() {
         if (calendar) return;
@@ -563,7 +572,6 @@
             locale: 'vi',
             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
             slotMinTime: "08:00:00", slotMaxTime: "20:00:00", allDaySlot: false, height: 'auto',
-            // Sử dụng URL API từ urls.py (name='get_appointments_api')
             events: '{% url "get_appointments_api" %}',
             eventClick: function(info) { showEventPopup(info.event); }
         });
