@@ -66,6 +66,9 @@ urlpatterns = [
 
     path('resources/', include('apps.resources.urls')),
     path('inventory/', include('apps.inventory.urls')),
+
+    # --- 9. MODULE LỊCH DỊCH VỤ (TÁCH RIÊNG) ---
+    path('service-calendar/', include('apps.service_calendar.urls')),
 ]
 
 if settings.DEBUG:

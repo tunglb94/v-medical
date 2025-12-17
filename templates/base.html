@@ -173,6 +173,13 @@
 
         {% if request.user.role in 'ADMIN,RECEPTIONIST,TELESALE,DOCTOR,TECHNICIAN' %}
         <li><a href="{% url 'reception_home' %}" class="{% if 'reception' in request.path %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> <span>Lễ Tân & Lịch Hẹn</span></a></li>
+        
+        <li>
+            <a href="{% url 'service_calendar:dashboard' %}" class="{% if 'service-calendar' in request.path %}active{% endif %}">
+                <i class="bi bi-calendar2-week-fill"></i> 
+                <span>Lịch CS & Nhắc Hẹn</span>
+            </a>
+        </li>
         {% endif %}
         
         {% if request.user.role in 'ADMIN,RECEPTIONIST' %}

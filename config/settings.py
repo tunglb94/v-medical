@@ -48,6 +48,9 @@ INSTALLED_APPS = [
     'apps.chat',
     'apps.resources',
     'apps.inventory',
+    
+    # App mới tách riêng (Không ảnh hưởng core cũ)
+    'apps.service_calendar',
 ]
 
 MIDDLEWARE = [
@@ -179,8 +182,10 @@ JAZZMIN_SETTINGS = {
         "hr.Attendance": "fas fa-clock",
         "hr.SalarySlip": "fas fa-money-check-alt",
         "chat.Message": "fas fa-comments",
+        # Icon cho App mới
+        "service_calendar.ReminderLog": "fas fa-bell",
     },
-    "order_with_respect_to": ["telesales", "customers", "bookings", "sales", "marketing", "hr", "chat", "authentication", "auth"],
+    "order_with_respect_to": ["telesales", "customers", "bookings", "service_calendar", "sales", "marketing", "hr", "chat", "authentication", "auth"],
 }
 
 JAZZMIN_UI_TWEAKS = {

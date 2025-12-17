@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lịch Dịch Vụ & Nhắc Hẹn{% endblock %}
+
+{% block content %}
+<div class="row h-100 g-0">
+    <div class="col-md-3 border-end bg-white d-flex flex-column" style="height: calc(100vh - 100px);">
+        <div class="p-3 bg-light border-bottom">
+            <h6 class="fw-bold mb-3"><i class="bi bi-person-lines-fill"></i> KHÁCH CÓ LIỆU TRÌNH</h6>
+            <form method="GET">
+                <div class="input-group input-group-sm">
+                    <input type="text" name="q" class="form-control" placeholder="Tìm tên, SĐT..." value="{{ search_query|default:'' }}">
+                    <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="overflow-auto flex-grow-1 p-2">
+            {% if reminders_needed %}
+            <div class="alert alert-warning small mb-3">
+                <strong><i class="bi bi-bell"></i> Cần nhắc ngày mai ({{ reminders_needed|length }})</strong>
+                <ul class="ps-3 mb-0 mt-1">
+                    {% for r in reminders_needed %}
+                    <li>
+                        {{ r.customer.name }} - {{ r.appointment_date|date:"H:i" }}
+                        <a href="{% url 'service_calendar:confirm_reminder' r.id %}" class="text-success fw-bold ms-2 text-decoration-none">[Xong]</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="list-group list-group-flush">
+                {% for cus in customers %}
+                <a href="#" class="list-group-item list-group-item-action py-3" 
+                   onclick="openBookingModal('{{ cus.id }}', '{{ cus.name }}')">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 fw-bold text-primary">{{ cus.name }}</h6>
+                        <small class="text-muted"><i class="bi bi-plus-circle-fill"></i> Đặt lịch</small>
+                    </div>
+                    <small class="text-muted">{{ cus.phone }}</small>
+                    <div class="small text-info mt-1">Đã mua dịch vụ</div>
+                </a>
+                {% empty %}
+                <div class="text-center py-4 text-muted">Không tìm thấy khách hàng.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9 p-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body p-2">
+                <div id="calendar" style="height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="quickBookingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{% url 'service_calendar:quick_add' %}" method="POST">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Đặt Lịch Nhanh</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="customer_id" id="modalCusId">
+                    <div class="mb-3">
+                        <label class="form-label">Khách hàng</label>
+                        <input type="text" class="form-control bg-light" id="modalCusName" readonly>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Ngày</label>
+                            <input type="date" name="date" class="form-control" required value="{% now 'Y-m-d' %}">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Giờ</label>
+                            <input type="time" name="time" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bác sĩ</label>
+                        <select name="doctor_id" class="form-select">
+                            <option value="">-- Chọn bác sĩ --</option>
+                            {% for d in doctors %}
+                            <option value="{{ d.id }}">{{ d.last_name }} {{ d.first_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu Lịch Hẹn</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listWeek'
+            },
+            locale: 'vi',
+            height: '100%',
+            events: {{ events|safe }},
+            eventClick: function(info) {
+                alert('Khách: ' + info.event.title);
+            }
+        });
+        calendar.render();
+    });
+
+    function openBookingModal(id, name) {
+        document.getElementById('modalCusId').value = id;
+        document.getElementById('modalCusName').value = name;
+        new bootstrap.Modal(document.getElementById('quickBookingModal')).show();
+    }
+</script>
+{% endblock %}
