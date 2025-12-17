@@ -57,11 +57,33 @@ def revenue_dashboard(request):
     chart_revenues = [float(revenue_data[d]) for d in sorted_dates]
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # 3. Doanh thu theo Sale
-    revenue_by_sale = orders.values('assigned_consultant__username').annotate(total=Sum('total_amount')).order_by('-total')
-    sale_labels = [item['assigned_consultant__username'] or 'Chưa gán' for item in revenue_by_sale]
-    sale_data = [float(item['total']) for item in revenue_by_sale]
-    sale_table = [{'name': item['assigned_consultant__username'] or 'Chưa gán', 'amount': item['total']} for item in revenue_by_sale]
+    # 3. Doanh thu theo Sale (ĐÃ SỬA: Lấy Full Name)
+    revenue_by_sale = orders.values(
+        'assigned_consultant__username', 
+        'assigned_consultant__first_name', 
+        'assigned_consultant__last_name'
+    ).annotate(total=Sum('total_amount')).order_by('-total')
+    
+    sale_labels = []
+    sale_data = []
+    sale_table = []
+
+    for item in revenue_by_sale:
+        username = item['assigned_consultant__username']
+        first = item['assigned_consultant__first_name']
+        last = item['assigned_consultant__last_name']
+        
+        # Logic hiển thị tên: Nếu có họ tên thì dùng, nếu không thì dùng username, nếu null thì 'Chưa gán'
+        if not username:
+            display_name = 'Chưa gán'
+        elif first or last:
+            display_name = f"{last or ''} {first or ''}".strip()
+        else:
+            display_name = username
+
+        sale_labels.append(display_name)
+        sale_data.append(float(item['total']))
+        sale_table.append({'name': display_name, 'amount': item['total']})
 
     # 4. Thống kê Marketing (Khách hàng mới)
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])

@@ -30,7 +30,7 @@
                 <select name="consultant_id" class="form-select">
                     <option value="">-- Tất cả --</option>
                     {% for sale in consultants %}
-                    <option value="{{ sale.id }}" {% if selected_consultant == sale.id %}selected{% endif %}>{{ sale.username }}</option>
+                    <option value="{{ sale.id }}" {% if selected_consultant == sale.id %}selected{% endif %}>{{ sale.last_name }} {{ sale.first_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -101,7 +101,13 @@
                         {% if order.customer.ranking == 'DIAMOND' %}<i class="bi bi-gem text-info small"></i>{% endif %}
                     </td>
                     <td>{{ order.service.name }}</td>
-                    <td>{{ order.assigned_consultant.username|default:"--" }}</td>
+                    <td>
+                        {% if order.assigned_consultant %}
+                            {{ order.assigned_consultant.last_name }} {{ order.assigned_consultant.first_name }}
+                        {% else %}
+                            <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
                     <td class="text-end pe-3 fw-bold text-success">{{ order.total_amount|intcomma }}</td>
                 </tr>
                 {% empty %}<tr><td colspan="6" class="text-center p-4 text-muted">Không có dữ liệu</td></tr>{% endfor %}
