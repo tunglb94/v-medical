@@ -23,7 +23,14 @@ def customer_list(request):
 
     customers = Customer.objects.all().order_by('-created_at')
     
-    if query: customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query))
+    # --- CẬP NHẬT: Thêm tìm kiếm theo Mã khách hàng (customer_code) ---
+    if query: 
+        customers = customers.filter(
+            Q(name__icontains=query) | 
+            Q(phone__icontains=query) | 
+            Q(customer_code__icontains=query) # <-- Thêm dòng này
+        )
+    
     if source_filter: customers = customers.filter(source=source_filter)
     if skin_filter: customers = customers.filter(skin_condition=skin_filter)
     if city_filter: customers = customers.filter(city__icontains=city_filter)
@@ -52,7 +59,6 @@ def customer_detail(request, pk):
     call_logs = CallLog.objects.filter(customer=customer).order_by('-call_time')
     appointments = Appointment.objects.filter(customer=customer).order_by('-appointment_date')
     
-    # SỬA LỖI 500: Sử dụng order_date thay vì created_at
     orders = Order.objects.filter(customer=customer).order_by('-order_date')
     
     total_spent = orders.filter(is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
