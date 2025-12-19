@@ -26,10 +26,11 @@ def revenue_dashboard(request):
     consultant_id = request.GET.get('consultant_id')
 
     # Lấy danh sách đơn hàng đã thanh toán trong khoảng thời gian
+    # Thêm select_related để tối ưu truy vấn Telesale
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end],
         is_paid=True
-    )
+    ).select_related('customer__assigned_telesale')
 
     if doctor_id: orders = orders.filter(appointment__assigned_doctor_id=doctor_id)
     if consultant_id: orders = orders.filter(assigned_consultant_id=consultant_id)
@@ -85,6 +86,29 @@ def revenue_dashboard(request):
         sale_data.append(float(item['total']))
         sale_table.append({'name': display_name, 'amount': item['total']})
 
+    # --- MỚI: Doanh thu theo Telesale ---
+    revenue_by_telesale = orders.values(
+        'customer__assigned_telesale__username',
+        'customer__assigned_telesale__first_name',
+        'customer__assigned_telesale__last_name'
+    ).annotate(total=Sum('total_amount')).order_by('-total')
+
+    telesale_revenue_table = []
+    for item in revenue_by_telesale:
+        username = item['customer__assigned_telesale__username']
+        first = item['customer__assigned_telesale__first_name']
+        last = item['customer__assigned_telesale__last_name']
+
+        if not username:
+            display_name = 'Không có Telesale'
+        elif first or last:
+            display_name = f"{last or ''} {first or ''}".strip()
+        else:
+            display_name = username
+        
+        telesale_revenue_table.append({'name': display_name, 'amount': item['total']})
+    # ------------------------------------
+
     # 4. Thống kê Marketing (Khách hàng mới)
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
@@ -124,7 +148,7 @@ def revenue_dashboard(request):
     mkt_age_data = list(age_groups.values())
     age_table = [{'group': k, 'count': v} for k, v in age_groups.items() if v > 0]
 
-    # 5. Telesale
+    # 5. Telesale (Call Stats)
     logs = CallLog.objects.filter(call_time__date__range=[date_start, date_end])
     if consultant_id: logs = logs.filter(caller_id=consultant_id)
 
@@ -152,6 +176,7 @@ def revenue_dashboard(request):
         'total_calls': total_calls,
         'tele_status_labels': tele_status_labels, 'tele_status_data': tele_status_data,
         'revenue_table': revenue_table, 'sale_table': sale_table,
+        'telesale_revenue_table': telesale_revenue_table, # Thêm bảng doanh thu Telesale vào context
         'source_table': source_table, 'skin_table': skin_table,
         'city_table': city_table, 'age_table': age_table,
         'tele_table': tele_table,
