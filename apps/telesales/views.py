@@ -465,7 +465,7 @@ def telesale_report(request):
         booked_unique = Appointment.objects.filter(
             created_at__date__range=[date_start_str, date_end_str], 
             customer__assigned_telesale=sale, # Chỉ lọc theo Sale
-            status='SCHEDULED'
+            status__in=['SCHEDULED', 'ARRIVED', 'IN_CONSULTATION', 'COMPLETED']
         ).values('customer').distinct().count()
 
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
@@ -486,10 +486,10 @@ def telesale_report(request):
     # 1. Lấy tất cả Logs phát sinh trong khoảng thời gian lọc
     period_logs = CallLog.objects.filter(call_time__date__range=[date_start_str, date_end_str])
     
-    # 2. Lấy tất cả Lịch hẹn được tạo ra trong khoảng thời gian lọc (Status = SCHEDULED)
+    # 2. Lấy tất cả Lịch hẹn được tạo ra trong khoảng thời gian lọc
     period_bookings = Appointment.objects.filter(
         created_at__date__range=[date_start_str, date_end_str],
-        status='SCHEDULED'
+        status__in=['SCHEDULED', 'ARRIVED', 'IN_CONSULTATION', 'COMPLETED']
     )
 
     for sale in telesales:
