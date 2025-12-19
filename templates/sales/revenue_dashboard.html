@@ -78,24 +78,28 @@
                     <h6 class="m-0 font-weight-bold text-primary">Biểu Đồ Doanh Thu Theo Ngày</h6>
                 </div>
                 <div class="card-body">
-                    <canvas id="revenueChart" style="height: 300px;"></canvas>
+                    <canvas id="revenueChart" style="height: 350px;"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
-            <!-- DOANH SỐ SALE -->
-            <div class="card border-0 shadow-sm h-100 mb-3">
+            <!-- DOANH SỐ SALE SPA -->
+            <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-success">Doanh Số Theo Sale (Spa)</h6>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 300px;">
+                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
                         <table class="table table-striped mb-0 small">
                             <tbody>
                                 {% for item in sale_table %}
                                 <tr>
                                     <td>{{ item.name }}</td>
                                     <td class="text-end fw-bold">{{ item.amount|intcomma }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-2">Chưa có dữ liệu</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -104,13 +108,13 @@
                 </div>
             </div>
 
-            <!-- MỚI: DOANH SỐ TELESALE -->
-            <div class="card border-0 shadow-sm h-100">
+            <!-- DOANH SỐ TELESALE (Đảm bảo hiển thị) -->
+            <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-info">Doanh Số Theo Telesale</h6>
+                    <h6 class="m-0 font-weight-bold text-danger">Doanh Số Theo Telesale</h6>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 300px;">
+                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
                         <table class="table table-striped mb-0 small">
                             <tbody>
                                 {% for item in telesale_revenue_table %}
@@ -147,7 +151,7 @@
                             <th>Khách hàng</th>
                             <th>Dịch vụ</th>
                             <th>Sale Spa</th>
-                            <!-- CỘT MỚI: Telesale -->
+                            <!-- Cột Telesale -->
                             <th>Telesale</th>
                             <th class="text-end">Tổng tiền</th>
                             <th class="text-center">Thao tác</th>
@@ -176,10 +180,10 @@
                                     -
                                 {% endif %}
                             </td>
-                            <!-- DỮ LIỆU CỘT MỚI: Telesale -->
+                            <!-- Dữ liệu Telesale -->
                             <td>
                                 {% if order.customer.assigned_telesale %}
-                                    <span class="text-info">{{ order.customer.assigned_telesale.last_name }} {{ order.customer.assigned_telesale.first_name }}</span>
+                                    <span class="text-danger fw-bold">{{ order.customer.assigned_telesale.last_name }} {{ order.customer.assigned_telesale.first_name }}</span>
                                 {% else %}
                                     <span class="text-muted small">-</span>
                                 {% endif %}
