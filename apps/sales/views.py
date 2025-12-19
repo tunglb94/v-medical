@@ -40,25 +40,21 @@ def revenue_dashboard(request):
     total_orders = orders.count()
     avg_order_value = round(total_revenue / total_orders) if total_orders > 0 else 0
 
-    # 2. Biểu đồ doanh thu theo ngày (Xử lý bằng Python để tránh lỗi SQLite TruncDate)
+    # 2. Biểu đồ doanh thu theo ngày
     revenue_data = {}
-    # Lấy dữ liệu thô
     raw_orders = orders.values('order_date', 'total_amount')
     
     for item in raw_orders:
         d = item['order_date']
         if d:
-            # Cộng dồn doanh thu cho từng ngày
             revenue_data[d] = revenue_data.get(d, 0) + (item['total_amount'] or 0)
     
-    # Sắp xếp theo ngày tăng dần
     sorted_dates = sorted(revenue_data.keys())
-    
     chart_dates = [d.strftime('%d/%m') for d in sorted_dates]
     chart_revenues = [float(revenue_data[d]) for d in sorted_dates]
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # 3. Doanh thu theo Sale (ĐÃ SỬA: Lấy Full Name)
+    # 3. Doanh thu theo Sale
     revenue_by_sale = orders.values(
         'assigned_consultant__username', 
         'assigned_consultant__first_name', 
@@ -74,7 +70,6 @@ def revenue_dashboard(request):
         first = item['assigned_consultant__first_name']
         last = item['assigned_consultant__last_name']
         
-        # Logic hiển thị tên: Nếu có họ tên thì dùng, nếu không thì dùng username, nếu null thì 'Chưa gán'
         if not username:
             display_name = 'Chưa gán'
         elif first or last:
@@ -86,7 +81,7 @@ def revenue_dashboard(request):
         sale_data.append(float(item['total']))
         sale_table.append({'name': display_name, 'amount': item['total']})
 
-    # --- MỚI: Doanh thu theo Telesale ---
+    # --- Doanh thu theo Telesale ---
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
@@ -107,33 +102,28 @@ def revenue_dashboard(request):
             display_name = username
         
         telesale_revenue_table.append({'name': display_name, 'amount': item['total']})
-    # ------------------------------------
 
-    # 4. Thống kê Marketing (Khách hàng mới)
+    # 4. Thống kê Marketing
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
 
-    # Nguồn khách
     source_stats = new_customers.values('source').annotate(count=Count('id')).order_by('-count')
     source_dict = dict(Customer.Source.choices)
     mkt_source_labels = [source_dict.get(item['source'], item['source']) for item in source_stats]
     mkt_source_data = [item['count'] for item in source_stats]
     source_table = [{'name': source_dict.get(item['source'], item['source']), 'count': item['count']} for item in source_stats]
 
-    # Tình trạng da
     skin_stats = new_customers.values('skin_condition').annotate(count=Count('id')).order_by('-count')
     skin_dict = dict(Customer.SkinIssue.choices)
     mkt_skin_labels = [skin_dict.get(item['skin_condition'], item['skin_condition']) for item in skin_stats]
     mkt_skin_data = [item['count'] for item in skin_stats]
     skin_table = [{'name': skin_dict.get(item['skin_condition'], item['skin_condition']), 'count': item['count']} for item in skin_stats]
 
-    # Khu vực (Top 10)
     city_stats = new_customers.values('city').annotate(count=Count('id')).order_by('-count')[:10]
     mkt_city_labels = [item['city'] or 'Chưa rõ' for item in city_stats]
     mkt_city_data = [item['count'] for item in city_stats]
     city_table = [{'name': item['city'] or 'Chưa rõ', 'count': item['count']} for item in city_stats]
 
-    # Độ tuổi
     age_groups = {'<18': 0, '18-25': 0, '26-35': 0, '36-45': 0, '46+': 0, 'Chưa rõ': 0}
     for cus in new_customers:
         age = cus.age
@@ -148,7 +138,6 @@ def revenue_dashboard(request):
     mkt_age_data = list(age_groups.values())
     age_table = [{'group': k, 'count': v} for k, v in age_groups.items() if v > 0]
 
-    # 5. Telesale (Call Stats)
     logs = CallLog.objects.filter(call_time__date__range=[date_start, date_end])
     if consultant_id: logs = logs.filter(caller_id=consultant_id)
 
@@ -176,7 +165,7 @@ def revenue_dashboard(request):
         'total_calls': total_calls,
         'tele_status_labels': tele_status_labels, 'tele_status_data': tele_status_data,
         'revenue_table': revenue_table, 'sale_table': sale_table,
-        'telesale_revenue_table': telesale_revenue_table, # Thêm bảng doanh thu Telesale vào context
+        'telesale_revenue_table': telesale_revenue_table,
         'source_table': source_table, 'skin_table': skin_table,
         'city_table': city_table, 'age_table': age_table,
         'tele_table': tele_table,
@@ -251,12 +240,21 @@ def admin_dashboard(request):
     elif revenue_current > 0:
         growth_rate = 100
 
-    # --- B. KPI VẬN HÀNH ---
-    appts_total = Appointment.objects.filter(appointment_date__date__range=[date_start, date_end]).count()
+    # --- B. KPI VẬN HÀNH (ĐÃ SỬA: ĐẾM UNIQUE CUSTOMER) ---
+    
+    # Tính tổng số khách ĐẶT HẸN (Không đếm trùng nếu 1 khách hẹn nhiều lần trong kỳ)
+    # Logic: Lấy danh sách khách hàng duy nhất có appointment trong khoảng thời gian này
+    appts_total = Appointment.objects.filter(
+        appointment_date__date__range=[date_start, date_end]
+    ).values('customer').distinct().count()
+
+    # Tính tổng số khách ĐÃ ĐẾN (Được tính là đã check-in: ARRIVED hoặc COMPLETED)
+    # Logic: Lấy danh sách khách hàng duy nhất có appointment trạng thái ARRIVED/COMPLETED trong kỳ
     appts_arrived = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end], 
         status__in=['ARRIVED', 'COMPLETED']
-    ).count()
+    ).values('customer').distinct().count()
+
     arrival_rate = (appts_arrived / appts_total * 100) if appts_total > 0 else 0
 
     calls_total = CallLog.objects.filter(call_time__date__range=[date_start, date_end]).count()
@@ -284,9 +282,14 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- E. TOP NHÂN VIÊN ---
+    # --- E. TOP NHÂN VIÊN (SALE SPA) ---
     top_sales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('assigned_consultant__username', 'assigned_consultant__first_name', 'assigned_consultant__last_name')\
+        .annotate(total=Sum('total_amount')).order_by('-total')[:5]
+
+    # --- F. TOP TELESALE (MỚI THÊM) ---
+    top_telesales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
+        .values('customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
 
     recent_orders = Order.objects.filter(order_date__range=[date_start, date_end]).order_by('-order_date')[:10]
@@ -312,6 +315,7 @@ def admin_dashboard(request):
         
         # Tables
         'top_sales': top_sales,
+        'top_telesales': top_telesales, # Truyền vào context
         'recent_orders': recent_orders,
     }
     return render(request, 'admin_dashboard.html', context)
