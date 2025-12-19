@@ -201,33 +201,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Marketing Stats -->
-    <div class="row">
-        <!-- Nguồn khách -->
-        <div class="col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-warning">Nguồn Khách Hàng (Mới: {{ marketing_total_leads }})</h6>
-                </div>
-                <div class="card-body">
-                     <canvas id="sourceChart" style="height: 250px;"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Telesale -->
-        <div class="col-md-6 mb-4">
-             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-danger">Telesale (Cuộc gọi: {{ total_calls }})</h6>
-                </div>
-                <div class="card-body">
-                     <canvas id="teleChart" style="height: 250px;"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -255,46 +228,6 @@
             scales: {
                 y: { beginAtZero: true }
             }
-        }
-    });
-
-    // 2. Source Chart
-    const ctxSource = document.getElementById('sourceChart').getContext('2d');
-    new Chart(ctxSource, {
-        type: 'doughnut',
-        data: {
-            labels: {{ mkt_source_labels|safe }},
-            datasets: [{
-                data: {{ mkt_source_data|safe }},
-                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
-            }]
-        },
-        options: {
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'right' }
-            }
-        }
-    });
-
-    // 3. Tele Chart
-    const ctxTele = document.getElementById('teleChart').getContext('2d');
-    new Chart(ctxTele, {
-        type: 'bar',
-        data: {
-            labels: {{ tele_status_labels|safe }},
-            datasets: [{
-                label: 'Số lượng',
-                data: {{ tele_status_data|safe }},
-                backgroundColor: '#e74a3b',
-            }]
-        },
-        options: {
-            maintainAspectRatio: false,
-             plugins: {
-                legend: { display: false }
-            },
-            indexAxis: 'y',
         }
     });
 </script>
