@@ -7,14 +7,15 @@ from datetime import date
 class Customer(models.Model):
     # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue
     class SkinIssue(models.TextChoices):
-        # CÁC DỊCH VỤ MỚI ĐƯỢC BỔ SUNG:
+        # --- CÁC DỊCH VỤ MỚI ---
+        THREAD_LIFT = "THREAD_LIFT", "Căng chỉ"  # <--- Đã thêm theo yêu cầu
         PROFHILO = "PROFHILO", "Profhilo" 
         EXOSONE = "EXOSONE", "Exosone"   
         REJURAN = "REJURAN", "Rejuran"   
         KARISMA = "KARISMA", "Karisma"   
         HAIR_TREATMENT = "HAIR_TREATMENT", "Tóc" 
         
-        # CÁC DỊCH VỤ CŨ:
+        # --- CÁC DỊCH VỤ CŨ ---
         ULTHERAPY = "ULTHERAPY", "Ultherapy"
         THERMA = "THERMA", "Therma"
         PRP = "PRP", "PRP"
@@ -34,6 +35,11 @@ class Customer(models.Model):
     
     # --- CẬP NHẬT: THÊM DANH SÁCH FANPAGE ---
     class Fanpage(models.TextChoices):
+        # <--- MỚI THÊM 2 PAGE BÁC SĨ HOÀNG VŨ ---
+        CC_KIM_CUONG_SG_HV = "CC_KIM_CUONG_SG_HV", "Căng chỉ kim cương Sài Gòn - Bác sĩ Hoàng Vũ"
+        ULTRA_DIAMOND_DB_HV = "ULTRA_DIAMOND_DB_HV", "Nâng cơ trẻ hoá Ultra Diamond - Bác sĩ Danh Bảo Hoàng Vũ"
+        
+        # CÁC PAGE CŨ
         BS_QUAN = "BS_QUAN", "Bác sĩ Cao Trần Quân"
         VMEDICAL_CLINIC = "VMEDICAL_CLINIC", "V - Medical Clinic"
         DL_VMEDICAL = "DL_VMEDICAL", "Phòng Khám Da Liễu Thẩm Mỹ V-Medical"
@@ -61,13 +67,10 @@ class Customer(models.Model):
     
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.FACEBOOK, verbose_name="Nguồn khách")
     
-    # --- CẬP NHẬT: THÊM FIELD FANPAGE ---
     fanpage = models.CharField(max_length=50, choices=Fanpage.choices, null=True, blank=True, verbose_name="Fanpage Nguồn")
 
-    # Vẫn dùng SkinIssue để khớp với code cũ
     skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
     
-    # BỔ SUNG: MÃ KHÁCH HÀNG
     customer_code = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Mã khách hàng/ID")
 
     assigned_telesale = models.ForeignKey(
@@ -90,7 +93,7 @@ class Customer(models.Model):
         return None
 
     def update_ranking(self):
-        # Tránh import vòng lặp, dùng string reference hoặc check kỹ apps/sales/models.py
+        # Tránh import vòng lặp nếu cần
         total_spent = self.order_set.filter(is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         if total_spent > 70000000: self.ranking = self.Ranking.DIAMOND
         elif total_spent >= 20000000: self.ranking = self.Ranking.GOLD
