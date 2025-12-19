@@ -460,7 +460,14 @@ def telesale_report(request):
         assigned_count = customers.filter(assigned_telesale=sale).count() 
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
-        booked_unique = Appointment.objects.filter(created_at__date__range=[date_start_str, date_end_str], customer__in=customers, customer__assigned_telesale=sale, status='SCHEDULED').values('customer').distinct().count()
+        
+        # [FIX QUAN TRỌNG]: Đếm tất cả lịch hẹn phát sinh trong kỳ (bao gồm khách cũ)
+        booked_unique = Appointment.objects.filter(
+            created_at__date__range=[date_start_str, date_end_str], 
+            customer__assigned_telesale=sale, # Chỉ lọc theo Sale
+            status='SCHEDULED'
+        ).values('customer').distinct().count()
+
         rate_on_assigned = (booked_unique / assigned_count * 100) if assigned_count > 0 else 0
         if assigned_count > 0 or total_calls > 0 or booked_unique > 0:
             performance_data.append({
