@@ -135,7 +135,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
@@ -152,7 +151,8 @@
                 today: 'Hôm nay', month: 'Tháng', week: 'Tuần', day: 'Ngày', list: 'DS'
             },
             height: '100%',
-            // Dữ liệu events được render trực tiếp từ server (Django context)
+            
+            // [FIX]: Dữ liệu events giờ đây đã là JSON string chuẩn từ views.py
             events: {{ events|safe }},
             
             // Sự kiện click vào lịch

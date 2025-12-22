@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib import messages
+import json # <--- THÊM IMPORT NÀY ĐỂ XỬ LÝ DỮ LIỆU JS
 
 # Import model từ các app khác
 from apps.bookings.models import Appointment
@@ -99,7 +100,7 @@ def calendar_dashboard(request):
 
     context = {
         'customers': customers,
-        'events': events,
+        'events': json.dumps(events), # <--- SỬA QUAN TRỌNG: Dump list thành JSON string
         'reminders_needed': reminders_needed,
         'doctors': User.objects.filter(role='DOCTOR'),
         'search_query': q
