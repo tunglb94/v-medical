@@ -14,8 +14,19 @@ class User(AbstractUser):
         EDITOR = "EDITOR", "Nhân viên Editor"
         DESIGNER = "DESIGNER", "Nhân viên Thiết kế" # <--- MỚI THÊM
 
+    # --- THÊM CLASS TEAM ĐỂ CHIA ĐỘI ---
+    class Team(models.TextChoices):
+        TEAM_A = "TEAM_A", "Team A"
+        TEAM_B = "TEAM_B", "Team B"
+
     role = models.CharField(max_length=50, choices=Role.choices, default=Role.ADMIN, verbose_name="Vai trò")
+    
+    # --- THÊM FIELD TEAM (Null=True vì các vai trò khác không cần team) ---
+    team = models.CharField(max_length=20, choices=Team.choices, null=True, blank=True, verbose_name="Nhóm Telesale")
+    
     phone = models.CharField(max_length=15, blank=True, null=True, verbose_name="Số điện thoại")
 
     def __str__(self):
-        return f"{self.username} - {self.get_role_display()}"
+        # Cập nhật hiển thị: Nếu có team thì hiện thêm tên team phía sau
+        team_str = f" - {self.get_team_display()}" if self.team else ""
+        return f"{self.username} - {self.get_role_display()}{team_str}"

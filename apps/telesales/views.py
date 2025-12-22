@@ -28,6 +28,23 @@ def telesale_dashboard(request):
 
     customers = Customer.objects.select_related('assigned_telesale').all()
 
+    # =========================================================================
+    # --- [NEW LOGIC] PHÂN QUYỀN TEAM (A/B) ---
+    # Logic: Nếu user có Team, chỉ lấy Data của thành viên trong Team + Data chưa gán
+    # =========================================================================
+    if request.user.role == 'TELESALE' and request.user.team:
+        # 1. Lấy danh sách ID các đồng đội (bao gồm cả bản thân)
+        teammate_ids = User.objects.filter(team=request.user.team).values_list('id', flat=True)
+        
+        # 2. Lọc khách hàng: (Phụ trách thuộc Team) HOẶC (Chưa ai phụ trách)
+        customers = customers.filter(
+            Q(assigned_telesale_id__in=teammate_ids) | Q(assigned_telesale__isnull=True)
+        )
+        
+        # 3. Lọc danh sách Sale trong bộ lọc để không hiện người Team khác
+        telesales_list = telesales_list.filter(team=request.user.team)
+    # =========================================================================
+
     # --- A. TÌM KIẾM (SEARCH) ---
     search_query = request.GET.get('q', '')
     if search_query:
@@ -379,6 +396,17 @@ def telesale_report(request):
     
     # 1. Data đầu vào (Input): Dùng để tính mẫu số (%)
     customers = Customer.objects.filter(created_at__date__range=[date_start_str, date_end_str])
+
+    # =========================================================================
+    # --- [NEW LOGIC] PHÂN QUYỀN TEAM CHO REPORT ---
+    # =========================================================================
+    if request.user.role == 'TELESALE' and request.user.team:
+        teammate_ids = User.objects.filter(team=request.user.team).values_list('id', flat=True)
+        # Chỉ báo cáo trên data của Team
+        customers = customers.filter(
+            Q(assigned_telesale_id__in=teammate_ids) | Q(assigned_telesale__isnull=True)
+        )
+    # =========================================================================
     
     # Áp dụng bộ lọc
     if req_city:
@@ -454,6 +482,12 @@ def telesale_report(request):
 
     # --- HIỆU SUẤT TRÊN DATA MỚI ---
     telesales = User.objects.filter(role='TELESALE')
+
+    # --- [FILTER TEAM CHO LIST SALE TRONG REPORT] ---
+    if request.user.role == 'TELESALE' and request.user.team:
+        telesales = telesales.filter(team=request.user.team)
+    # ------------------------------------------------
+
     logs = CallLog.objects.filter(customer__in=customers.values('pk')) # Logs của data mới
     performance_data = []
     for sale in telesales:
@@ -524,6 +558,9 @@ def telesale_report(request):
     # =================================================================================
 
     telesales_list = User.objects.filter(role='TELESALE', is_active=True).order_by('first_name')
+    # Filter dropdown list in report as well
+    if request.user.role == 'TELESALE' and request.user.team:
+        telesales_list = telesales_list.filter(team=request.user.team)
 
     context = {
         'date_start': date_start_str,

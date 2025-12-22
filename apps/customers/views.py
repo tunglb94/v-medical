@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum
 from django.core.paginator import Paginator
+from django.contrib.auth import get_user_model # <--- Thêm import này để lấy thông tin User/Team
 
 from .models import Customer
 from .forms import CustomerForm
@@ -10,6 +11,8 @@ from apps.telesales.models import CallLog
 from apps.bookings.models import Appointment
 from apps.sales.models import Order
 from apps.authentication.decorators import allowed_users
+
+User = get_user_model() # <--- Khởi tạo User model
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']) 
@@ -23,6 +26,20 @@ def customer_list(request):
 
     customers = Customer.objects.all().order_by('-created_at')
     
+    # =========================================================================
+    # --- [NEW LOGIC] PHÂN QUYỀN TEAM CHO DANH SÁCH TỔNG ---
+    # Logic: Telesale chỉ thấy khách của Team mình hoặc khách chưa gán
+    # =========================================================================
+    if request.user.role == 'TELESALE' and request.user.team:
+        # 1. Lấy danh sách ID các thành viên cùng Team
+        teammate_ids = User.objects.filter(team=request.user.team).values_list('id', flat=True)
+        
+        # 2. Filter: (Assigned thuộc Team) HOẶC (Chưa Assigned)
+        customers = customers.filter(
+            Q(assigned_telesale_id__in=teammate_ids) | Q(assigned_telesale__isnull=True)
+        )
+    # =========================================================================
+
     # --- CẬP NHẬT: Thêm tìm kiếm theo Mã khách hàng (customer_code) ---
     if query: 
         customers = customers.filter(
