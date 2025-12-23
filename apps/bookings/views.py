@@ -3,9 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
+import json
 
 from apps.bookings.models import Appointment
 from apps.customers.models import Customer
@@ -28,18 +29,39 @@ def reception_dashboard(request):
     else:
         current_date = today
     
-    # Lấy danh sách lịch hẹn trong ngày để hiển thị ở cột bên trái
+    # --- [CẬP NHẬT] XỬ LÝ BỘ LỌC NÂNG CAO ---
+    filter_code = request.GET.get('filter_code', '').strip()
+    filter_doctor = request.GET.get('filter_doctor')
+    filter_tech = request.GET.get('filter_tech')
+    filter_telesale = request.GET.get('filter_telesale') # <--- Mới thêm
+
+    # Lấy danh sách lịch hẹn trong ngày
+    # select_related 'customer__assigned_telesale' để lấy luôn thông tin Telesale
     appointments = Appointment.objects.filter(
         appointment_date__date=current_date
-    ).select_related('customer').order_by('status', 'appointment_date')
+    ).select_related('customer', 'assigned_doctor', 'assigned_technician', 'customer__assigned_telesale')
+
+    # Áp dụng các bộ lọc
+    if filter_code:
+        appointments = appointments.filter(customer__customer_code__icontains=filter_code)
+    if filter_doctor:
+        appointments = appointments.filter(assigned_doctor_id=filter_doctor)
+    if filter_tech:
+        appointments = appointments.filter(assigned_technician_id=filter_tech)
+    if filter_telesale:
+        # Lọc theo Telesale phụ trách của khách hàng đó
+        appointments = appointments.filter(customer__assigned_telesale_id=filter_telesale)
+
+    appointments = appointments.order_by('status', 'appointment_date')
 
     # Sinh nhật hôm nay (Optional features)
     birthdays_today = Customer.objects.filter(dob__day=today.day, dob__month=today.month)
 
-    # Lấy danh sách nhân sự để điền vào Modal Chốt đơn
+    # Lấy danh sách nhân sự để điền vào Modal Chốt đơn & Bộ lọc
     doctors = User.objects.filter(role='DOCTOR')
     technicians = User.objects.filter(role='TECHNICIAN')
     consultants = User.objects.filter(role='CONSULTANT')
+    telesales = User.objects.filter(role='TELESALE') # <--- Lấy danh sách Telesale
     
     # Lấy danh sách dịch vụ
     services = Service.objects.order_by('name')
@@ -60,9 +82,15 @@ def reception_dashboard(request):
         'doctors': doctors,
         'technicians': technicians,
         'consultants': consultants,
+        'telesales': telesales, # <--- Truyền vào context
         'services': services,
         'search_query': search_query,
         'search_results': search_results,
+        # Giữ lại giá trị filter để hiển thị trên giao diện
+        'filter_code': filter_code,
+        'filter_doctor': filter_doctor,
+        'filter_tech': filter_tech,
+        'filter_telesale': filter_telesale, 
     }
     return render(request, 'bookings/reception_dashboard.html', context)
 
