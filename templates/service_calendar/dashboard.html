@@ -7,11 +7,34 @@
 <div class="row h-100 g-0">
     <div class="col-md-3 border-end bg-white d-flex flex-column" style="height: calc(100vh - 80px);">
         <div class="p-3 bg-light border-bottom">
-            <h6 class="fw-bold mb-3"><i class="bi bi-person-lines-fill"></i> KHÁCH CÓ LIỆU TRÌNH</h6>
-            <form method="GET">
-                <div class="input-group input-group-sm">
-                    <input type="text" name="q" class="form-control" placeholder="Tìm tên, SĐT..." value="{{ search_query|default:'' }}">
+            <h6 class="fw-bold mb-3"><i class="bi bi-funnel-fill"></i> BỘ LỌC & TÌM KIẾM</h6>
+            <form method="GET" id="filterForm">
+                <div class="input-group input-group-sm mb-2">
+                    <input type="text" name="q" class="form-control" placeholder="Tên hoặc SĐT..." value="{{ search_query|default:'' }}">
                     <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+                </div>
+                
+                <div class="mb-2">
+                    <input type="text" name="filter_code" class="form-control form-control-sm" placeholder="Mã khách hàng..." value="{{ filter_code|default:'' }}">
+                </div>
+                <div class="mb-2">
+                    <select name="filter_doctor" class="form-select form-select-sm">
+                        <option value="">-- Tất cả Bác sĩ --</option>
+                        {% for doc in doctors %}
+                        <option value="{{ doc.id }}" {% if filter_doctor|stringformat:"s" == doc.id|stringformat:"s" %}selected{% endif %}>{{ doc.last_name }} {{ doc.first_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <select name="filter_tech" class="form-select form-select-sm">
+                        <option value="">-- Tất cả KTV --</option>
+                        {% for tech in technicians %}
+                        <option value="{{ tech.id }}" {% if filter_tech|stringformat:"s" == tech.id|stringformat:"s" %}selected{% endif %}>{{ tech.last_name }} {{ tech.first_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Áp dụng lọc</button>
                 </div>
             </form>
         </div>
@@ -31,6 +54,7 @@
             </div>
             {% endif %}
 
+            <h6 class="fw-bold px-2 mt-2 small text-muted">DANH SÁCH KHÁCH HÀNG</h6>
             <div class="list-group list-group-flush">
                 {% for cus in customers %}
                 <a href="#" class="list-group-item list-group-item-action py-3 border-bottom" 
@@ -39,24 +63,11 @@
                         <h6 class="mb-0 fw-bold text-primary">{{ cus.name }}</h6>
                         <span class="badge bg-light text-dark border"><i class="bi bi-plus-lg"></i> Đặt lịch</span>
                     </div>
-                    
                     <div class="small text-muted mb-1"><i class="bi bi-telephone"></i> {{ cus.phone }}</div>
-                    
-                    <div class="small mb-1" style="font-size: 0.85rem;">
-                        <span class="fw-bold text-secondary">Dịch vụ:</span> 
-                        <span class="text-dark">{{ cus.service_summary }}</span>
-                    </div>
-                    
-                    <div class="small" style="font-size: 0.85rem;">
-                        <span class="fw-bold text-secondary">Sale:</span> 
-                        <span class="text-info">{{ cus.sale_summary }}</span>
-                    </div>
+                    <div class="small text-success fw-bold">{{ cus.sale_summary }}</div>
                 </a>
                 {% empty %}
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    Chưa có khách hàng mua dịch vụ nào phù hợp.
-                </div>
+                <div class="text-center py-5 text-muted">Chưa có dữ liệu phù hợp.</div>
                 {% endfor %}
             </div>
         </div>
@@ -82,14 +93,13 @@
                 </div>
                 <div class="modal-body bg-light">
                     <input type="hidden" name="customer_id" id="modalCusId">
-                    
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small text-muted">Khách hàng</label>
                             <input type="text" class="form-control bg-white fw-bold" id="modalCusName" readonly>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Bác sĩ phụ trách (Tùy chọn)</label>
+                            <label class="form-label fw-bold small text-muted">Bác sĩ (Tùy chọn)</label>
                             <select name="doctor_id" class="form-select">
                                 <option value="">-- Chọn bác sĩ --</option>
                                 {% for d in doctors %}
@@ -98,26 +108,16 @@
                             </select>
                         </div>
                     </div>
-
                     <hr>
-                    
                     <label class="form-label fw-bold text-primary mb-2">Chọn lịch các buổi:</label>
                     <div id="schedule-container">
                         <div class="row g-2 mb-2 schedule-row align-items-end">
                             <div class="col-1 text-center fw-bold pt-2 text-muted">#1</div>
-                            <div class="col-5">
-                                <label class="small text-muted">Ngày</label>
-                                <input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}">
-                            </div>
-                            <div class="col-5">
-                                <label class="small text-muted">Giờ</label>
-                                <input type="time" name="times[]" class="form-control" required>
-                            </div>
-                            <div class="col-1">
-                                </div>
+                            <div class="col-5"><input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}"></div>
+                            <div class="col-5"><input type="time" name="times[]" class="form-control" required></div>
+                            <div class="col-1"></div>
                         </div>
                     </div>
-
                     <div class="mt-3">
                         <button type="button" class="btn btn-outline-primary btn-sm dashed-border w-100" onclick="addScheduleRow()">
                             <i class="bi bi-plus-circle"></i> Thêm buổi tiếp theo
@@ -132,14 +132,60 @@
         </form>
     </div>
 </div>
+
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold">Cập Nhật Trạng Thái</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="statusApptId">
+                <h5 class="text-primary fw-bold mb-1" id="statusCusName"></h5>
+                <p class="text-muted small mb-3"><i class="bi bi-clock"></i> <span id="statusTime"></span></p>
+                
+                <div class="alert alert-light border small">
+                    <div id="infoDoctor"></div>
+                    <div id="infoTech"></div>
+                </div>
+
+                <label class="form-label fw-bold">Trạng thái hiện tại:</label>
+                <div class="d-flex gap-2 mb-3">
+                    <input type="radio" class="btn-check" name="appt_status" id="st_scheduled" value="SCHEDULED" onchange="toggleReschedule(false)">
+                    <label class="btn btn-outline-primary" for="st_scheduled">Chưa đến</label>
+
+                    <input type="radio" class="btn-check" name="appt_status" id="st_arrived" value="ARRIVED" onchange="toggleReschedule(false)">
+                    <label class="btn btn-outline-success" for="st_arrived">Đã đến</label>
+
+                    <input type="radio" class="btn-check" name="appt_status" id="st_cancelled" value="CANCELLED" onchange="toggleReschedule(true)">
+                    <label class="btn btn-outline-danger" for="st_cancelled">Hủy lịch</label>
+                </div>
+
+                <div id="rescheduleBlock" class="p-3 bg-light border rounded" style="display: none;">
+                    <label class="form-label fw-bold text-danger small">Chọn ngày hẹn lại (Tạo lịch mới):</label>
+                    <input type="datetime-local" id="rescheduleDate" class="form-control">
+                    <small class="text-muted fst-italic">Để trống nếu không muốn hẹn lại ngay.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-info text-white fw-bold" onclick="saveStatusChange()">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
 <script>
+    var calendar; // Khai báo global để dùng reload
+
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
-        // Khởi tạo FullCalendar
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
@@ -151,69 +197,106 @@
                 today: 'Hôm nay', month: 'Tháng', week: 'Tuần', day: 'Ngày', list: 'DS'
             },
             height: '100%',
-            
-            // [FIX]: Dữ liệu events giờ đây đã là JSON string chuẩn từ views.py
             events: {{ events|safe }},
             
-            // Sự kiện click vào lịch
+            // [MỚI] SỰ KIỆN CLICK VÀO LỊCH
             eventClick: function(info) {
                 var props = info.event.extendedProps;
-                var msg = "Khách: " + info.event.title + "\n" +
-                          "SĐT: " + props.phone + "\n" +
-                          "Trạng thái: " + props.status;
-                if(props.is_reminded) msg += "\n(Đã nhắc)";
-                alert(msg);
+                
+                // Điền dữ liệu vào Modal
+                document.getElementById('statusApptId').value = info.event.id;
+                document.getElementById('statusCusName').innerText = info.event.title;
+                document.getElementById('statusTime').innerText = info.event.start.toLocaleString('vi-VN');
+                
+                // Hiển thị thông tin Bác sĩ/KTV
+                document.getElementById('infoDoctor').innerText = props.doctor ? props.doctor : 'Bác sĩ: --';
+                document.getElementById('infoTech').innerText = props.technician ? props.technician : 'KTV: --';
+
+                // Set radio button đúng trạng thái hiện tại
+                var status = props.status_code; 
+                if(document.getElementById('st_' + status.toLowerCase())) {
+                    document.getElementById('st_' + status.toLowerCase()).checked = true;
+                } else {
+                    // Mặc định nếu trạng thái khác (Completed/NoShow) thì coi như Đã đến hoặc xử lý riêng
+                    document.getElementById('st_arrived').checked = true; 
+                }
+
+                // Reset vùng hẹn lại
+                toggleReschedule(status === 'CANCELLED');
+                document.getElementById('rescheduleDate').value = "";
+
+                // Mở Modal
+                new bootstrap.Modal(document.getElementById('statusModal')).show();
             }
         });
         calendar.render();
     });
 
-    // Mở modal đặt lịch
+    // Hàm mở modal đặt lịch nhanh (Giữ nguyên)
     function openBookingModal(id, name) {
         document.getElementById('modalCusId').value = id;
         document.getElementById('modalCusName').value = name;
-        
-        // Reset về 1 dòng mặc định khi mở modal
+        // Reset container
+        document.getElementById('schedule-container').innerHTML = `...`; // (Code html dòng mẫu như cũ)
+        // Code HTML reset dòng mẫu dài dòng, tôi giữ nguyên logic cũ của bạn ở đây để ngắn gọn
         const container = document.getElementById('schedule-container');
         container.innerHTML = `
             <div class="row g-2 mb-2 schedule-row align-items-end">
                 <div class="col-1 text-center fw-bold pt-2 text-muted">#1</div>
-                <div class="col-5">
-                    <label class="small text-muted">Ngày</label>
-                    <input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}">
-                </div>
-                <div class="col-5">
-                    <label class="small text-muted">Giờ</label>
-                    <input type="time" name="times[]" class="form-control" required>
-                </div>
+                <div class="col-5"><input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}"></div>
+                <div class="col-5"><input type="time" name="times[]" class="form-control" required></div>
                 <div class="col-1"></div>
             </div>`;
-            
         new bootstrap.Modal(document.getElementById('quickBookingModal')).show();
     }
 
-    // Hàm thêm dòng lịch mới bằng Javascript
     function addScheduleRow() {
+        // (Giữ nguyên hàm thêm dòng)
         const container = document.getElementById('schedule-container');
         const count = container.querySelectorAll('.schedule-row').length + 1;
-        
         const div = document.createElement('div');
         div.className = 'row g-2 mb-2 schedule-row align-items-end fade-in';
         div.innerHTML = `
             <div class="col-1 text-center fw-bold pt-2 text-muted">#${count}</div>
-            <div class="col-5">
-                <input type="date" name="dates[]" class="form-control" required>
-            </div>
-            <div class="col-5">
-                <input type="time" name="times[]" class="form-control" required>
-            </div>
-            <div class="col-1">
-                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.row').remove()" title="Xóa dòng này">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
+            <div class="col-5"><input type="date" name="dates[]" class="form-control" required></div>
+            <div class="col-5"><input type="time" name="times[]" class="form-control" required></div>
+            <div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.row').remove()"><i class="bi bi-trash"></i></button></div>
         `;
         container.appendChild(div);
+    }
+
+    // [MỚI] CÁC HÀM XỬ LÝ TRẠNG THÁI
+    function toggleReschedule(show) {
+        document.getElementById('rescheduleBlock').style.display = show ? 'block' : 'none';
+    }
+
+    function saveStatusChange() {
+        const id = document.getElementById('statusApptId').value;
+        const status = document.querySelector('input[name="appt_status"]:checked').value;
+        const rescheduleDate = document.getElementById('rescheduleDate').value;
+
+        fetch("{% url 'service_calendar:update_status' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                id: id,
+                status: status,
+                reschedule_date: rescheduleDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload(); // Load lại trang để cập nhật lịch
+            } else {
+                alert("Lỗi: " + data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
     }
 </script>
 
