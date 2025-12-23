@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib import messages
-import json 
+import json # <--- Quan trọng: Import thư viện xử lý JSON
 
 # Import model từ các app khác
 from apps.bookings.models import Appointment
@@ -53,13 +53,18 @@ def calendar_dashboard(request):
         
         customers.append(cus)
 
-    # 2. CỘT PHẢI: Lấy dữ liệu lịch
-    # [CẬP NHẬT]: Chỉ lấy lịch Liệu trình (do Lễ tân/Admin/Bác sĩ nhập), LOẠI BỎ lịch do Telesale đặt
-    appointments = Appointment.objects.exclude(status='CANCELLED') \
-                                      .exclude(created_by__role='TELESALE') \
-                                      .select_related('customer', 'reminder_log')
+    # 2. CỘT PHẢI: Lấy dữ liệu lịch (ĐÃ SỬA LOGIC)
+    # Điều kiện 1: Khách hàng phải là người đã mua dịch vụ (có order đã thanh toán)
+    # Điều kiện 2: Lịch KHÔNG phải do Telesale tạo (chỉ lấy lịch do Lễ tân/Bác sĩ/Admin tạo)
+    appointments = Appointment.objects.filter(
+        customer__order__is_paid=True
+    ).exclude(
+        status='CANCELLED'
+    ).exclude(
+        created_by__role='TELESALE'  # <--- Loại bỏ lịch của Telesale
+    ).distinct().select_related('customer', 'reminder_log')
     
-    events = []
+    events_list = []
     for appt in appointments:
         # Màu sắc: Xanh lá (Đã đến), Xám (Xong), Xanh dương (Chờ), Vàng (Cần nhắc)
         color = '#4e73df' # Mặc định: Scheduled
@@ -79,7 +84,7 @@ def calendar_dashboard(request):
         # Tiêu đề hiển thị trên lịch
         title = f"{appt.customer.name}"
         
-        events.append({
+        events_list.append({
             'id': appt.id,
             'title': title,
             'start': appt.appointment_date.isoformat(),
@@ -94,9 +99,10 @@ def calendar_dashboard(request):
     # 3. DANH SÁCH CẦN NHẮC (Cho ngày mai) - Cũng áp dụng logic loại bỏ Telesale
     reminders_needed = []
     tomorrow_appts = Appointment.objects.filter(
+        customer__order__is_paid=True, # Chỉ nhắc khách đã mua liệu trình
         appointment_date__date=tomorrow, 
         status='SCHEDULED'
-    ).exclude(created_by__role='TELESALE') # <--- Thêm điều kiện này
+    ).exclude(created_by__role='TELESALE') # Không nhắc lịch của Telesale ở đây
 
     for appt in tomorrow_appts:
         if not hasattr(appt, 'reminder_log') or not appt.reminder_log.is_reminded:
@@ -104,7 +110,7 @@ def calendar_dashboard(request):
 
     context = {
         'customers': customers,
-        'events': json.dumps(events), 
+        'events': json.dumps(events_list), # Chuyển đổi list Python sang chuỗi JSON chuẩn
         'reminders_needed': reminders_needed,
         'doctors': User.objects.filter(role='DOCTOR'),
         'search_query': q
