@@ -212,14 +212,14 @@ def add_walkin_appointment(request):
     return redirect('reception_home')
 
 
-# --- 6. CHỐT CA / KẾT THÚC DỊCH VỤ ---
+# --- 6. CHỐT CA / KẾT THÚC DỊCH VỤ (CẬP NHẬT: HỖ TRỢ NHIỀU DỊCH VỤ) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN'])
 def finish_appointment(request):
     """
     Xử lý khi kết thúc dịch vụ:
     1. Cập nhật nhân sự (Bác sĩ, KTV, Sale).
-    2. Nếu khách mua: Tạo Order -> Doanh thu.
+    2. Nếu khách mua: Lặp qua danh sách dịch vụ để tạo nhiều Order.
     3. Nếu khách từ chối: Tạo CallLog (ghi chú lý do).
     4. Chuyển trạng thái lịch hẹn -> COMPLETED.
     """
@@ -248,47 +248,52 @@ def finish_appointment(request):
             appt.save()
 
             if result_status == 'buy':
-                # --- TRƯỜNG HỢP: KHÁCH MUA ---
-                service_id = request.POST.get('service_id')
-                original_price = request.POST.get('original_price') or 0
-                actual_revenue = request.POST.get('actual_revenue')
-                total_amount = request.POST.get('total_amount')
+                # --- [SỬA ĐỔI]: XỬ LÝ NHIỀU DỊCH VỤ ---
+                # Lấy danh sách các giá trị từ form (dạng list)
+                service_ids = request.POST.getlist('service_ids')     # List ID dịch vụ
+                prices = request.POST.getlist('original_prices')      # List giá gốc
+                discounts = request.POST.getlist('discounts')         # List giảm giá
+                finals = request.POST.getlist('final_amounts')        # List thành tiền
                 
-                # Validation cơ bản
-                if not total_amount:
-                    messages.error(request, "Vui lòng nhập số tiền Tổng đơn hàng!")
-                    return redirect('reception_home')
-                
-                if not actual_revenue:
-                    actual_revenue = total_amount
-                
-                service_obj = None
-                service_name = "Dịch vụ khác"
-                if service_id:
-                    service_obj = Service.objects.get(id=service_id)
-                    service_name = service_obj.name
+                total_revenue_all = 0
+                service_names = []
 
-                # Tạo Đơn hàng (Order)
-                Order.objects.create(
-                    customer=appt.customer,
-                    appointment=appt,
-                    assigned_consultant_id=consultant_id, # Tính doanh thu cho Sale này
-                    service=service_obj,
-                    original_price=original_price, 
-                    actual_revenue=actual_revenue,
-                    total_amount=total_amount,
-                    is_paid=True, # Đã thanh toán ngay
-                    note=f"Chốt đơn tại quầy ngày {timezone.now().date()}"
-                )
+                # Duyệt qua từng dòng dịch vụ để tạo Order
+                for i in range(len(service_ids)):
+                    if not service_ids[i]: continue # Bỏ qua nếu dòng rỗng
+                    
+                    s_id = service_ids[i]
+                    price = float(prices[i] if prices[i] else 0)
+                    final = float(finals[i] if finals[i] else 0)
+                    
+                    # Cộng dồn tổng doanh thu thực tế của cả buổi
+                    total_revenue_all += final
+                    
+                    service_obj = Service.objects.get(id=s_id)
+                    service_names.append(service_obj.name)
+
+                    # Tạo Đơn hàng (Order) cho từng dịch vụ
+                    Order.objects.create(
+                        customer=appt.customer,
+                        appointment=appt,
+                        assigned_consultant_id=consultant_id, # Tính doanh thu cho Sale này
+                        service=service_obj,
+                        original_price=price, 
+                        actual_revenue=final, # Doanh thu thực tế của món này
+                        total_amount=final,   # Tổng tiền khách trả cho món này
+                        is_paid=True, # Đã thanh toán ngay
+                        note=f"Chốt đơn gộp ngày {timezone.now().date()}"
+                    )
                 
-                # Ghi Log vào lịch sử chăm sóc
+                # Ghi Log tổng hợp vào lịch sử chăm sóc
+                list_sv_str = ", ".join(service_names)
                 CallLog.objects.create(
                     customer=appt.customer, caller=request.user, status='BOOKED',
-                    note=f"Đã mua: {service_name}. Tổng: {total_amount}. Thực thu: {actual_revenue}"
+                    note=f"Đã mua combo: {list_sv_str}. Tổng thu: {total_revenue_all:,.0f}"
                 )
-                messages.success(request, f"✅ Đã chốt đơn thành công: {service_name}")
+                messages.success(request, f"✅ Đã chốt {len(service_names)} dịch vụ. Tổng: {total_revenue_all:,.0f}")
             else:
-                # --- TRƯỜNG HỢP: KHÁCH TỪ CHỐI ---
+                # --- TRƯỜNG HỢP: KHÁCH TỪ CHỐI (Giữ nguyên) ---
                 reason = request.POST.get('rejection_reason') or "Không mua"
                 CallLog.objects.create(
                     customer=appt.customer, caller=request.user, status='NOT_INTERESTED',
