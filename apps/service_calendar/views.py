@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib import messages
-import json # <--- THÊM IMPORT NÀY ĐỂ XỬ LÝ DỮ LIỆU JS
+import json 
 
 # Import model từ các app khác
 from apps.bookings.models import Appointment
@@ -54,7 +54,10 @@ def calendar_dashboard(request):
         customers.append(cus)
 
     # 2. CỘT PHẢI: Lấy dữ liệu lịch
-    appointments = Appointment.objects.exclude(status='CANCELLED').select_related('customer', 'reminder_log')
+    # [CẬP NHẬT]: Chỉ lấy lịch Liệu trình (do Lễ tân/Admin/Bác sĩ nhập), LOẠI BỎ lịch do Telesale đặt
+    appointments = Appointment.objects.exclude(status='CANCELLED') \
+                                      .exclude(created_by__role='TELESALE') \
+                                      .select_related('customer', 'reminder_log')
     
     events = []
     for appt in appointments:
@@ -88,19 +91,20 @@ def calendar_dashboard(request):
             }
         })
 
-    # 3. DANH SÁCH CẦN NHẮC (Cho ngày mai)
+    # 3. DANH SÁCH CẦN NHẮC (Cho ngày mai) - Cũng áp dụng logic loại bỏ Telesale
     reminders_needed = []
     tomorrow_appts = Appointment.objects.filter(
         appointment_date__date=tomorrow, 
         status='SCHEDULED'
-    )
+    ).exclude(created_by__role='TELESALE') # <--- Thêm điều kiện này
+
     for appt in tomorrow_appts:
         if not hasattr(appt, 'reminder_log') or not appt.reminder_log.is_reminded:
             reminders_needed.append(appt)
 
     context = {
         'customers': customers,
-        'events': json.dumps(events), # <--- SỬA QUAN TRỌNG: Dump list thành JSON string
+        'events': json.dumps(events), 
         'reminders_needed': reminders_needed,
         'doctors': User.objects.filter(role='DOCTOR'),
         'search_query': q
