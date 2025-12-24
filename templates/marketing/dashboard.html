@@ -9,11 +9,18 @@
     <h4 class="fw-bold text-dark mb-0">MARKETING CENTER</h4>
     
     <div class="d-flex gap-2 flex-wrap justify-content-end">
-        <form method="GET" class="d-flex gap-2 bg-white p-1 rounded border shadow-sm flex-wrap">
+        <form method="GET" class="d-flex gap-2 bg-white p-1 rounded border shadow-sm flex-wrap align-items-center">
             <input type="date" name="date_start" class="form-control border-0 form-control-sm" style="width: 110px;" value="{{ date_start }}">
             <span class="align-self-center text-muted">-</span>
             <input type="date" name="date_end" class="form-control border-0 form-control-sm" style="width: 110px;" value="{{ date_end }}">
             
+            <select name="platform" class="form-select border-start form-select-sm" style="width: 130px;">
+                <option value="">-- Nguồn --</option>
+                {% for code, label in platform_choices %}
+                <option value="{{ code }}" {% if platform_query == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+
             <input type="text" name="marketer" class="form-control border-start form-control-sm" placeholder="Tìm người chạy..." value="{{ marketer_query }}" style="width: 120px;">
             <input type="text" name="service" class="form-control border-start form-control-sm" placeholder="Tìm dịch vụ..." value="{{ service_query }}" style="width: 120px;">
             
@@ -39,6 +46,9 @@
                     {{ form.report_date }}
                 </div>
                 <div class="col-md-2">
+                    <label class="small fw-bold text-primary">Nền tảng (Source)</label>
+                    {{ form.platform }} </div>
+                <div class="col-md-2">
                     <label class="small fw-bold text-muted">Người chạy Ads</label>
                     {{ form.marketer }}
                 </div>
@@ -51,14 +61,28 @@
                     {{ form.spend_amount }}
                 </div>
                 
+                <div class="col-12"><hr class="my-1 text-muted opacity-25"></div>
                 <div class="col-md-2">
-                    <label class="small fw-bold text-muted">Comment</label>
+                    <label class="small fw-bold text-muted">Hiển thị (Impr)</label>
+                    {{ form.impressions }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Lượt Click</label>
+                    {{ form.clicks }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Xem Video (View)</label>
+                    {{ form.views }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Bình luận</label>
                     {{ form.comments }}
                 </div>
                 <div class="col-md-2">
-                    <label class="small fw-bold text-muted">Inbox</label>
+                    <label class="small fw-bold text-muted">Tin nhắn (Inbox)</label>
                     {{ form.inboxes }}
                 </div>
+
                 <div class="col-md-2">
                     <label class="small fw-bold text-primary">Leads (SĐT)</label>
                     {{ form.leads }}
@@ -68,44 +92,50 @@
                     {{ form.appointments }}
                 </div>
                 
-                <div class="col-md-4 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-success fw-bold w-100" id="btnSave">LƯU BÁO CÁO</button>
+                <div class="col-md-8 d-flex align-items-end justify-content-end gap-2">
                     <button type="button" class="btn btn-secondary" data-bs-toggle="collapse" data-bs-target="#inputForm">Đóng</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4" id="btnSave">LƯU BÁO CÁO</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="row g-2 mb-4">
     <div class="col-md-2">
-        <div class="card card-box h-100 border-start border-4 border-primary p-3">
+        <div class="card card-box h-100 border-start border-4 border-primary p-2 ps-3">
             <div class="text-muted small fw-bold mb-1">CHI TIÊU</div>
             <h5 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted">đ</span></h5>
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card card-box h-100 border-start border-4 border-warning p-3">
+        <div class="card card-box h-100 border-start border-4 border-warning p-2 ps-3">
             <div class="text-muted small fw-bold mb-1">TỔNG LEADS</div>
             <h5 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }}</h5>
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card card-box h-100 border-start border-4 border-danger p-3">
+        <div class="card card-box h-100 border-start border-4 border-danger p-2 ps-3">
             <div class="text-muted small fw-bold mb-1">GIÁ SỐ (CPL)</div>
             <h5 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }}</h5>
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card card-box h-100 border-start border-4 border-success p-3">
-            <div class="text-muted small fw-bold mb-1">LỊCH HẸN</div>
-            <h5 class="fw-bold text-success mb-0">{{ totals.sum_appts }}</h5>
+        <div class="card card-box h-100 border-start border-4 border-info p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">GIÁ CLICK (CPC)</div>
+            <h5 class="fw-bold text-info mb-0">{{ avg_cpc|floatformat:0|intcomma }}</h5>
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card card-box h-100 border-start border-4 border-info p-3">
-            <div class="text-muted small fw-bold mb-1">GIÁ HẸN (CPA)</div>
-            <h5 class="fw-bold text-info mb-0">{{ avg_cpa|floatformat:0|intcomma }}</h5>
+        <div class="card card-box h-100 border-start border-4 border-secondary p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">CTR TB</div>
+            <h5 class="fw-bold text-secondary mb-0">{{ avg_ctr|floatformat:2 }}%</h5>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-success p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">LỊCH HẸN</div>
+            <h5 class="fw-bold text-success mb-0">{{ totals.sum_appts }}</h5>
         </div>
     </div>
 </div>
@@ -116,46 +146,66 @@
     </div>
 </div>
 
-<div class="card card-box">
+<div class="card card-box shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 small text-center">
+        <table class="table table-hover align-middle mb-0 small text-center table-bordered border-light">
             <thead class="bg-light text-secondary">
                 <tr>
-                    <th class="py-3 text-start ps-4">Ngày</th>
-                    <th class="text-start">Người chạy</th>
-                    <th class="text-start">Dịch vụ</th>
+                    <th class="py-3 text-start ps-3">Ngày</th>
+                    <th class="text-start">Nguồn</th> <th class="text-start" style="min-width: 150px;">Chiến dịch / Dịch vụ</th>
                     <th class="text-end">Ngân sách</th>
-                    <th>Tương tác</th>
+                    
+                    <th class="bg-light-info">Hiển thị</th>
+                    <th class="bg-light-info">Click</th>
+                    <th class="bg-light-info">CTR</th>
+                    <th class="bg-light-info text-end">CPC</th>
+                    
                     <th>Leads</th>
-                    <th class="text-end">CPL</th>
+                    <th class="text-end text-danger">CPL</th>
                     <th>Hẹn</th>
-                    <th>Chốt %</th>
                     <th>#</th>
                 </tr>
             </thead>
             <tbody>
                 {% for stat in stats %}
                 <tr>
-                    <td class="text-start ps-4 fw-bold">{{ stat.report_date|date:"d/m" }}</td>
-                    <td class="text-start fw-bold text-primary">{{ stat.marketer|default:"--" }}</td>
+                    <td class="text-start ps-3 fw-bold text-nowrap">{{ stat.report_date|date:"d/m" }}</td>
+                    
+                    <td class="text-start">
+                        {% if stat.platform == 'FACEBOOK' %}<span class="badge bg-primary">FB Ads</span>
+                        {% elif stat.platform == 'GOOGLE' %}<span class="badge bg-danger">Google</span>
+                        {% elif stat.platform == 'TIKTOK' %}<span class="badge bg-dark">Tiktok</span>
+                        {% elif stat.platform == 'ZALO' %}<span class="badge bg-info text-dark">Zalo</span>
+                        {% else %}<span class="badge bg-secondary">{{ stat.get_platform_display }}</span>{% endif %}
+                        <div class="text-muted fst-italic" style="font-size: 0.75rem;">{{ stat.marketer }}</div>
+                    </td>
+
                     <td class="text-start text-muted">{{ stat.service|default:"--" }}</td>
                     <td class="text-end fw-bold">{{ stat.spend_amount|intcomma }}</td>
-                    <td>{{ stat.total_interactions }}</td>
+                    
+                    <td class="text-muted">{{ stat.impressions|intcomma }}</td>
+                    <td class="text-muted">{{ stat.clicks|intcomma }}</td>
+                    <td class="fw-bold text-primary">{{ stat.ctr|floatformat:2 }}%</td>
+                    <td class="text-end text-muted">{{ stat.cpc|floatformat:0|intcomma }}</td>
+
                     <td class="fw-bold fs-6">{{ stat.leads }}</td>
                     <td class="text-end text-danger fw-bold">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
                     <td class="fw-bold text-success">{{ stat.appointments }}</td>
-                    <td>
-                        {% if stat.conversion_rate_appt >= 30 %}<span class="text-success fw-bold">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>
-                        {% else %}<span class="text-muted">{{ stat.conversion_rate_appt|floatformat:0 }}%</span>{% endif %}
-                    </td>
+                    
                     <td>
                         <button class="btn btn-sm btn-light text-warning border" 
                                 onclick="editReport(this)"
                                 data-id="{{ stat.id }}"
                                 data-date="{{ stat.report_date|date:'Y-m-d' }}"
+                                data-platform="{{ stat.platform }}" 
                                 data-marketer="{{ stat.marketer|default:'' }}"
                                 data-service="{{ stat.service|default:'' }}"
                                 data-spend="{{ stat.spend_amount|stringformat:'d' }}"
+                                
+                                data-impr="{{ stat.impressions }}"
+                                data-clicks="{{ stat.clicks }}"
+                                data-views="{{ stat.views }}"
+                                
                                 data-comments="{{ stat.comments }}" 
                                 data-inboxes="{{ stat.inboxes }}"
                                 data-leads="{{ stat.leads }}" 
@@ -170,7 +220,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="10" class="py-5 text-muted">Chưa có dữ liệu báo cáo.</td></tr>
+                <tr><td colspan="12" class="py-5 text-muted">Chưa có dữ liệu báo cáo nào.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -196,6 +246,7 @@
                 },
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'bottom' } },
                     scales: { 
                         y: { beginAtZero: true, title: {display: true, text: 'Số Leads'} },
                         y1: { position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Chi phí CPL'} }
@@ -207,10 +258,10 @@
 
     function openForm() {
         document.getElementById('marketingForm').reset();
-        document.getElementById('statId').value = ''; // Xóa ID để thành Thêm mới
+        document.getElementById('statId').value = ''; 
         document.getElementById('formTitle').innerText = "NHẬP SỐ LIỆU MỚI";
         document.getElementById('btnSave').innerText = "LƯU BÁO CÁO";
-        document.getElementById('btnSave').className = "btn btn-success fw-bold w-100";
+        document.getElementById('btnSave').className = "btn btn-success fw-bold px-4";
         
         new bootstrap.Collapse(document.getElementById('inputForm'), { show: true });
         document.getElementById('inputForm').scrollIntoView({ behavior: 'smooth' });
@@ -220,6 +271,13 @@
         // Điền dữ liệu cũ vào form
         document.getElementById('statId').value = button.getAttribute('data-id');
         document.querySelector('[name="report_date"]').value = button.getAttribute('data-date');
+        
+        // Load thêm Platform & Metrics mới
+        document.querySelector('[name="platform"]').value = button.getAttribute('data-platform');
+        document.querySelector('[name="impressions"]').value = button.getAttribute('data-impr');
+        document.querySelector('[name="clicks"]').value = button.getAttribute('data-clicks');
+        document.querySelector('[name="views"]').value = button.getAttribute('data-views');
+
         document.querySelector('[name="marketer"]').value = button.getAttribute('data-marketer');
         document.querySelector('[name="service"]').value = button.getAttribute('data-service');
         document.querySelector('[name="spend_amount"]').value = button.getAttribute('data-spend');
@@ -232,7 +290,7 @@
         document.getElementById('formTitle').innerText = "CẬP NHẬT SỐ LIỆU";
         var btn = document.getElementById('btnSave');
         btn.innerText = "CẬP NHẬT";
-        btn.className = "btn btn-warning fw-bold w-100";
+        btn.className = "btn btn-warning fw-bold px-4";
 
         new bootstrap.Collapse(document.getElementById('inputForm'), { show: true });
         document.getElementById('inputForm').scrollIntoView({ behavior: 'smooth' });

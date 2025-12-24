@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 import json
 
-from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback # <--- Import thêm TaskFeedback
+from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
 from apps.sales.models import Service
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -24,6 +24,9 @@ def marketing_dashboard(request):
     date_end = request.GET.get('date_end', str(today))
     marketer_query = request.GET.get('marketer', '')
     service_query = request.GET.get('service', '')
+    
+    # --- THÊM BIẾN LỌC THEO PLATFORM ---
+    platform_query = request.GET.get('platform', '') 
     
     # Xử lý Form thêm/sửa báo cáo
     if request.method == 'POST':
@@ -46,15 +49,24 @@ def marketing_dashboard(request):
     if service_query:
         stats = stats.filter(service__icontains=service_query)
         
-    stats = stats.order_by('-report_date', 'marketer')
+    # --- ÁP DỤNG LỌC PLATFORM ---
+    if platform_query:
+        stats = stats.filter(platform=platform_query)
+        
+    # Sắp xếp theo ngày và platform
+    stats = stats.order_by('-report_date', 'platform', 'marketer')
     
-    # Tính tổng KPI
+    # Tính tổng KPI (Cập nhật thêm fields mới)
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
         sum_appts=Sum('appointments'), 
         sum_comments=Sum('comments'), 
-        sum_inboxes=Sum('inboxes')
+        sum_inboxes=Sum('inboxes'),
+        # --- Tổng mới ---
+        sum_impressions=Sum('impressions'),
+        sum_clicks=Sum('clicks'),
+        sum_views=Sum('views')
     )
     
     for key in totals:
@@ -63,10 +75,16 @@ def marketing_dashboard(request):
     total_spend = totals['sum_spend']
     total_leads = totals['sum_leads']
     total_appts = totals['sum_appts']
+    total_clicks = totals['sum_clicks']
+    total_impr = totals['sum_impressions']
     
+    # --- TÍNH CÁC CHỈ SỐ TRUNG BÌNH ---
     avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
+    avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
+    avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
+    # Chart Data
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -81,13 +99,19 @@ def marketing_dashboard(request):
         chart_dates.append(item['report_date'].strftime('%d/%m'))
         chart_leads.append(d_leads)
         chart_cpl.append(float(d_cpl))
+    
+    # Lấy danh sách Platform để hiển thị dropdown lọc
+    platform_choices = DailyCampaignStat.Platform.choices
 
     context = {
         'stats': stats, 'form': form, 'totals': totals,
         'avg_cpl': avg_cpl, 'avg_cpa': avg_cpa,
+        'avg_cpc': avg_cpc, 'avg_ctr': avg_ctr, # Truyền thêm xuống template
         'chart_dates': chart_dates, 'chart_cpl': chart_cpl, 'chart_leads': chart_leads,
         'date_start': date_start, 'date_end': date_end,
-        'marketer_query': marketer_query, 'service_query': service_query
+        'marketer_query': marketer_query, 'service_query': service_query,
+        'platform_query': platform_query, # Giữ trạng thái lọc
+        'platform_choices': platform_choices # Danh sách options lọc
     }
     return render(request, 'marketing/dashboard.html', context)
 

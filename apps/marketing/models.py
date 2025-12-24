@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from apps.sales.models import Service
 
-# 1. QUẢN LÝ CÔNG VIỆC & CONTENT (Cập nhật đầy đủ trường nhân sự & link)
+# 1. QUẢN LÝ CÔNG VIỆC & CONTENT
 class MarketingTask(models.Model):
     class Status(models.TextChoices):
         PLANNING = 'PLANNING', 'Lên kế hoạch'
@@ -48,7 +48,7 @@ class MarketingTask(models.Model):
         verbose_name = "Công việc Marketing"
         verbose_name_plural = "Quản lý Content & Ads"
 
-# --- MỚI: MODEL FEEDBACK (LỊCH SỬ TRAO ĐỔI) ---
+# --- MODEL FEEDBACK (LỊCH SỬ TRAO ĐỔI) ---
 class TaskFeedback(models.Model):
     task = models.ForeignKey(MarketingTask, on_delete=models.CASCADE, related_name='feedbacks')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -58,13 +58,32 @@ class TaskFeedback(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-# 2. BÁO CÁO SỐ LIỆU ADS
+# 2. BÁO CÁO SỐ LIỆU ADS (ĐÃ NÂNG CẤP)
 class DailyCampaignStat(models.Model):
+    # --- ĐỊNH NGHĨA CÁC NỀN TẢNG ---
+    class Platform(models.TextChoices):
+        FACEBOOK = 'FACEBOOK', 'Facebook Ads'
+        GOOGLE = 'GOOGLE', 'Google Ads'
+        TIKTOK = 'TIKTOK', 'Tiktok Ads'
+        ZALO = 'ZALO', 'Zalo Ads'
+        WEBSITE = 'WEBSITE', 'Website/SEO'
+        OTHER = 'OTHER', 'Khác'
+
     report_date = models.DateField(verbose_name="Ngày báo cáo") 
+    
+    # --- THÊM TRƯỜNG PLATFORM ---
+    platform = models.CharField(max_length=20, choices=Platform.choices, default=Platform.FACEBOOK, verbose_name="Nền tảng")
+
     marketer = models.CharField(max_length=100, blank=True, null=True, verbose_name="Người chạy Ads")
     service = models.CharField(max_length=200, blank=True, null=True, verbose_name="Dịch vụ/Chiến dịch")
     spend_amount = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Chi tiêu (VNĐ)")
     
+    # --- CÁC CHỈ SỐ MỚI (GOOGLE/TIKTOK/ZALO) ---
+    impressions = models.IntegerField(default=0, verbose_name="Lượt hiển thị (Impr)")
+    clicks = models.IntegerField(default=0, verbose_name="Lượt nhấp (Clicks)")
+    views = models.IntegerField(default=0, verbose_name="Lượt xem Video (Views)")
+    
+    # --- CÁC CHỈ SỐ CHUYỂN ĐỔI (CŨ) ---
     inboxes = models.IntegerField(default=0, verbose_name="Tin nhắn (Inbox)")
     comments = models.IntegerField(default=0, verbose_name="Bình luận")
     leads = models.IntegerField(default=0, verbose_name="Số SĐT (Leads)")
@@ -74,11 +93,27 @@ class DailyCampaignStat(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Ads {self.report_date}: {self.spend_amount:,.0f}đ"
+        return f"{self.get_platform_display()} - {self.report_date}: {self.spend_amount:,.0f}đ"
 
+    # --- TÍNH TOÁN TỰ ĐỘNG (Properties) ---
     @property
     def cost_per_lead(self):
         return (self.spend_amount / self.leads) if self.leads > 0 else 0
+    
+    @property
+    def ctr(self):
+        """Click Through Rate (%): Số click / Số hiển thị"""
+        return (self.clicks / self.impressions * 100) if self.impressions > 0 else 0
+    
+    @property
+    def cpc(self):
+        """Cost Per Click: Chi phí / Số click"""
+        return (self.spend_amount / self.clicks) if self.clicks > 0 else 0
+
+    @property
+    def cpm(self):
+        """Cost Per 1000 Impressions"""
+        return (self.spend_amount / self.impressions * 1000) if self.impressions > 0 else 0
 
     class Meta:
         verbose_name = "Số liệu Ads hàng ngày"
