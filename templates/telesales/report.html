@@ -43,11 +43,13 @@
     </div>
 
     <div class="card card-box mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#advancedFilter" role="button" aria-expanded="{% if req_city or req_gender or req_fanpage or req_telesale or req_skin %}true{% else %}false{% endif %}" aria-controls="advancedFilter" style="cursor: pointer;">
+        {# [UPDATED] Thêm req_status vào điều kiện mở rộng Collapse #}
+        <div class="card-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#advancedFilter" role="button" aria-expanded="{% if req_city or req_gender or req_fanpage or req_telesale or req_skin or req_status %}true{% else %}false{% endif %}" aria-controls="advancedFilter" style="cursor: pointer;">
             <div><i class="bi bi-funnel-fill me-2"></i>LỌC NÂNG CAO</div>
             <i class="bi bi-chevron-down"></i>
         </div>
-        <div class="collapse {% if req_city or req_gender or req_fanpage or req_telesale or req_skin %}show{% endif %}" id="advancedFilter">
+        {# [UPDATED] Thêm req_status vào điều kiện class show #}
+        <div class="collapse {% if req_city or req_gender or req_fanpage or req_telesale or req_skin or req_status %}show{% endif %}" id="advancedFilter">
             <div class="card-body">
                 <form method="GET" class="row g-3">
                     <input type="hidden" name="date_start" value="{{ date_start }}">
@@ -97,6 +99,17 @@
                             {% endfor %}
                         </select>
                     </div>
+
+                    {# [NEW] Cột lọc Chất lượng Data #}
+                    <div class="col-md-3">
+                        <label for="filter_status" class="form-label small fw-bold text-muted">Chất lượng / Trạng thái</label>
+                        <select name="filter_status" id="filter_status" class="form-select form-select-sm">
+                            <option value="">-- Tất cả --</option>
+                            {% for code, label in status_choices %}
+                                <option value="{{ code }}" {% if req_status == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     
                     <div class="col-12 d-flex justify-content-end gap-2">
                         <button type="submit" class="btn btn-info btn-sm fw-bold"><i class="bi bi-search"></i> ÁP DỤNG LỌC</button>
@@ -122,7 +135,7 @@
             <div class="col-md-3">
                 <div class="card card-box p-3 text-center h-100 border-start border-4 border-success">
                     {# Truyền thêm filter nâng cao vào link drill-down #}
-                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link">
+                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link">
                         <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
                         <div class="highlight-number text-success">{{ item.count }}</div>
                         <div class="badge bg-success bg-opacity-10 text-success">{{ item.rate }}% / Tổng data</div>
@@ -135,7 +148,7 @@
             <div class="col-md-3">
                 <div class="card card-box p-3 text-center h-100 border-start border-4 border-warning">
                     {# Truyền thêm filter nâng cao vào link drill-down #}
-                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link">
+                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link">
                         <div class="text-uppercase text-muted small fw-bold">{{ item.label }}</div>
                         <div class="highlight-number text-warning">{{ item.count }}</div>
                         <div class="badge bg-warning bg-opacity-10 text-warning">{{ item.rate }}% / Tổng data</div>
@@ -159,7 +172,7 @@
                                 <td>{{ group }}</td>
                                 <td class="text-end">
                                     {# Thêm filter nâng cao vào link drill-down #}
-                                    {% with base_url="?date_start="|add:date_start|add:"&date_end="|add:date_end|add:"&filter_city="|add:req_city|default:''|add:"&filter_gender="|add:req_gender|default:''|add:"&filter_fanpage="|add:req_fanpage|default:''|add:"&filter_telesale="|add:req_telesale|default:''|add:"&filter_skin="|add:req_skin|default:'' %}
+                                    {% with base_url="?date_start="|add:date_start|add:"&date_end="|add:date_end|add:"&filter_city="|add:req_city|default:''|add:"&filter_gender="|add:req_gender|default:''|add:"&filter_fanpage="|add:req_fanpage|default:''|add:"&filter_telesale="|add:req_telesale|default:''|add:"&filter_skin="|add:req_skin|default:''|add:"&filter_status="|add:req_status|default:'' %}
                                         {% if group == '18-25' %}
                                             <a href="{% url 'telesale_home' %}{{ base_url }}&age_min=18&age_max=25" class="stat-link fw-bold">{{ count }}</a>
                                         {% elif group == '26-35' %}
@@ -192,7 +205,7 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    <a href="{% url 'telesale_home' %}?gender={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link fw-bold">
+                                    <a href="{% url 'telesale_home' %}?gender={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link fw-bold">
                                         {{ item.count }}
                                     </a>
                                 </td>
@@ -213,7 +226,7 @@
                             <tr>
                                 <td>{{ item.city|default:"Chưa cập nhật" }}</td>
                                 <td class="text-end">
-                                    <a href="{% url 'telesale_home' %}?city={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link fw-bold">
+                                    <a href="{% url 'telesale_home' %}?city={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link fw-bold">
                                         {{ item.count }}
                                     </a>
                                 </td>
@@ -237,7 +250,7 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    <a href="{% url 'telesale_home' %}?skin={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}" class="stat-link">
+                                    <a href="{% url 'telesale_home' %}?skin={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link">
                                         <span class="stat-value">{{ item.count }}</span>
                                         <span class="stat-percent">({{ item.percent }}%)</span>
                                     </a>
@@ -260,7 +273,7 @@
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
                                     {% if item.code %}
-                                        <a href="{% url 'telesale_home' %}?fanpage={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link">
+                                        <a href="{% url 'telesale_home' %}?fanpage={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link">
                                             <span class="stat-value">{{ item.count }}</span>
                                             <span class="stat-percent">({{ item.percent }}%)</span>
                                         </a>
@@ -286,7 +299,7 @@
                             <tr>
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">
-                                    <a href="{% url 'telesale_home' %}?source={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link">
+                                    <a href="{% url 'telesale_home' %}?source={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link">
                                         <span class="stat-value">{{ item.count }}</span>
                                         <span class="stat-percent">({{ item.percent }}%)</span>
                                     </a>
@@ -307,14 +320,14 @@
                             {% for item in data_quality_list %}
                             <tr>
                                 <td>
-                                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link d-flex align-items-center">
+                                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link d-flex align-items-center">
                                         {% if item.code == 'BOOKED' %}<i class="bi bi-check-circle-fill text-success me-1"></i>{% endif %}
                                         {% if item.code == 'WRONG_NUMBER' or item.code == 'SPAM' %}<i class="bi bi-x-circle-fill text-danger me-1"></i>{% endif %}
                                         {{ item.label }}
                                     </a>
                                 </td>
                                 <td class="text-end fw-bold">
-                                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}" class="stat-link">{{ item.count }}</a>
+                                    <a href="{% url 'telesale_home' %}?status={{ item.code }}&date_start={{ date_start }}&date_end={{ date_end }}&filter_city={{ req_city|default:'' }}&filter_gender={{ req_gender|default:'' }}&filter_fanpage={{ req_fanpage|default:'' }}&filter_telesale={{ req_telesale|default:'' }}&filter_skin={{ req_skin|default:'' }}&filter_status={{ req_status|default:'' }}" class="stat-link">{{ item.count }}</a>
                                 </td>
                                 <td class="text-end">{{ item.rate }}%</td>
                             </tr>

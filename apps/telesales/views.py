@@ -390,6 +390,9 @@ def telesale_report(request):
     req_telesale = request.GET.get('filter_telesale')
     req_skin = request.GET.get('filter_skin')
     
+    # [NEW] Nhận tham số lọc trạng thái
+    req_status = request.GET.get('filter_status')
+    
     # =================================================================================
     # PHẦN 1: BÁO CÁO CHẤT LƯỢNG DATA (Dựa trên Data MỚI tạo trong kỳ)
     # =================================================================================
@@ -408,6 +411,11 @@ def telesale_report(request):
         )
     # =========================================================================
     
+    # --- [NEW LOGIC] ANNOTATE TRẠNG THÁI CUỐI ĐỂ LỌC ---
+    # Annotate final_status cho mỗi khách hàng
+    latest_log_subquery = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time').values('status')[:1]
+    customers = customers.annotate(final_status=Subquery(latest_log_subquery))
+
     # Áp dụng bộ lọc
     if req_city:
         if req_city == 'None': customers = customers.filter(city__isnull=True)
@@ -416,6 +424,14 @@ def telesale_report(request):
     if req_fanpage: customers = customers.filter(fanpage=req_fanpage)
     if req_telesale: customers = customers.filter(assigned_telesale_id=req_telesale)
     if req_skin: customers = customers.filter(skin_condition=req_skin)
+    
+    # [NEW] Áp dụng lọc theo trạng thái
+    if req_status:
+        if req_status == 'NEW':
+            # NEW gồm cả: Có log là NEW hoặc Chưa có log nào (null)
+            customers = customers.filter(Q(final_status='NEW') | Q(final_status__isnull=True))
+        else:
+            customers = customers.filter(final_status=req_status)
     
     total_leads = customers.count()
     
@@ -464,8 +480,8 @@ def telesale_report(request):
     skin_data = [{'code': x['skin_condition'], 'label': dict(Customer.SkinIssue.choices).get(x['skin_condition'], 'Không rõ'), 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0} for x in skin_stats_raw]
 
     # --- CHẤT LƯỢNG DATA ---
-    latest_log_subquery = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time').values('status')[:1]
-    status_counts_query = customers.annotate(final_status=Subquery(latest_log_subquery)).values('final_status').annotate(total=Count('id'))
+    # Sử dụng luôn field final_status đã annotate ở trên
+    status_counts_query = customers.values('final_status').annotate(total=Count('id'))
     status_map = {item['final_status']: item['total'] for item in status_counts_query}
     data_quality_list = []
     total_counted = 0
@@ -582,10 +598,15 @@ def telesale_report(request):
         'gender_choices': Customer.Gender.choices,
         'fanpage_choices': Customer.Fanpage.choices,
         'skin_choices': Customer.SkinIssue.choices,
+        
+        # [NEW] Truyền dữ liệu cho bộ lọc mới
+        'status_choices': CallLog.CallStatus.choices,
+        
         'req_city': req_city,
         'req_gender': req_gender,
         'req_fanpage': req_fanpage,
         'req_telesale': req_telesale,
         'req_skin': req_skin,
+        'req_status': req_status,
     }
     return render(request, 'telesales/report.html', context)
