@@ -607,6 +607,6 @@ def telesale_report(request):
         'req_fanpage': req_fanpage,
         'req_telesale': req_telesale,
         'req_skin': req_skin,
-        'req_status': req_status,
+        'req_status': req_status, # <--- Đây là biến đang thiếu gây lỗi
     }
     return render(request, 'telesales/report.html', context)
