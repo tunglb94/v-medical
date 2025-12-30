@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='customers' %}">Customers</a>
+&rsaquo; <a href="{% url 'admin:customers_customer_changelist' %}">Khách hàng</a>
+&rsaquo; Import CSV
+</div>
+{% endblock %}
+
+{% block content %}
+<form action="." method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div>
+        <h2>Tải lên file CSV Khách Hàng (Perfex CRM)</h2>
+        <p>Vui lòng chọn file .csv định dạng UTF-8.</p>
+        <br>
+        {{ form.as_p }}
+        <br>
+        <div class="submit-row">
+            <input type="submit" value="Tiến hành Import" class="default" name="_save">
+        </div>
+        <br>
+        <a href="../" class="button" style="background: #ccc; color: #333;">Quay lại danh sách</a>
+    </div>
+</form>
+{% endblock %}
