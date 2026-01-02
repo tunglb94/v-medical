@@ -3,15 +3,15 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card card-box shadow-sm">
-            <div class="card-header bg-white py-3">
+    <div class="col-md-10 col-lg-8"> <div class="card card-box shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
                 <h5 class="fw-bold m-0 text-primary">{{ title }}</h5>
             </div>
             <div class="card-body p-4">
                 <form method="POST">
                     {% csrf_token %}
                     
+                    <h6 class="text-uppercase text-secondary small fw-bold mb-3">1. Thông tin tài khoản</h6>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">Tên đăng nhập *</label>
@@ -34,14 +34,6 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Vai trò (Phân quyền) *</label>
-                        {{ form.role }}
-                        <div class="form-text small text-muted">
-                            <i class="bi bi-info-circle"></i> Vai trò quyết định các Tab được hiển thị trên Menu.
-                        </div>
-                    </div>
-
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">Số điện thoại</label>
@@ -53,14 +45,53 @@
                         </div>
                     </div>
 
-                    <div class="form-check mb-4">
-                        {{ form.is_active }}
-                        <label class="form-check-label">Đang hoạt động (Cho phép đăng nhập)</label>
+                    <hr class="my-4 text-muted opacity-25">
+
+                    <h6 class="text-uppercase text-secondary small fw-bold mb-3">2. Vai trò & Nhóm</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Vai trò (Role Logic) *</label>
+                            {{ form.role }}
+                            <div class="form-text small text-muted">
+                                * Role dùng để xác định logic xử lý (VD: Bác sĩ được khám, Sale được nhận hoa hồng...).
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Team (Nhóm Telesale)</label>
+                            {{ form.team }}
+                        </div>
                     </div>
 
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary fw-bold py-2">LƯU THÔNG TIN</button>
+                    <hr class="my-4 text-muted opacity-25">
+
+                    <h6 class="text-uppercase text-primary small fw-bold mb-3"><i class="bi bi-shield-check me-1"></i> 3. Phân quyền Menu (Tùy chọn)</h6>
+                    <div class="bg-light p-3 rounded border">
+                        <div class="mb-2 small text-muted fst-italic">
+                            Tích chọn các mục Menu mà nhân viên này được phép nhìn thấy trên thanh Sidebar. (Admin mặc định thấy tất cả).
+                        </div>
+                        <div class="row">
+                            {% for value, text in form.allowed_menus.field.choices %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="allowed_menus" value="{{ value }}" id="menu_{{ value }}"
+                                        {% if value in form.allowed_menus.initial %}checked{% endif %}>
+                                    <label class="form-check-label user-select-none" for="menu_{{ value }}">
+                                        {{ text }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-check mt-4 mb-3">
+                        {{ form.is_active }}
+                        <label class="form-check-label fw-bold">Đang hoạt động (Cho phép đăng nhập)</label>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end mt-4">
                         <a href="{% url 'staff_list' %}" class="btn btn-light border">Hủy bỏ</a>
+                        <button type="submit" class="btn btn-primary fw-bold px-4 py-2">LƯU THÔNG TIN</button>
                     </div>
                 </form>
             </div>
