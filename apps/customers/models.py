@@ -4,49 +4,45 @@ from django.utils import timezone
 from django.db.models import Sum
 from datetime import date
 
-class Customer(models.Model):
-    # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue
-    class SkinIssue(models.TextChoices):
-        # --- CÁC DỊCH VỤ MỚI ---
-        THREAD_LIFT = "THREAD_LIFT", "Căng chỉ"  # <--- Đã thêm theo yêu cầu
-        PROFHILO = "PROFHILO", "Profhilo" 
-        EXOSONE = "EXOSONE", "Exosone"   
-        REJURAN = "REJURAN", "Rejuran"   
-        KARISMA = "KARISMA", "Karisma"   
-        HAIR_TREATMENT = "HAIR_TREATMENT", "Tóc" 
-        
-        # --- CÁC DỊCH VỤ CŨ ---
-        ULTHERAPY = "ULTHERAPY", "Ultherapy"
-        THERMA = "THERMA", "Therma"
-        PRP = "PRP", "PRP"
-        VAGINAL_REJUVENATION = "VAGINAL_REJUVENATION", "Trẻ hoá vùng kín"
-        HAIR_REMOVAL = "HAIR_REMOVAL", "Triệt lông"
-        FAT_REDUCTION = "FAT_REDUCTION", "Giảm béo"
-        LASER = "LASER", "Laser"
-        OTHER = "OTHER", "Khác"
+# --- 1. MODEL QUẢN LÝ FANPAGE (ĐỘNG) ---
+class Fanpage(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Tên Fanpage")
+    status = models.BooleanField(default=True, verbose_name="Đang hoạt động")
 
-    class Source(models.TextChoices):
-        FACEBOOK = "FACEBOOK", "Facebook Ads"
-        GOOGLE = "GOOGLE", "Google Ads"
-        SEO = "SEO", "SEO Website"
-        TIKTOK = "TIKTOK", "Tiktok"
-        REFERRAL = "REFERRAL", "Bạn giới thiệu"
-        OTHER = "OTHER", "Khác"
+    def __str__(self):
+        return self.name
     
-    # --- CẬP NHẬT: THÊM DANH SÁCH FANPAGE ---
-    class Fanpage(models.TextChoices):
-        # <--- MỚI THÊM 2 PAGE BÁC SĨ HOÀNG VŨ ---
-        CC_KIM_CUONG_SG_HV = "CC_KIM_CUONG_SG_HV", "Căng chỉ kim cương Sài Gòn - Bác sĩ Hoàng Vũ"
-        ULTRA_DIAMOND_DB_HV = "ULTRA_DIAMOND_DB_HV", "Nâng cơ trẻ hoá Ultra Diamond - Bác sĩ Danh Bảo Hoàng Vũ"
-        
-        # CÁC PAGE CŨ
-        BS_QUAN = "BS_QUAN", "Bác sĩ Cao Trần Quân"
-        VMEDICAL_CLINIC = "VMEDICAL_CLINIC", "V - Medical Clinic"
-        DL_VMEDICAL = "DL_VMEDICAL", "Phòng Khám Da Liễu Thẩm Mỹ V-Medical"
-        QUAN_SINCE_2006 = "QUAN_SINCE_2006", "Cao Trần Quân - Viện Da Liễu V Medical since 2006"
-        ULTHERAPY_57A = "ULTHERAPY_57A", "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo"
-        OTHER = "OTHER", "Khác / Không rõ"
+    class Meta:
+        verbose_name = "Cấu hình: Fanpage"
+        verbose_name_plural = "Cấu hình: Danh sách Fanpage"
 
+# --- 2. MODEL QUẢN LÝ NGUỒN KHÁCH (ĐỘNG) ---
+class CustomerSource(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Tên Nguồn")
+    status = models.BooleanField(default=True, verbose_name="Đang hoạt động")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Cấu hình: Nguồn khách"
+        verbose_name_plural = "Cấu hình: Danh sách Nguồn"
+
+# --- 3. MODEL QUẢN LÝ DỊCH VỤ (ĐỘNG) ---
+class Service(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Tên Dịch vụ")
+    status = models.BooleanField(default=True, verbose_name="Đang hoạt động")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Cấu hình: Dịch vụ"
+        verbose_name_plural = "Cấu hình: Danh sách Dịch vụ"
+
+
+# --- 4. MODEL KHÁCH HÀNG (CHÍNH) ---
+class Customer(models.Model):
     class Ranking(models.TextChoices):
         MEMBER = "MEMBER", "Thành viên"
         SILVER = "SILVER", "Bạc"
@@ -65,11 +61,10 @@ class Customer(models.Model):
     address = models.TextField(null=True, blank=True, verbose_name="Địa chỉ chi tiết")
     city = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tỉnh/Thành phố")
     
-    source = models.CharField(max_length=20, choices=Source.choices, default=Source.FACEBOOK, verbose_name="Nguồn khách")
-    
-    fanpage = models.CharField(max_length=50, choices=Fanpage.choices, null=True, blank=True, verbose_name="Fanpage Nguồn")
-
-    skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
+    # [THAY ĐỔI] Dùng ForeignKey thay vì CharField cứng
+    source = models.ForeignKey(CustomerSource, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Nguồn khách")
+    fanpage = models.ForeignKey(Fanpage, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Fanpage Nguồn")
+    skin_condition = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Dịch vụ quan tâm")
     
     customer_code = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Mã khách hàng/ID")
 
@@ -93,7 +88,6 @@ class Customer(models.Model):
         return None
 
     def update_ranking(self):
-        # Tránh import vòng lặp nếu cần
         total_spent = self.order_set.filter(is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         if total_spent > 70000000: self.ranking = self.Ranking.DIAMOND
         elif total_spent >= 20000000: self.ranking = self.Ranking.GOLD

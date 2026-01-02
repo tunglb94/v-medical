@@ -8,26 +8,53 @@ from datetime import datetime
 import csv
 import io
 
-from .models import Customer
+# Import thêm các model mới
+from .models import Customer, Fanpage, CustomerSource, Service
 
-# Form để upload file
+# --- ĐĂNG KÝ CÁC MODEL CẤU HÌNH ---
+@admin.register(Fanpage)
+class FanpageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'status')
+    search_fields = ('name',)
+    list_editable = ('status',)
+
+@admin.register(CustomerSource)
+class SourceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'status')
+    search_fields = ('name',)
+    list_editable = ('status',)
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'status')
+    search_fields = ('name',)
+    list_editable = ('status',)
+
+# --- FORM IMPORT ---
 class CsvImportForm(forms.Form):
     csv_file = forms.FileField(label="Chọn file CSV")
 
+# --- CUSTOMER ADMIN ---
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    # --- CẤU HÌNH GIAO DIỆN CŨ (GIỮ NGUYÊN) ---
     list_display = (
-        'customer_code', 'name', 'phone', 'fanpage',
-        'skin_condition', 'source', 'assigned_telesale',
+        'customer_code', 'name', 'phone', 'get_fanpage',
+        'get_service', 'get_source', 'assigned_telesale',
         'ranking', 'created_at'
     )
+    
+    # ForeignKey cần lọc theo ID hoặc dùng autocomplete
     list_filter = (
         'fanpage', 'skin_condition', 'source', 
         'ranking', 'gender', 'city', 'assigned_telesale'
     )
+    
     search_fields = ('name', 'phone', 'customer_code', 'address')
     readonly_fields = ('created_at',)
+    
+    # Dùng autocomplete cho các trường Foreign Key để load nhanh hơn nếu list dài
+    autocomplete_fields = ['fanpage', 'source', 'skin_condition', 'assigned_telesale']
+
     fieldsets = (
         ('Thông tin cơ bản', {
             'fields': ('customer_code', 'name', 'phone', 'gender', 'dob', 'address', 'city')
@@ -40,9 +67,16 @@ class CustomerAdmin(admin.ModelAdmin):
         }),
     )
 
-    # --- PHẦN MỚI THÊM: CUSTOM URL VÀ VIEW IMPORT ---
+    # Hiển thị tên thay vì Object ID trong list
+    def get_fanpage(self, obj): return obj.fanpage.name if obj.fanpage else '-'
+    get_fanpage.short_description = 'Fanpage'
     
-    # Chỉ định template chứa nút bấm (File bạn vừa tạo ở Bước 2)
+    def get_service(self, obj): return obj.skin_condition.name if obj.skin_condition else '-'
+    get_service.short_description = 'Dịch vụ'
+
+    def get_source(self, obj): return obj.source.name if obj.source else '-'
+    get_source.short_description = 'Nguồn'
+
     change_list_template = "admin/customers/customer/change_list.html"
 
     def get_urls(self):
@@ -63,11 +97,9 @@ class CustomerAdmin(admin.ModelAdmin):
                     return redirect("..")
 
                 try:
-                    # Đọc file CSV
                     data_set = csv_file.read().decode('utf-8-sig')
                     io_string = io.StringIO(data_set)
                     
-                    # Tự động nhận diện dấu phân cách (; hoặc ,)
                     first_line = io_string.readline()
                     io_string.seek(0)
                     delimiter = ';' if ';' in first_line else ','
@@ -78,37 +110,42 @@ class CustomerAdmin(admin.ModelAdmin):
                     count_exist = 0
                     
                     for row in reader:
-                        # Làm sạch tên cột
                         clean_row = {}
                         for k, v in row.items():
                             if k and v:
                                 clean_row[k.strip().upper()] = v.strip()
                         
                         # 1. XỬ LÝ SĐT
-                        phone_raw = clean_row.get('SĐT') or clean_row.get('SDT') or clean_row.get('PHONE') or clean_row.get('PHONENUMBER')
+                        phone_raw = clean_row.get('SĐT') or clean_row.get('SDT') or clean_row.get('PHONE')
                         if not phone_raw: continue
                         phone = ''.join(filter(str.isdigit, phone_raw))
                         if len(phone) < 8: continue
                         if not phone.startswith('0'): phone = '0' + phone
 
-                        # 2. XỬ LÝ TÊN
-                        name = clean_row.get('TÊN KHÁCH HÀNG') or clean_row.get('TÊN') or clean_row.get('HỌ TÊN') or clean_row.get('NAME') or "Khách hàng"
-                        
-                        # 3. XỬ LÝ ĐỊA CHỈ
-                        address_raw = clean_row.get('VỊ TRÍ') or clean_row.get('ĐỊA CHỈ') or clean_row.get('TỈNH THÀNH') or clean_row.get('ADDRESS') or ''
+                        # 2. XỬ LÝ CÁC TRƯỜNG CƠ BẢN
+                        name = clean_row.get('TÊN KHÁCH HÀNG') or clean_row.get('TÊN') or clean_row.get('HỌ TÊN') or "Khách hàng"
+                        address_raw = clean_row.get('VỊ TRÍ') or clean_row.get('ĐỊA CHỈ') or clean_row.get('TỈNH THÀNH') or ''
 
-                        # 4. XỬ LÝ NGUỒN (Tự động map)
-                        source_raw = clean_row.get('NGUỒN') or clean_row.get('SOURCE') or 'OTHER'
-                        source_code = 'OTHER'
-                        source_upper = source_raw.upper()
-                        if 'FACEBOOK' in source_upper: source_code = 'FACEBOOK'
-                        elif 'GOOGLE' in source_upper: source_code = 'GOOGLE'
-                        elif 'TIKTOK' in source_upper: source_code = 'TIKTOK'
-                        elif 'SEO' in source_upper or 'WEB' in source_upper: source_code = 'SEO'
-                        elif 'REFERRAL' in source_upper: source_code = 'REFERRAL'
-                        else: source_code = 'FACEBOOK'
+                        # 3. XỬ LÝ NGUỒN (Tự động tìm trong DB hoặc tạo mới)
+                        source_str = clean_row.get('NGUỒN') or clean_row.get('SOURCE')
+                        source_obj = None
+                        if source_str:
+                            # get_or_create trả về (object, created)
+                            source_obj, _ = CustomerSource.objects.get_or_create(name=source_str.strip())
 
-                        # 5. XỬ LÝ NGÀY TẠO
+                        # 4. XỬ LÝ FANPAGE (Tự động tìm hoặc tạo mới)
+                        fanpage_str = clean_row.get('FANPAGE') or clean_row.get('PAGE')
+                        fanpage_obj = None
+                        if fanpage_str:
+                            fanpage_obj, _ = Fanpage.objects.get_or_create(name=fanpage_str.strip())
+
+                        # 5. XỬ LÝ DỊCH VỤ (Tự động tìm hoặc tạo mới)
+                        service_str = clean_row.get('DV QUAN TÂM') or clean_row.get('SERVICE') or clean_row.get('SKIN')
+                        service_obj = None
+                        if service_str:
+                            service_obj, _ = Service.objects.get_or_create(name=service_str.strip())
+
+                        # 6. XỬ LÝ NGÀY TẠO
                         created_at = timezone.now()
                         date_str = clean_row.get('NGÀY') or clean_row.get('DATE') or clean_row.get('CREATED_AT')
                         if date_str:
@@ -120,15 +157,14 @@ class CustomerAdmin(admin.ModelAdmin):
                                 created_at = timezone.make_aware(datetime.combine(dt.date(), current_time))
                             except: pass
 
-                        # 6. GỘP GHI CHÚ
+                        # 7. GỘP GHI CHÚ
                         notes = []
                         if clean_row.get('GHI CHÚ'): notes.append(clean_row['GHI CHÚ'])
                         if clean_row.get('LINK FB'): notes.append(f"FB: {clean_row['LINK FB']}")
-                        if clean_row.get('DV QUAN TÂM'): notes.append(f"Quan tâm: {clean_row['DV QUAN TÂM']}")
                         if clean_row.get('SALE'): notes.append(f"Sale cũ: {clean_row['SALE']}")
                         full_note = " | ".join(notes)
 
-                        # 7. LƯU DATA
+                        # 8. LƯU DATA (Gán Object thay vì String)
                         obj, created = Customer.objects.get_or_create(
                             phone=phone,
                             defaults={
@@ -136,7 +172,9 @@ class CustomerAdmin(admin.ModelAdmin):
                                 'city': address_raw,     
                                 'address': address_raw,
                                 'note_telesale': full_note,
-                                'source': source_code,
+                                'source': source_obj,       # <--- Gán Object
+                                'fanpage': fanpage_obj,     # <--- Gán Object
+                                'skin_condition': service_obj, # <--- Gán Object
                                 'created_at': created_at
                             }
                         )
