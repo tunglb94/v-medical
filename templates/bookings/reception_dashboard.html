@@ -275,8 +275,7 @@
 </div>
 
 <div class="modal fade" id="finishModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+  <div class="modal-dialog modal-xl"> <div class="modal-content">
       <div class="modal-header bg-success text-white">
         <h5 class="modal-title fw-bold">CHỐT CA TƯ VẤN</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -335,11 +334,13 @@
                               <table class="table table-sm table-borderless mb-0" id="serviceTable">
                                   <thead class="text-muted small">
                                       <tr>
-                                          <th style="width: 35%">Dịch vụ</th>
-                                          <th style="width: 20%">Giá gốc</th>
-                                          <th style="width: 15%">Giảm</th>
-                                          <th style="width: 20%">Thành tiền</th>
-                                          <th style="width: 10%"></th>
+                                          <th style="width: 25%">Dịch vụ</th>
+                                          <th style="width: 15%">Giá gốc</th>
+                                          <th style="width: 10%">Giảm</th>
+                                          <th style="width: 15%">Tổng tiền</th>
+                                          <th style="width: 15%">Thanh toán</th>
+                                          <th style="width: 10%">Còn nợ</th>
+                                          <th style="width: 5%"></th>
                                       </tr>
                                   </thead>
                                   <tbody id="serviceTableBody">
@@ -357,7 +358,13 @@
                                               <input type="number" name="discounts" class="form-control form-control-sm row-discount" placeholder="0" oninput="calculateRowFinal(this)">
                                           </td>
                                           <td>
-                                              <input type="number" name="final_amounts" class="form-control form-control-sm fw-bold text-danger row-final" value="0" oninput="calculateRowDiscount(this)">
+                                              <input type="number" name="final_amounts" class="form-control form-control-sm fw-bold text-primary row-final" value="0" oninput="calculateRowDiscount(this)">
+                                          </td>
+                                          <td>
+                                              <input type="number" name="paid_amounts" class="form-control form-control-sm fw-bold text-success row-paid" value="0" oninput="calculateRowDebt(this)">
+                                          </td>
+                                          <td>
+                                              <input type="number" class="form-control form-control-sm bg-light text-danger fw-bold row-debt" readonly value="0">
                                           </td>
                                           <td class="text-center">
                                               <button type="button" class="btn btn-sm text-danger" onclick="removeServiceRow(this)"><i class="bi bi-x-lg"></i></button>
@@ -374,6 +381,8 @@
                               <div class="text-end">
                                   <small class="text-muted me-2">Tổng cộng:</small>
                                   <strong class="text-success fs-5" id="grandTotalDisplay">0</strong>
+                                  <span class="text-muted small ms-2">| Đã trả: <span id="grandPaidDisplay" class="text-dark">0</span></span>
+                                  <span class="text-muted small ms-2">| Nợ: <span id="grandDebtDisplay" class="text-danger">0</span></span>
                               </div>
                           </div>
                       </div>
@@ -522,13 +531,20 @@
         calculateRowFinal(selectElement);
     }
 
-    // Tính Thành tiền = Giá gốc - Giảm giá
+    // Tính Thành tiền (Tổng) = Giá gốc - Giảm giá
     function calculateRowFinal(element) {
         var row = element.closest('tr');
         var original = parseFloat(row.querySelector('.row-price').value) || 0;
         var discount = parseFloat(row.querySelector('.row-discount').value) || 0;
         var final = Math.max(0, original - discount);
+        
         row.querySelector('.row-final').value = final;
+        
+        // Mặc định: Thanh toán = Tổng tiền (KH trả hết)
+        // Nếu muốn mặc định là 0 thì sửa thành row.querySelector('.row-paid').value = 0;
+        row.querySelector('.row-paid').value = final;
+        
+        calculateRowDebt(element); // Tính lại nợ
         updateGrandTotal();
     }
 
@@ -538,17 +554,42 @@
         var original = parseFloat(row.querySelector('.row-price').value) || 0;
         var final = parseFloat(row.querySelector('.row-final').value) || 0;
         var discount = Math.max(0, original - final);
+        
         row.querySelector('.row-discount').value = discount;
+        
+        // Cập nhật lại thanh toán = thành tiền
+        row.querySelector('.row-paid').value = final;
+        
+        calculateRowDebt(element);
+        updateGrandTotal();
+    }
+    
+    // [MỚI] Tính Nợ = Tổng tiền - Thanh toán
+    function calculateRowDebt(element) {
+        var row = element.closest('tr');
+        var final = parseFloat(row.querySelector('.row-final').value) || 0;
+        var paid = parseFloat(row.querySelector('.row-paid').value) || 0;
+        
+        var debt = Math.max(0, final - paid);
+        row.querySelector('.row-debt').value = debt;
         updateGrandTotal();
     }
 
     // Tính tổng cộng toàn bộ đơn hàng
     function updateGrandTotal() {
         var total = 0;
-        document.querySelectorAll('.row-final').forEach(function(input) {
-            total += parseFloat(input.value) || 0;
+        var totalPaid = 0;
+        var totalDebt = 0;
+
+        document.querySelectorAll('.service-row').forEach(function(row) {
+            total += parseFloat(row.querySelector('.row-final').value) || 0;
+            totalPaid += parseFloat(row.querySelector('.row-paid').value) || 0;
+            totalDebt += parseFloat(row.querySelector('.row-debt').value) || 0;
         });
+        
         document.getElementById('grandTotalDisplay').innerText = total.toLocaleString('vi-VN');
+        document.getElementById('grandPaidDisplay').innerText = totalPaid.toLocaleString('vi-VN');
+        document.getElementById('grandDebtDisplay').innerText = totalDebt.toLocaleString('vi-VN');
     }
 
     // Thêm dòng dịch vụ mới
@@ -562,6 +603,8 @@
         newRow.querySelector('.row-price').value = 0;
         newRow.querySelector('.row-discount').value = "";
         newRow.querySelector('.row-final').value = 0;
+        newRow.querySelector('.row-paid').value = 0; // Reset thanh toán
+        newRow.querySelector('.row-debt').value = 0; // Reset nợ
         
         tbody.appendChild(newRow);
     }

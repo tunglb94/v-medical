@@ -319,3 +319,21 @@ def admin_dashboard(request):
         'recent_orders': recent_orders,
     }
     return render(request, 'admin_dashboard.html', context)
+
+
+# --- [MỚI] 4. QUẢN LÝ CÔNG NỢ ---
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
+def debt_manager(request):
+    # Lấy các đơn hàng có nợ > 0
+    # Thêm select_related để tối ưu truy vấn
+    debt_orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
+    
+    # Tính tổng nợ toàn hệ thống
+    total_debt = debt_orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
+    
+    context = {
+        'debt_orders': debt_orders,
+        'total_debt': total_debt,
+    }
+    return render(request, 'sales/debt_list.html', context)

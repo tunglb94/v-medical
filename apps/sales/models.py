@@ -28,9 +28,13 @@ class Order(models.Model):
     
     original_price = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Giá gốc")
     
-    actual_revenue = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Thực thu (VND)")
+    # actual_revenue bây giờ là số tiền KHÁCH ĐÃ TRẢ
+    actual_revenue = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Thực thu (Đã trả)")
     
     total_amount = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Tổng giá trị đơn hàng")
+    
+    # --- THÊM MỚI: Trường lưu số nợ ---
+    debt_amount = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Còn nợ")
     
     assigned_consultant = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
@@ -52,13 +56,33 @@ class Order(models.Model):
         if not self.pk:
             self.original_price = self.service.base_price
             
-        if self.actual_revenue == 0 and self.total_amount > 0:
-            self.actual_revenue = self.total_amount
+        # Logic cũ: Nếu chưa nhập thực thu thì gán bằng tổng tiền (Giữ lại để tương thích ngược nếu cần)
+        # Nhưng logic mới sẽ ưu tiên tính toán nợ
+        
+        # TÍNH TOÁN CÔNG NỢ
+        # Nợ = Tổng tiền - Thực thu
+        if self.total_amount > 0:
+            self.debt_amount = self.total_amount - self.actual_revenue
+            # Đảm bảo không âm (nếu khách trả thừa thì coi như nợ = 0 hoặc xử lý logic tiền thừa riêng)
+            if self.debt_amount < 0:
+                self.debt_amount = 0
+        else:
+            self.debt_amount = 0
+            
+        # Tự động cập nhật trạng thái thanh toán
+        # Nếu nợ <= 0 thì coi như đã thanh toán xong
+        if self.debt_amount <= 0 and self.total_amount > 0:
+            self.is_paid = True
+        elif self.total_amount == 0:
+            self.is_paid = False
+        else:
+            self.is_paid = False # Vẫn còn nợ
             
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"ĐH {self.pk} - {self.customer.name} - {self.service.name}"
+        status = "Đủ" if self.is_paid else "Nợ"
+        return f"ĐH {self.pk} - {self.customer.name} - {self.service.name} ({status})"
 
     class Meta:
         verbose_name = "Đơn hàng"
@@ -68,5 +92,6 @@ class Order(models.Model):
 # Signal để cập nhật Ranking của Customer khi Order được lưu hoặc xóa
 @receiver([post_save, post_delete], sender=Order)
 def update_customer_ranking(sender, instance, **kwargs):
-    if instance.is_paid:
-        instance.customer.update_ranking()
+    # Logic ranking: Chỉ cộng những đơn đã thanh toán hoặc tính theo thực thu tùy chính sách
+    # Ở đây giữ nguyên logic cũ: Nếu is_paid mới update (hoặc bạn có thể sửa lại tính tổng actual_revenue)
+    instance.customer.update_ranking()

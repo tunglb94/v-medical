@@ -16,8 +16,9 @@ from apps.bookings.views import (
 )
 
 # Import views từ Sales
+# [CẬP NHẬT] Thêm debt_manager vào đây
 from apps.sales.views import (
-    revenue_dashboard, print_invoice, admin_dashboard
+    revenue_dashboard, print_invoice, admin_dashboard, debt_manager
 )
 
 urlpatterns = [
@@ -55,6 +56,9 @@ urlpatterns = [
     # --- 6. SALES & BÁO CÁO ---
     path('sales/report/', revenue_dashboard, name='sales_report'),
     path('sales/invoice/<int:order_id>/', print_invoice, name='print_invoice'),
+    
+    # [MỚI] Đường dẫn quản lý công nợ
+    path('sales/debt/', debt_manager, name='debt_manager'),
 
     # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 

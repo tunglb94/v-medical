@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Quản lý Công nợ{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h3 class="text-danger fw-bold"><i class="bi bi-exclamation-octagon-fill me-2"></i>SỔ THEO DÕI CÔNG NỢ</h3>
+        <div>
+            <a href="{% url 'reception_home' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Quay lại Lễ tân</a>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-danger text-white shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase mb-2">Tổng tiền khách nợ</h6>
+                    <h2 class="fw-bold mb-0">{{ total_debt|intcomma }} <small class="fs-6">VND</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="alert alert-warning border-warning h-100 d-flex align-items-center">
+                <i class="bi bi-info-circle-fill fs-3 me-3 text-warning"></i>
+                <div>
+                    <strong>Lưu ý:</strong> Danh sách dưới đây hiển thị tất cả các đơn hàng mà khách chưa thanh toán đủ. 
+                    <br>Số tiền nợ được tính tự động: <code>Tổng giá trị - Thực thu</code>.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="m-0 fw-bold text-primary">DANH SÁCH CHI TIẾT</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary small text-uppercase">
+                        <tr>
+                            <th class="ps-3">Ngày</th>
+                            <th>Mã ĐH</th>
+                            <th>Khách hàng</th>
+                            <th>Dịch vụ</th>
+                            <th class="text-end">Tổng giá trị</th>
+                            <th class="text-end">Đã trả</th>
+                            <th class="text-end text-danger fw-bold pe-3">Còn nợ</th>
+                            <th>Sale phụ trách</th>
+                            <th class="text-center">Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in debt_orders %}
+                        <tr>
+                            <td class="ps-3 text-muted small">{{ order.order_date|date:"d/m/Y" }}</td>
+                            <td><span class="badge bg-light text-dark border">#{{ order.id }}</span></td>
+                            <td>
+                                <div class="fw-bold text-primary">{{ order.customer.name }}</div>
+                                <div class="small text-muted">{{ order.customer.phone }}</div>
+                            </td>
+                            <td>{{ order.service.name }}</td>
+                            <td class="text-end fw-bold">{{ order.total_amount|intcomma }}</td>
+                            <td class="text-end text-success">{{ order.actual_revenue|intcomma }}</td>
+                            <td class="text-end text-danger fw-bold pe-3">{{ order.debt_amount|intcomma }}</td>
+                            <td>
+                                {% if order.assigned_consultant %}
+                                    {{ order.assigned_consultant.last_name }} {{ order.assigned_consultant.first_name }}
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2">CHƯA XONG</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-muted">
+                                <i class="bi bi-check-circle fs-1 text-success mb-2 d-block"></i>
+                                Tuyệt vời! Hiện không có khoản nợ nào.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
