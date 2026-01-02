@@ -373,7 +373,7 @@ def add_customer_manual(request):
     return redirect('telesale_home')
 
 
-# --- 3. BÁO CÁO TELESALE (CẬP NHẬT: THÊM BÁO CÁO RE-CARE) ---
+# --- 3. BÁO CÁO TELESALE (ĐÃ FIX: ĐỒNG BỘ FILTER & DATA) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TELESALE'])
 def telesale_report(request):
@@ -383,14 +383,12 @@ def telesale_report(request):
     date_start_str = request.GET.get('date_start', str(start_of_month))
     date_end_str = request.GET.get('date_end', str(today))
     
-    #
+    # Nhận các tham số filter
     req_city = request.GET.get('filter_city')
     req_gender = request.GET.get('filter_gender')
     req_fanpage = request.GET.get('filter_fanpage')
     req_telesale = request.GET.get('filter_telesale')
     req_skin = request.GET.get('filter_skin')
-    
-    # 
     req_status = request.GET.get('filter_status')
     
     # =================================================================================
@@ -416,7 +414,7 @@ def telesale_report(request):
     latest_log_subquery = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-call_time').values('status')[:1]
     customers = customers.annotate(final_status=Subquery(latest_log_subquery))
 
-    # Áp dụng bộ lọc
+    # Áp dụng bộ lọc cho danh sách khách hàng chính (customers)
     if req_city:
         if req_city == 'None': customers = customers.filter(city__isnull=True)
         else: customers = customers.filter(city=req_city)
@@ -425,21 +423,20 @@ def telesale_report(request):
     if req_telesale: customers = customers.filter(assigned_telesale_id=req_telesale)
     if req_skin: customers = customers.filter(skin_condition=req_skin)
     
-    # 
+    # Lọc theo Status (Chốt đơn/Thuê bao/...)
     if req_status:
         if req_status == 'NEW':
-            # 
+            # Bao gồm cả New và chưa có log
             customers = customers.filter(Q(final_status='NEW') | Q(final_status__isnull=True))
         else:
             customers = customers.filter(final_status=req_status)
     
     total_leads = customers.count()
     
-    # 
+    # --- THỐNG KÊ CƠ BẢN (Nguồn, Page, City, Tuổi...) ---
     source_stats = customers.values('source').annotate(count=Count('id')).order_by('-count')
     source_data = [{'code': x['source'], 'label': dict(Customer.Source.choices).get(x['source'], 'Khác'), 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0} for x in source_stats]
 
-    # 
     fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
     fanpage_dict = dict(Customer.Fanpage.choices)
     unmapped_fanpage_count = 0
@@ -456,15 +453,12 @@ def telesale_report(request):
     final_fanpage_data.sort(key=lambda x: x['count'], reverse=True)
     fanpage_data = final_fanpage_data
 
-    # 
     city_stats_raw = customers.values('city').annotate(count=Count('id')).order_by('-count')
     city_stats = [{'city': i['city'], 'count': i['count'], 'code': 'None' if not i['city'] else i['city']} for i in city_stats_raw]
     
-    # 
     gender_stats_raw = customers.values('gender').annotate(count=Count('id'))
     gender_data = [{'code': x['gender'], 'label': dict(Customer.Gender.choices).get(x['gender'], 'Không rõ'), 'count': x['count']} for x in gender_stats_raw]
 
-    # 
     age_groups = {'18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '55+': 0, 'Unknown': 0}
     for cus in customers:
         age = cus.age
@@ -475,12 +469,10 @@ def telesale_report(request):
         elif 46 <= age <= 55: age_groups['46-55'] += 1
         else: age_groups['55+'] += 1
         
-    #
     skin_stats_raw = customers.values('skin_condition').annotate(count=Count('id')).order_by('-count')
     skin_data = [{'code': x['skin_condition'], 'label': dict(Customer.SkinIssue.choices).get(x['skin_condition'], 'Không rõ'), 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0} for x in skin_stats_raw]
 
-    # 
-    # 
+    # --- TỶ LỆ CHUYỂN ĐỔI (DATA QUALITY) ---
     status_counts_query = customers.values('final_status').annotate(total=Count('id'))
     status_map = {item['final_status']: item['total'] for item in status_counts_query}
     data_quality_list = []
@@ -496,25 +488,28 @@ def telesale_report(request):
         data_quality_list.append({'code': 'NEW', 'label': 'Mới / Chưa gọi', 'count': count_uncontacted, 'rate': round(count_uncontacted/total_leads*100, 1) if total_leads else 0})
     data_quality_list.sort(key=lambda x: x['count'], reverse=True)
 
-    # 
+    # --- CHUẨN BỊ DANH SÁCH SALE ---
     telesales = User.objects.filter(role='TELESALE')
-
-    # 
     if request.user.role == 'TELESALE' and request.user.team:
         telesales = telesales.filter(team=request.user.team)
-    # ------------------------------------------------
 
-    logs = CallLog.objects.filter(customer__in=customers.values('pk')) # Logs của data mới
+    # --- HIỆU SUẤT DATA MỚI (PERFORMANCE) ---
+    # [FIX]: Chỉ lấy log và appointment của NHỮNG KHÁCH MỚI (nằm trong biến customers)
+    filtered_customer_ids = customers.values_list('id', flat=True) # Lấy danh sách ID khách mới
+    
+    logs = CallLog.objects.filter(customer__id__in=filtered_customer_ids) 
+    
     performance_data = []
     for sale in telesales:
         assigned_count = customers.filter(assigned_telesale=sale).count() 
         sale_logs = logs.filter(caller=sale)
         total_calls = sale_logs.count()
         
-        # 
+        # [FIX]: Thêm customer__id__in=filtered_customer_ids
         booked_unique = Appointment.objects.filter(
             created_at__date__range=[date_start_str, date_end_str], 
-            customer__assigned_telesale=sale, # Chỉ lọc theo Sale
+            customer__assigned_telesale=sale,
+            customer__id__in=filtered_customer_ids, # <-- CHỈ ĐẾM KHÁCH MỚI
             status__in=['SCHEDULED', 'ARRIVED', 'IN_CONSULTATION', 'COMPLETED']
         ).values('customer').distinct().count()
 
@@ -527,36 +522,68 @@ def telesale_report(request):
     performance_data.sort(key=lambda x: x['booked'], reverse=True)
 
     # =================================================================================
-    # PHẦN 2: BÁO CÁO NĂNG SUẤT CHĂM SÓC (RE-CARE) - ĐÂY LÀ PHẦN MỚI
-    # Logic: Tính trên toàn bộ hoạt động (Call/Booking) phát sinh trong kỳ, bất kể Data cũ hay mới
+    # PHẦN 2: BÁO CÁO NĂNG SUẤT CHĂM SÓC (RE-CARE) - ĐÃ FIX FILTER
+    # Logic: Tính trên hoạt động trong kỳ, NHƯNG phải tôn trọng bộ lọc (City, Page, Skin...)
     # =================================================================================
     
     recare_data = []
     
-    # 
+    # 1. Query gốc theo thời gian
     period_logs = CallLog.objects.filter(call_time__date__range=[date_start_str, date_end_str])
-    
-    # 
     period_bookings = Appointment.objects.filter(
         created_at__date__range=[date_start_str, date_end_str],
         status__in=['SCHEDULED', 'ARRIVED', 'IN_CONSULTATION', 'COMPLETED']
     )
 
+    # 2. [FIX QUAN TRỌNG] Áp dụng lại bộ lọc thuộc tính cho cả Logs và Bookings Re-care
+    # Để đảm bảo nếu lọc "Hà Nội" thì Re-care cũng chỉ tính khách Hà Nội
+    if req_city:
+        if req_city == 'None': 
+            period_logs = period_logs.filter(customer__city__isnull=True)
+            period_bookings = period_bookings.filter(customer__city__isnull=True)
+        else: 
+            period_logs = period_logs.filter(customer__city=req_city)
+            period_bookings = period_bookings.filter(customer__city=req_city)
+
+    if req_gender:
+        period_logs = period_logs.filter(customer__gender=req_gender)
+        period_bookings = period_bookings.filter(customer__gender=req_gender)
+
+    if req_fanpage:
+        period_logs = period_logs.filter(customer__fanpage=req_fanpage)
+        period_bookings = period_bookings.filter(customer__fanpage=req_fanpage)
+        
+    if req_skin:
+        period_logs = period_logs.filter(customer__skin_condition=req_skin)
+        period_bookings = period_bookings.filter(customer__skin_condition=req_skin)
+
+    # Lọc Team/Telesale nếu có (cho logs/bookings)
+    if req_telesale:
+        # Nếu chọn filter 1 sale cụ thể, thì Re-care cũng chỉ hiện data liên quan khách của sale đó
+        period_logs = period_logs.filter(customer__assigned_telesale_id=req_telesale)
+        period_bookings = period_bookings.filter(customer__assigned_telesale_id=req_telesale)
+    elif request.user.role == 'TELESALE' and request.user.team:
+        # Phân quyền team
+        teammate_ids = User.objects.filter(team=request.user.team).values_list('id', flat=True)
+        period_logs = period_logs.filter(Q(customer__assigned_telesale_id__in=teammate_ids) | Q(customer__assigned_telesale__isnull=True))
+        period_bookings = period_bookings.filter(Q(customer__assigned_telesale_id__in=teammate_ids) | Q(customer__assigned_telesale__isnull=True))
+
+
     for sale in telesales:
-        # 
+        # Sale chăm sóc (Logs do chính sale tạo)
         my_logs = period_logs.filter(caller=sale)
         total_calls_period = my_logs.count()
         
-        # 
+        # Số khách đã chạm (Touch)
         total_customers_touched = my_logs.values('customer').distinct().count()
         
-        
+        # Sale đặt lịch (Booking do chính sale tạo)
         my_bookings = period_bookings.filter(created_by=sale).count()
         
-        # 
+        # Tỷ lệ chốt trên số khách đã chăm sóc
         conversion_rate = (my_bookings / total_customers_touched * 100) if total_customers_touched > 0 else 0
         
-        # 
+        # Chỉ hiện nếu có chỉ số > 0
         if total_calls_period > 0 or my_bookings > 0:
             recare_data.append({
                 'fullname': f"{sale.last_name} {sale.first_name}",
@@ -567,13 +594,11 @@ def telesale_report(request):
                 'rate': round(conversion_rate, 1)
             })
             
-    # 
     recare_data.sort(key=lambda x: x['booked'], reverse=True)
 
     # =================================================================================
 
     telesales_list = User.objects.filter(role='TELESALE', is_active=True).order_by('first_name')
-    # 
     if request.user.role == 'TELESALE' and request.user.team:
         telesales_list = telesales_list.filter(team=request.user.team)
 
@@ -590,15 +615,12 @@ def telesale_report(request):
         'data_quality_list': data_quality_list,
         'performance_data': performance_data,
         
-        # 
         'recare_data': recare_data, 
         
         'telesales_list': telesales_list,
         'gender_choices': Customer.Gender.choices,
         'fanpage_choices': Customer.Fanpage.choices,
         'skin_choices': Customer.SkinIssue.choices,
-        
-        # 
         'status_choices': CallLog.CallStatus.choices,
         
         'req_city': req_city,
@@ -606,6 +628,6 @@ def telesale_report(request):
         'req_fanpage': req_fanpage,
         'req_telesale': req_telesale,
         'req_skin': req_skin,
-        'req_status': req_status, # <--- 
+        'req_status': req_status, 
     }
     return render(request, 'telesales/report.html', context)
