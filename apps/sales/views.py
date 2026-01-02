@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q # <--- [CẬP NHẬT] Thêm Q để tìm kiếm
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -321,19 +321,82 @@ def admin_dashboard(request):
     return render(request, 'admin_dashboard.html', context)
 
 
-# --- [MỚI] 4. QUẢN LÝ CÔNG NỢ ---
+# --- [NÂNG CẤP] 4. QUẢN LÝ CÔNG NỢ ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def debt_manager(request):
-    # Lấy các đơn hàng có nợ > 0
+    # 1. QuerySet gốc: Chỉ lấy đơn có nợ > 0
     # Thêm select_related để tối ưu truy vấn
-    debt_orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
+    orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
     
-    # Tính tổng nợ toàn hệ thống
-    total_debt = debt_orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
+    # 2. Xử lý Bộ lọc Ngày tháng
+    today = timezone.now().date()
     
+    # Lấy tham số từ URL
+    date_start = request.GET.get('date_start', '')
+    date_end = request.GET.get('date_end', '')
+    
+    # Nếu có nhập ngày thì lọc
+    if date_start and date_end:
+        try:
+            d_start = datetime.strptime(date_start, '%Y-%m-%d').date()
+            d_end = datetime.strptime(date_end, '%Y-%m-%d').date()
+            orders = orders.filter(order_date__range=[d_start, d_end])
+        except ValueError:
+            pass
+
+    # 3. Xử lý Tìm kiếm (Mã KH, Tên, SĐT)
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        orders = orders.filter(
+            Q(customer__name__icontains=search_query) |
+            Q(customer__phone__icontains=search_query) |
+            Q(customer__customer_code__icontains=search_query)
+        )
+
+    # 4. Tính toán số liệu tổng hợp (theo danh sách đã lọc)
+    total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
+    total_count = orders.count()
+    
+    # 5. Chuẩn bị dữ liệu BIỂU ĐỒ (Charts)
+    
+    # Chart A: Top nhân viên có khách nợ nhiều nhất
+    debt_by_sale = orders.values(
+        'assigned_consultant__username', 
+        'assigned_consultant__last_name', 
+        'assigned_consultant__first_name'
+    ).annotate(total=Sum('debt_amount')).order_by('-total')[:5]
+    
+    sale_labels = []
+    sale_data = []
+    
+    for item in debt_by_sale:
+        last = item['assigned_consultant__last_name']
+        first = item['assigned_consultant__first_name']
+        if last and first:
+            name = f"{last} {first}"
+        else:
+            name = item['assigned_consultant__username'] or "Chưa gán"
+        sale_labels.append(name)
+        sale_data.append(float(item['total']))
+
+    # Chart B: Xu hướng nợ theo thời gian (Ngày tạo đơn)
+    debt_by_date = orders.values('order_date').annotate(total=Sum('debt_amount')).order_by('order_date')
+    date_labels = [item['order_date'].strftime('%d/%m') for item in debt_by_date]
+    date_data = [float(item['total']) for item in debt_by_date]
+
     context = {
-        'debt_orders': debt_orders,
+        'debt_orders': orders,
         'total_debt': total_debt,
+        'total_count': total_count,
+        'search_query': search_query,
+        'date_start': date_start,
+        'date_end': date_end,
+        
+        # Chart Data
+        'sale_labels': sale_labels,
+        'sale_data': sale_data,
+        'date_labels': date_labels,
+        'date_data': date_data,
     }
     return render(request, 'sales/debt_list.html', context)
