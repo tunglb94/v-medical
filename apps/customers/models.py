@@ -8,7 +8,7 @@ class Customer(models.Model):
     # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue
     class SkinIssue(models.TextChoices):
         # --- CÁC DỊCH VỤ MỚI ---
-        THREAD_LIFT = "THREAD_LIFT", "Căng chỉ"  # <--- Đã thêm theo yêu cầu
+        THREAD_LIFT = "THREAD_LIFT", "Căng chỉ"
         PROFHILO = "PROFHILO", "Profhilo" 
         EXOSONE = "EXOSONE", "Exosone"   
         REJURAN = "REJURAN", "Rejuran"   
@@ -33,18 +33,24 @@ class Customer(models.Model):
         REFERRAL = "REFERRAL", "Bạn giới thiệu"
         OTHER = "OTHER", "Khác"
     
-    # --- CẬP NHẬT: THÊM DANH SÁCH FANPAGE ---
+    # --- [CẬP NHẬT] DANH SÁCH FANPAGE MỚI ---
     class Fanpage(models.TextChoices):
-        # <--- MỚI THÊM 2 PAGE BÁC SĨ HOÀNG VŨ ---
+        # 1. Các Page Bác Sĩ Hoàng Vũ
         CC_KIM_CUONG_SG_HV = "CC_KIM_CUONG_SG_HV", "Căng chỉ kim cương Sài Gòn - Bác sĩ Hoàng Vũ"
         ULTRA_DIAMOND_DB_HV = "ULTRA_DIAMOND_DB_HV", "Nâng cơ trẻ hoá Ultra Diamond - Bác sĩ Danh Bảo Hoàng Vũ"
+        BS_HOANG_VU = "BS_HOANG_VU", "Bác Sĩ Hoàng Vũ - CK I Da Liễu"  # <--- [MỚI THÊM]
         
-        # CÁC PAGE CŨ
-        BS_QUAN = "BS_QUAN", "Bác sĩ Cao Trần Quân"
+        # 2. Các Page Bác Sĩ Quân & V-Medical (Đã đổi tên hiển thị)
+        # "Bác sĩ Cao Trần Quân" -> "Cao Trần Quân - Viện Da Liễu V Medical"
+        BS_QUAN = "BS_QUAN", "Cao Trần Quân - Viện Da Liễu V Medical"
+        
+        # "Cao Trần Quân - Viện Da Liễu V Medical since 2006" -> "Bác sĩ Cao Trần Quân - V Medical Clinic"
+        QUAN_SINCE_2006 = "QUAN_SINCE_2006", "Bác sĩ Cao Trần Quân - V Medical Clinic"
+        
         VMEDICAL_CLINIC = "VMEDICAL_CLINIC", "V - Medical Clinic"
         DL_VMEDICAL = "DL_VMEDICAL", "Phòng Khám Da Liễu Thẩm Mỹ V-Medical"
-        QUAN_SINCE_2006 = "QUAN_SINCE_2006", "Cao Trần Quân - Viện Da Liễu V Medical since 2006"
         ULTHERAPY_57A = "ULTHERAPY_57A", "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo"
+        
         OTHER = "OTHER", "Khác / Không rõ"
 
     class Ranking(models.TextChoices):
