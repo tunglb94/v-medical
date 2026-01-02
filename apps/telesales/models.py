@@ -14,6 +14,7 @@ class CallLog(models.Model):
         CONSULTING = "CONSULTING", "Tham khảo"
         FOLLOW_UP = "FOLLOW_UP", "Chăm thêm"
         FAR_AWAY = "FAR_AWAY", "Tỉnh xa"
+        NO_MONEY = "NO_MONEY", "Không có kinh tế"
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='call_logs', verbose_name="Khách hàng")
     caller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Người gọi")
