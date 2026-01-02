@@ -224,6 +224,12 @@
         
         {% if request.user.role in 'ADMIN,RECEPTIONIST' %}
         <li><a href="{% url 'inventory_list' %}" class="{% if 'inventory' in request.path %}active{% endif %}"><i class="bi bi-box-seam-fill"></i> <span>Kho & Vật tư</span></a></li>
+        
+        <li>
+            <a href="{% url 'debt_manager' %}" class="{% if 'sales/debt' in request.path %}active{% endif %} text-warning">
+                <i class="bi bi-cash-stack"></i> <span>Sổ Theo Dõi Nợ</span>
+            </a>
+        </li>
         {% endif %}
         
         {% if request.user.role in 'ADMIN,RECEPTIONIST,TELESALE,MARKETING,CONTENT,EDITOR,DESIGNER' %}
