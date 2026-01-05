@@ -180,7 +180,7 @@ def revenue_dashboard(request):
     return render(request, 'sales/revenue_dashboard.html', context)
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN'])
+@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN', 'TELESALE'])
 def print_invoice(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     context = {
@@ -301,7 +301,7 @@ def admin_dashboard(request):
     return render(request, 'admin_dashboard.html', context)
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
 def debt_manager(request):
     orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
     
