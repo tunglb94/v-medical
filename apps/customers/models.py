@@ -39,6 +39,7 @@ class Customer(models.Model):
         CC_KIM_CUONG_SG_HV = "CC_KIM_CUONG_SG_HV", "Căng chỉ kim cương Sài Gòn - Bác sĩ Hoàng Vũ"
         ULTRA_DIAMOND_DB_HV = "ULTRA_DIAMOND_DB_HV", "Nâng cơ trẻ hoá Ultra Diamond - Bác sĩ Danh Bảo Hoàng Vũ"
         BS_HOANG_VU = "BS_HOANG_VU", "Bác Sĩ Hoàng Vũ - CK I Da Liễu"  # <--- [MỚI THÊM]
+        HOANG_VU = 'HOANG_VU', 'Bác sĩ CKI Hoàng Vũ - Viện da liễu V Medical'
         
         # 2. Các Page Bác Sĩ Quân & V-Medical (Đã đổi tên hiển thị)
         # "Bác sĩ Cao Trần Quân" -> "Cao Trần Quân - Viện Da Liễu V Medical"
