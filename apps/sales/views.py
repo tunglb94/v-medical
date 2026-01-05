@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Count, Q # <--- [CẬP NHẬT] Thêm Q để tìm kiếm
+from django.db.models import Sum, Count, Q
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -13,9 +13,9 @@ from apps.authentication.decorators import allowed_users
 
 User = get_user_model()
 
-# --- 1. BÁO CÁO DOANH THU (CHỈ ADMIN) ---
+# --- 1. BÁO CÁO DOANH THU (CHỈ ADMIN & CONSULTANT) ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN'])
+@allowed_users(allowed_roles=['ADMIN', 'CONSULTANT'])
 def revenue_dashboard(request):
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
@@ -25,41 +25,50 @@ def revenue_dashboard(request):
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
 
-    # Lấy danh sách đơn hàng đã thanh toán trong khoảng thời gian
-    # Thêm select_related để tối ưu truy vấn Telesale
+    # [FIX] 1. Lấy danh sách đơn hàng (BỎ filter is_paid=True để tính cả đơn nợ)
     orders = Order.objects.filter(
-        order_date__range=[date_start, date_end],
-        is_paid=True
+        order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale')
 
     if doctor_id: orders = orders.filter(appointment__assigned_doctor_id=doctor_id)
     if consultant_id: orders = orders.filter(assigned_consultant_id=consultant_id)
 
-    # 1. Tổng quan
-    total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    total_orders = orders.count()
-    avg_order_value = round(total_revenue / total_orders) if total_orders > 0 else 0
+    # [FIX] 2. Tổng quan: Tính theo Thực Thu và Doanh Số riêng biệt
+    # Tổng giá trị hợp đồng (Sales)
+    total_sales = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    
+    # Tổng thực thu (Revenue - Tiền mặt thu về) -> Đây là số bạn cần hiển thị chính
+    total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
+    
+    # Tổng nợ phát sinh trong kỳ
+    total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
 
-    # 2. Biểu đồ doanh thu theo ngày
+    total_orders = orders.count()
+    # Giá trị trung bình đơn (tính trên Doanh số)
+    avg_order_value = round(total_sales / total_orders) if total_orders > 0 else 0
+
+    # 3. Biểu đồ doanh thu theo ngày (Dùng Thực thu - actual_revenue)
     revenue_data = {}
-    raw_orders = orders.values('order_date', 'total_amount')
+    raw_orders = orders.values('order_date').annotate(daily_revenue=Sum('actual_revenue')).order_by('order_date')
     
     for item in raw_orders:
         d = item['order_date']
         if d:
-            revenue_data[d] = revenue_data.get(d, 0) + (item['total_amount'] or 0)
+            revenue_data[d] = float(item['daily_revenue'] or 0)
     
     sorted_dates = sorted(revenue_data.keys())
     chart_dates = [d.strftime('%d/%m') for d in sorted_dates]
-    chart_revenues = [float(revenue_data[d]) for d in sorted_dates]
+    chart_revenues = [revenue_data[d] for d in sorted_dates]
+    
+    # Bảng chi tiết
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # 3. Doanh thu theo Sale
+    # 4. Doanh thu theo Sale (Dùng Thực thu)
     revenue_by_sale = orders.values(
         'assigned_consultant__username', 
         'assigned_consultant__first_name', 
         'assigned_consultant__last_name'
-    ).annotate(total=Sum('total_amount')).order_by('-total')
+    ).annotate(total=Sum('actual_revenue')).order_by('-total')
     
     sale_labels = []
     sale_data = []
@@ -77,16 +86,17 @@ def revenue_dashboard(request):
         else:
             display_name = username
 
+        val = float(item['total'] or 0)
         sale_labels.append(display_name)
-        sale_data.append(float(item['total']))
-        sale_table.append({'name': display_name, 'amount': item['total']})
+        sale_data.append(val)
+        sale_table.append({'name': display_name, 'amount': val})
 
-    # --- Doanh thu theo Telesale ---
+    # --- Doanh thu theo Telesale (Dùng Thực thu) ---
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
         'customer__assigned_telesale__last_name'
-    ).annotate(total=Sum('total_amount')).order_by('-total')
+    ).annotate(total=Sum('actual_revenue')).order_by('-total')
 
     telesale_revenue_table = []
     for item in revenue_by_telesale:
@@ -101,9 +111,9 @@ def revenue_dashboard(request):
         else:
             display_name = username
         
-        telesale_revenue_table.append({'name': display_name, 'amount': item['total']})
+        telesale_revenue_table.append({'name': display_name, 'amount': float(item['total'] or 0)})
 
-    # 4. Thống kê Marketing
+    # 5. Thống kê Marketing (Giữ nguyên logic cũ)
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
 
@@ -114,7 +124,9 @@ def revenue_dashboard(request):
     source_table = [{'name': source_dict.get(item['source'], item['source']), 'count': item['count']} for item in source_stats]
 
     skin_stats = new_customers.values('skin_condition').annotate(count=Count('id')).order_by('-count')
-    skin_dict = dict(Customer.SkinIssue.choices)
+    # Lưu ý: Nếu bạn đã đổi model Service, đoạn này có thể cần sửa lại skin_condition__name
+    # Ở đây tôi giữ logic cũ theo yêu cầu "dựa theo file này"
+    skin_dict = dict(Customer.SkinIssue.choices) 
     mkt_skin_labels = [skin_dict.get(item['skin_condition'], item['skin_condition']) for item in skin_stats]
     mkt_skin_data = [item['count'] for item in skin_stats]
     skin_table = [{'name': skin_dict.get(item['skin_condition'], item['skin_condition']), 'count': item['count']} for item in skin_stats]
@@ -154,21 +166,34 @@ def revenue_dashboard(request):
 
     context = {
         'orders': orders.order_by('-order_date'),
-        'total_revenue': total_revenue, 'total_orders': total_orders, 'avg_order_value': avg_order_value,
-        'chart_dates': chart_dates, 'chart_revenues': chart_revenues,
-        'sale_labels': sale_labels, 'sale_data': sale_data,
+        'total_revenue': total_revenue, # Đây là thực thu
+        'total_sales': total_sales,     # Đây là doanh số (Mới thêm)
+        'total_debt': total_debt,       # Đây là công nợ (Mới thêm)
+        'total_orders': total_orders, 
+        'avg_order_value': avg_order_value,
+        
+        'chart_dates': chart_dates, 
+        'chart_revenues': chart_revenues,
+        
+        'sale_labels': sale_labels, 
+        'sale_data': sale_data,
+        
         'marketing_total_leads': marketing_total_leads,
         'mkt_source_labels': mkt_source_labels, 'mkt_source_data': mkt_source_data,
         'mkt_skin_labels': mkt_skin_labels, 'mkt_skin_data': mkt_skin_data,
         'mkt_city_labels': mkt_city_labels, 'mkt_city_data': mkt_city_data,
         'mkt_age_labels': mkt_age_labels, 'mkt_age_data': mkt_age_data,
+        
         'total_calls': total_calls,
         'tele_status_labels': tele_status_labels, 'tele_status_data': tele_status_data,
-        'revenue_table': revenue_table, 'sale_table': sale_table,
+        
+        'revenue_table': revenue_table, 
+        'sale_table': sale_table,
         'telesale_revenue_table': telesale_revenue_table,
         'source_table': source_table, 'skin_table': skin_table,
         'city_table': city_table, 'age_table': age_table,
         'tele_table': tele_table,
+        
         'date_start': date_start, 'date_end': date_end,
         'selected_doctor': int(doctor_id) if doctor_id else None,
         'selected_consultant': int(consultant_id) if consultant_id else None,
@@ -240,16 +265,11 @@ def admin_dashboard(request):
     elif revenue_current > 0:
         growth_rate = 100
 
-    # --- B. KPI VẬN HÀNH (ĐÃ SỬA: ĐẾM UNIQUE CUSTOMER) ---
-    
-    # Tính tổng số khách ĐẶT HẸN (Không đếm trùng nếu 1 khách hẹn nhiều lần trong kỳ)
-    # Logic: Lấy danh sách khách hàng duy nhất có appointment trong khoảng thời gian này
+    # --- B. KPI VẬN HÀNH ---
     appts_total = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end]
     ).values('customer').distinct().count()
 
-    # Tính tổng số khách ĐÃ ĐẾN (Được tính là đã check-in: ARRIVED hoặc COMPLETED)
-    # Logic: Lấy danh sách khách hàng duy nhất có appointment trạng thái ARRIVED/COMPLETED trong kỳ
     appts_arrived = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end], 
         status__in=['ARRIVED', 'COMPLETED']
@@ -260,7 +280,7 @@ def admin_dashboard(request):
     calls_total = CallLog.objects.filter(call_time__date__range=[date_start, date_end]).count()
     leads_total = Customer.objects.filter(created_at__date__range=[date_start, date_end]).count()
 
-    # --- C. BIỂU ĐỒ (TREND) - FIX LỖI SQLITE TRUNCDATE ---
+    # --- C. BIỂU ĐỒ (TREND) ---
     trend_orders = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True).values('order_date', 'total_amount')
     
     trend_data = {}
@@ -282,12 +302,12 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- E. TOP NHÂN VIÊN (SALE SPA) ---
+    # --- E. TOP NHÂN VIÊN ---
     top_sales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('assigned_consultant__username', 'assigned_consultant__first_name', 'assigned_consultant__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
 
-    # --- F. TOP TELESALE (MỚI THÊM) ---
+    # --- F. TOP TELESALE ---
     top_telesales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
@@ -297,8 +317,6 @@ def admin_dashboard(request):
     context = {
         'date_start': date_start.strftime('%Y-%m-%d'),
         'date_end': date_end.strftime('%Y-%m-%d'),
-        
-        # KPI Cards
         'revenue_current': revenue_current,
         'growth_rate': growth_rate,
         'appts_total': appts_total,
@@ -306,16 +324,12 @@ def admin_dashboard(request):
         'arrival_rate': arrival_rate,
         'calls_total': calls_total,
         'leads_total': leads_total,
-        
-        # Charts
         'chart_labels': chart_labels,
         'chart_data': chart_data,
         'service_labels': service_labels,
         'service_data': service_data,
-        
-        # Tables
         'top_sales': top_sales,
-        'top_telesales': top_telesales, # Truyền vào context
+        'top_telesales': top_telesales,
         'recent_orders': recent_orders,
     }
     return render(request, 'admin_dashboard.html', context)
@@ -326,17 +340,14 @@ def admin_dashboard(request):
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST'])
 def debt_manager(request):
     # 1. QuerySet gốc: Chỉ lấy đơn có nợ > 0
-    # Thêm select_related để tối ưu truy vấn
     orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
     
     # 2. Xử lý Bộ lọc Ngày tháng
     today = timezone.now().date()
     
-    # Lấy tham số từ URL
     date_start = request.GET.get('date_start', '')
     date_end = request.GET.get('date_end', '')
     
-    # Nếu có nhập ngày thì lọc
     if date_start and date_end:
         try:
             d_start = datetime.strptime(date_start, '%Y-%m-%d').date()
@@ -345,7 +356,7 @@ def debt_manager(request):
         except ValueError:
             pass
 
-    # 3. Xử lý Tìm kiếm (Mã KH, Tên, SĐT)
+    # 3. Xử lý Tìm kiếm
     search_query = request.GET.get('q', '').strip()
     if search_query:
         orders = orders.filter(
@@ -354,13 +365,13 @@ def debt_manager(request):
             Q(customer__customer_code__icontains=search_query)
         )
 
-    # 4. Tính toán số liệu tổng hợp (theo danh sách đã lọc)
+    # 4. Tính toán số liệu tổng hợp
     total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
     total_count = orders.count()
     
-    # 5. Chuẩn bị dữ liệu BIỂU ĐỒ (Charts)
+    # 5. BIỂU ĐỒ (Charts)
     
-    # Chart A: Top nhân viên có khách nợ nhiều nhất
+    # Chart A: Top nhân viên
     debt_by_sale = orders.values(
         'assigned_consultant__username', 
         'assigned_consultant__last_name', 
@@ -380,7 +391,7 @@ def debt_manager(request):
         sale_labels.append(name)
         sale_data.append(float(item['total']))
 
-    # Chart B: Xu hướng nợ theo thời gian (Ngày tạo đơn)
+    # Chart B: Xu hướng nợ
     debt_by_date = orders.values('order_date').annotate(total=Sum('debt_amount')).order_by('order_date')
     date_labels = [item['order_date'].strftime('%d/%m') for item in debt_by_date]
     date_data = [float(item['total']) for item in debt_by_date]
@@ -392,8 +403,6 @@ def debt_manager(request):
         'search_query': search_query,
         'date_start': date_start,
         'date_end': date_end,
-        
-        # Chart Data
         'sale_labels': sale_labels,
         'sale_data': sale_data,
         'date_labels': date_labels,
