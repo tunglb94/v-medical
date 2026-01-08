@@ -16,7 +16,8 @@ from apps.authentication.decorators import allowed_users
 User = get_user_model()
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN']) 
+# [CẬP NHẬT] Thêm 'CONSULTANT' để Sale Tư vấn vào xem được Dashboard
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT']) 
 def reception_dashboard(request):
     today = timezone.now().date()
     
@@ -97,7 +98,8 @@ def get_appointments_api(request):
     return JsonResponse(events, safe=False)
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
+# [CẬP NHẬT] Thêm 'CONSULTANT' để Sale Tư vấn bấm được nút Check-in
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def checkin_appointment(request, appointment_id):
     app = get_object_or_404(Appointment.objects.select_related('customer'), pk=appointment_id)
 
@@ -126,7 +128,8 @@ def checkin_appointment(request, appointment_id):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
+# [CẬP NHẬT] Thêm 'CONSULTANT'
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def create_appointment_reception(request):
     if request.method == "POST":
         customer_id = request.POST.get('customer_id')
@@ -144,7 +147,8 @@ def create_appointment_reception(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
+# [CẬP NHẬT] Thêm 'CONSULTANT'
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def add_walkin_appointment(request):
     if request.method == "POST":
         name = request.POST.get('name')
@@ -178,7 +182,8 @@ def add_walkin_appointment(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN'])
+# [CẬP NHẬT] Thêm 'CONSULTANT' để Sale Tư vấn có thể Chốt đơn/Hoàn thành
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def finish_appointment(request):
     if request.method == "POST":
         appt_id = request.POST.get('appointment_id')
