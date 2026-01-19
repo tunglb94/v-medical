@@ -54,7 +54,7 @@ def revenue_dashboard(request):
     
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # --- [MỚI] THỐNG KÊ CHI TIẾT HIỆU SUẤT SALE TƯ VẤN ---
+    # --- THỐNG KÊ CHI TIẾT HIỆU SUẤT SALE TƯ VẤN (REVENUE DASHBOARD) ---
     consultants_list = User.objects.filter(role='CONSULTANT')
     if consultant_id:
         consultants_list = consultants_list.filter(id=consultant_id)
@@ -98,7 +98,7 @@ def revenue_dashboard(request):
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
     # -----------------------------------------------------
 
-    # Thống kê Telesale (giữ nguyên logic cũ cho bảng nhỏ bên phải, hoặc dùng logic mới tuỳ ý)
+    # Thống kê Telesale
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
@@ -178,8 +178,7 @@ def revenue_dashboard(request):
         'avg_order_value': avg_order_value,
         'chart_dates': chart_dates, 
         'chart_revenues': chart_revenues,
-        # 'sale_labels': sale_labels, 'sale_data': sale_data, # Đã thay bằng sale_performance_data
-        'sale_performance_data': sale_performance_data, # Dữ liệu mới
+        'sale_performance_data': sale_performance_data,
         'marketing_total_leads': marketing_total_leads,
         'mkt_source_labels': mkt_source_labels, 'mkt_source_data': mkt_source_data,
         'mkt_skin_labels': mkt_skin_labels, 'mkt_skin_data': mkt_skin_data,
@@ -290,32 +289,38 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- [MỚI] THỐNG KÊ CHI TIẾT SALE TƯ VẤN (ADMIN DASHBOARD - MẶC ĐỊNH HÔM NAY) ---
+    # --- [CẬP NHẬT QUAN TRỌNG] THỐNG KÊ CHI TIẾT SALE THEO BỘ LỌC NGÀY ---
     consultants = User.objects.filter(role='CONSULTANT')
-    consultant_stats_today = []
+    consultant_stats_filtered = []
     
-    # Ở Admin Dashboard, ta hiển thị thống kê cho HÔM NAY để quản lý vận hành
+    # Sử dụng date_start và date_end thay vì today
     for cons in consultants:
-        apps_today = Appointment.objects.filter(assigned_consultant=cons, appointment_date__date=today)
+        apps_filtered = Appointment.objects.filter(
+            assigned_consultant=cons, 
+            appointment_date__date__range=[date_start, date_end]
+        )
         
-        assigned = apps_today.count()
-        checkin = apps_today.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
-        success = apps_today.filter(status='COMPLETED', order__isnull=False).distinct().count()
-        failed = apps_today.filter(status='COMPLETED', order__isnull=True).count()
+        assigned = apps_filtered.count()
+        checkin = apps_filtered.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
+        success = apps_filtered.filter(status='COMPLETED', order__isnull=False).distinct().count()
+        failed = apps_filtered.filter(status='COMPLETED', order__isnull=True).count()
         
-        rev_today = Order.objects.filter(assigned_consultant=cons, order_date=today, is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        rev_filtered = Order.objects.filter(
+            assigned_consultant=cons, 
+            order_date__range=[date_start, date_end], 
+            is_paid=True
+        ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         
-        consultant_stats_today.append({
+        consultant_stats_filtered.append({
             'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
             'assigned': assigned,
             'checkin': checkin,
             'success': success,
             'failed': failed,
-            'revenue': rev_today
+            'revenue': rev_filtered
         })
     # ---------------------------------------------------------------------------------
 
-    # Top Telesales vẫn giữ nguyên logic theo khoảng thời gian
     top_telesales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
@@ -336,11 +341,9 @@ def admin_dashboard(request):
         'chart_data': chart_data,
         'service_labels': service_labels,
         'service_data': service_data,
-        # 'top_sales': top_sales, # Thay bằng bảng chi tiết
-        'consultant_stats_today': consultant_stats_today, # Dữ liệu mới
+        'consultant_stats_filtered': consultant_stats_filtered, # Đổi tên biến context
         'top_telesales': top_telesales,
         'recent_orders': recent_orders,
-        'today': today,
     }
     return render(request, 'admin_dashboard.html', context)
 
