@@ -15,6 +15,6 @@ urlpatterns = [
     path('create/', views.create_appointment_reception, name='create_appointment_reception'),
     path('walk-in/', views.add_walkin_appointment, name='add_walkin_appointment'),
     
-    # [MỚI] URL xử lý sửa lịch hẹn
+    # [QUAN TRỌNG] Dòng này bị thiếu gây ra lỗi, bạn hãy thêm vào nhé:
     path('edit/<int:appointment_id>/', views.edit_appointment, name='edit_appointment'),
 ]
