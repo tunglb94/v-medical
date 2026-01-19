@@ -263,3 +263,29 @@ def finish_appointment(request):
             messages.error(request, f"Lỗi xử lý: {str(e)}")
 
     return redirect('reception_home')
+
+# [MỚI] Hàm xử lý sửa lịch hẹn
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+def edit_appointment(request, appointment_id):
+    app = get_object_or_404(Appointment, pk=appointment_id)
+
+    if request.method == "POST":
+        new_date = request.POST.get('appointment_date')
+        
+        # Kiểm tra trạng thái, nếu đã hoàn thành thì không cho sửa (hoặc tuỳ ý bạn)
+        if app.status == 'COMPLETED':
+            messages.error(request, "Không thể sửa lịch hẹn đã hoàn thành/chốt đơn!")
+            return redirect('reception_home')
+
+        if new_date:
+            try:
+                app.appointment_date = new_date
+                app.save()
+                messages.success(request, f"Đã cập nhật lịch hẹn của {app.customer.name}")
+            except Exception as e:
+                messages.error(request, f"Lỗi khi lưu: {str(e)}")
+        else:
+            messages.error(request, "Vui lòng chọn ngày giờ hợp lệ.")
+            
+    return redirect('reception_home')

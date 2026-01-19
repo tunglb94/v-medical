@@ -117,6 +117,15 @@
                                         {% else %}<span class="badge bg-secondary">Hủy/Vắng</span>{% endif %}
                                     </td>
                                     <td class="text-end pe-4">
+                                        {% if app.status == 'SCHEDULED' or app.status == 'ARRIVED' %}
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary me-1" 
+                                                    title="Sửa lịch"
+                                                    onclick="openEditModal({{ app.id }}, '{{ app.customer.name }}', '{{ app.appointment_date|date:'Y-m-d\TH:i' }}')">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                        {% endif %}
+
                                         {% if app.status == 'SCHEDULED' %}
                                             <button type="button" 
                                                     class="btn btn-sm btn-warning fw-bold shadow-sm"
@@ -199,6 +208,34 @@
         </div>
     </div>
 
+</div>
+
+<div class="modal fade" id="editAppointmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-primary">SỬA LỊCH HẸN</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editApptForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Khách hàng</label>
+                        <input type="text" class="form-control fw-bold" id="editCustomerName" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Chọn lại ngày giờ *</label>
+                        <input type="datetime-local" name="appointment_date" id="editDateInput" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">LƯU THAY ĐỔI</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="checkinModal" tabindex="-1" aria-labelledby="checkinModalLabel" aria-hidden="true">
@@ -635,6 +672,20 @@
         new bootstrap.Modal(document.getElementById('checkinModal')).show();
     }
     
+    // --- [MỚI] JS CHO EDIT MODAL ---
+    function openEditModal(apptId, customerName, isoDate) {
+        // Cập nhật action cho form (thay số 0 bằng ID thật)
+        var urlTemplate = "{% url 'edit_appointment' 0 %}";
+        document.getElementById('editApptForm').action = urlTemplate.replace('0', apptId);
+        
+        // Điền dữ liệu cũ
+        document.getElementById('editCustomerName').value = customerName;
+        document.getElementById('editDateInput').value = isoDate;
+        
+        // Mở Modal
+        new bootstrap.Modal(document.getElementById('editAppointmentModal')).show();
+    }
+
     // --- FULLCALENDAR ACTION ---
     function showEventPopup(event) {
         document.getElementById('popupCustomerName').innerText = event.extendedProps.customerName;
