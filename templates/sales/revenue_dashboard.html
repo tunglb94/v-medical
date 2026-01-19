@@ -3,7 +3,6 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <!-- Header & Filter -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="h4 mb-0 text-gray-800"><i class="bi bi-graph-up-arrow me-2"></i>Báo Cáo Doanh Thu</h2>
         
@@ -39,7 +38,6 @@
         </form>
     </div>
 
-    <!-- Tổng quan -->
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card border-0 shadow-sm bg-primary text-white h-100">
@@ -70,9 +68,8 @@
         </div>
     </div>
 
-    <!-- Biểu đồ & Thống kê Sale -->
     <div class="row mb-4">
-        <div class="col-lg-8 mb-4 mb-lg-0">
+        <div class="col-12">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-primary">Biểu Đồ Doanh Thu Theo Ngày</h6>
@@ -82,24 +79,41 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
-            <!-- DOANH SỐ SALE SPA -->
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-success">Doanh Số Theo Sale (Spa)</h6>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="bi bi-person-badge me-2"></i>Hiệu Suất Sale Tư Vấn</h6>
+                    <small class="text-muted">(Sắp xếp theo doanh thu)</small>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
-                        <table class="table table-striped mb-0 small">
-                            <tbody>
-                                {% for item in sale_table %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0 text-center">
+                            <thead class="bg-light text-secondary small text-uppercase">
                                 <tr>
-                                    <td>{{ item.name }}</td>
-                                    <td class="text-end fw-bold">{{ item.amount|intcomma }}</td>
+                                    <th class="text-start ps-4">Sale</th>
+                                    <th>Phân bổ</th>
+                                    <th>Check-in</th>
+                                    <th class="text-success">Thành công</th>
+                                    <th class="text-danger">Thất bại</th>
+                                    <th>Doanh thu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sale_performance_data %}
+                                <tr>
+                                    <td class="text-start ps-4 fw-bold text-dark">{{ sale.name }}</td>
+                                    <td>{{ sale.assigned }}</td>
+                                    <td>{{ sale.checkin }}</td>
+                                    <td class="text-success fw-bold">{{ sale.success }}</td>
+                                    <td class="bg-danger bg-opacity-10 text-danger fw-bold">{{ sale.failed }}</td>
+                                    <td class="text-end pe-4 fw-bold text-primary">{{ sale.revenue|intcomma }} đ</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="2" class="text-center text-muted py-2">Chưa có dữ liệu</td>
+                                    <td colspan="6" class="text-center py-4 text-muted">Chưa có dữ liệu</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -107,14 +121,15 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- DOANH SỐ TELESALE (Đảm bảo hiển thị) -->
-            <div class="card border-0 shadow-sm">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-danger">Doanh Số Theo Telesale</h6>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-striped mb-0 small">
                             <tbody>
                                 {% for item in telesale_revenue_table %}
@@ -135,7 +150,6 @@
         </div>
     </div>
 
-    <!-- Nhật ký đơn hàng -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Nhật Ký Đơn Hàng</h6>
@@ -151,7 +165,6 @@
                             <th>Khách hàng</th>
                             <th>Dịch vụ</th>
                             <th>Sale Spa</th>
-                            <!-- Cột Telesale -->
                             <th>Telesale</th>
                             <th class="text-end">Tổng tiền</th>
                             <th class="text-center">Thao tác</th>
@@ -180,7 +193,6 @@
                                     -
                                 {% endif %}
                             </td>
-                            <!-- Dữ liệu Telesale -->
                             <td>
                                 {% if order.customer.assigned_telesale %}
                                     <span class="text-danger fw-bold">{{ order.customer.assigned_telesale.last_name }} {{ order.customer.assigned_telesale.first_name }}</span>

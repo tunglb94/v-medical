@@ -24,6 +24,7 @@ def revenue_dashboard(request):
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
 
+    # Lọc đơn hàng
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale')
@@ -38,6 +39,7 @@ def revenue_dashboard(request):
     total_orders = orders.count()
     avg_order_value = round(total_sales / total_orders) if total_orders > 0 else 0
 
+    # Dữ liệu biểu đồ doanh thu
     revenue_data = {}
     raw_orders = orders.values('order_date').annotate(daily_revenue=Sum('actual_revenue')).order_by('order_date')
     
@@ -52,33 +54,51 @@ def revenue_dashboard(request):
     
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    revenue_by_sale = orders.values(
-        'assigned_consultant__username', 
-        'assigned_consultant__first_name', 
-        'assigned_consultant__last_name'
-    ).annotate(total=Sum('actual_revenue')).order_by('-total')
-    
-    sale_labels = []
-    sale_data = []
-    sale_table = []
-
-    for item in revenue_by_sale:
-        username = item['assigned_consultant__username']
-        first = item['assigned_consultant__first_name']
-        last = item['assigned_consultant__last_name']
+    # --- [MỚI] THỐNG KÊ CHI TIẾT HIỆU SUẤT SALE TƯ VẤN ---
+    consultants_list = User.objects.filter(role='CONSULTANT')
+    if consultant_id:
+        consultants_list = consultants_list.filter(id=consultant_id)
         
-        if not username:
-            display_name = 'Chưa gán'
-        elif first or last:
-            display_name = f"{last or ''} {first or ''}".strip()
-        else:
-            display_name = username
+    sale_performance_data = []
 
-        val = float(item['total'] or 0)
-        sale_labels.append(display_name)
-        sale_data.append(val)
-        sale_table.append({'name': display_name, 'amount': val})
+    for cons in consultants_list:
+        # Lấy lịch hẹn trong khoảng thời gian được gán cho Sale này
+        apps = Appointment.objects.filter(
+            assigned_consultant=cons, 
+            appointment_date__date__range=[date_start, date_end]
+        )
+        
+        assigned_count = apps.count() # Tổng phân bổ
+        
+        # Check-in: Khách đã đến (tính cả đang chờ, đang làm, đã xong)
+        checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
+        
+        # Thành công: Đã xong và Có đơn hàng
+        success_count = apps.filter(status='COMPLETED', order__isnull=False).distinct().count()
+        
+        # Thất bại: Đã xong (COMPLETED) nhưng KHÔNG có đơn hàng
+        failed_count = apps.filter(status='COMPLETED', order__isnull=True).count()
+        
+        # Doanh thu (tính từ bảng Order)
+        revenue_val = orders.filter(assigned_consultant=cons).aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
+        
+        # Tên hiển thị
+        display_name = f"{cons.last_name} {cons.first_name}".strip() or cons.username
 
+        sale_performance_data.append({
+            'name': display_name,
+            'assigned': assigned_count,
+            'checkin': checkin_count,
+            'success': success_count,
+            'failed': failed_count,
+            'revenue': revenue_val
+        })
+    
+    # Sắp xếp theo doanh thu giảm dần
+    sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
+    # -----------------------------------------------------
+
+    # Thống kê Telesale (giữ nguyên logic cũ cho bảng nhỏ bên phải, hoặc dùng logic mới tuỳ ý)
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
@@ -100,6 +120,7 @@ def revenue_dashboard(request):
         
         telesale_revenue_table.append({'name': display_name, 'amount': float(item['total'] or 0)})
 
+    # Các thống kê Marketing & Khách hàng
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
 
@@ -157,8 +178,8 @@ def revenue_dashboard(request):
         'avg_order_value': avg_order_value,
         'chart_dates': chart_dates, 
         'chart_revenues': chart_revenues,
-        'sale_labels': sale_labels, 
-        'sale_data': sale_data,
+        # 'sale_labels': sale_labels, 'sale_data': sale_data, # Đã thay bằng sale_performance_data
+        'sale_performance_data': sale_performance_data, # Dữ liệu mới
         'marketing_total_leads': marketing_total_leads,
         'mkt_source_labels': mkt_source_labels, 'mkt_source_data': mkt_source_data,
         'mkt_skin_labels': mkt_skin_labels, 'mkt_skin_data': mkt_skin_data,
@@ -167,7 +188,6 @@ def revenue_dashboard(request):
         'total_calls': total_calls,
         'tele_status_labels': tele_status_labels, 'tele_status_data': tele_status_data,
         'revenue_table': revenue_table, 
-        'sale_table': sale_table,
         'telesale_revenue_table': telesale_revenue_table,
         'source_table': source_table, 'skin_table': skin_table,
         'city_table': city_table, 'age_table': age_table,
@@ -270,10 +290,32 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    top_sales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
-        .values('assigned_consultant__username', 'assigned_consultant__first_name', 'assigned_consultant__last_name')\
-        .annotate(total=Sum('total_amount')).order_by('-total')[:5]
+    # --- [MỚI] THỐNG KÊ CHI TIẾT SALE TƯ VẤN (ADMIN DASHBOARD - MẶC ĐỊNH HÔM NAY) ---
+    consultants = User.objects.filter(role='CONSULTANT')
+    consultant_stats_today = []
+    
+    # Ở Admin Dashboard, ta hiển thị thống kê cho HÔM NAY để quản lý vận hành
+    for cons in consultants:
+        apps_today = Appointment.objects.filter(assigned_consultant=cons, appointment_date__date=today)
+        
+        assigned = apps_today.count()
+        checkin = apps_today.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
+        success = apps_today.filter(status='COMPLETED', order__isnull=False).distinct().count()
+        failed = apps_today.filter(status='COMPLETED', order__isnull=True).count()
+        
+        rev_today = Order.objects.filter(assigned_consultant=cons, order_date=today, is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        
+        consultant_stats_today.append({
+            'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
+            'assigned': assigned,
+            'checkin': checkin,
+            'success': success,
+            'failed': failed,
+            'revenue': rev_today
+        })
+    # ---------------------------------------------------------------------------------
 
+    # Top Telesales vẫn giữ nguyên logic theo khoảng thời gian
     top_telesales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name')\
         .annotate(total=Sum('total_amount')).order_by('-total')[:5]
@@ -294,9 +336,11 @@ def admin_dashboard(request):
         'chart_data': chart_data,
         'service_labels': service_labels,
         'service_data': service_data,
-        'top_sales': top_sales,
+        # 'top_sales': top_sales, # Thay bằng bảng chi tiết
+        'consultant_stats_today': consultant_stats_today, # Dữ liệu mới
         'top_telesales': top_telesales,
         'recent_orders': recent_orders,
+        'today': today,
     }
     return render(request, 'admin_dashboard.html', context)
 

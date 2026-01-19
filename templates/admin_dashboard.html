@@ -3,11 +3,10 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <!-- 1. Header & Filter -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="h4 mb-1 text-gray-800 fw-bold"><i class="bi bi-speedometer2 me-2"></i>Dashboard Tổng Quan</h2>
-            <p class="text-muted small mb-0">Tổng hợp dữ liệu từ {{ date_start|date:"d/m/Y" }} đến {{ date_end|date:"d/m/Y" }}</p>
+            <p class="text-muted small mb-0">Tổng hợp dữ liệu từ {{ date_start }} đến {{ date_end }}</p>
         </div>
         
         <form method="get" class="d-flex gap-2 bg-white p-2 rounded shadow-sm border">
@@ -23,9 +22,7 @@
         </form>
     </div>
 
-    <!-- 2. KPI Cards (Tài chính & Vận hành) -->
     <div class="row g-3 mb-4">
-        <!-- Doanh thu -->
         <div class="col-xl-3 col-md-6">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
                 <div class="card-body">
@@ -49,7 +46,6 @@
             </div>
         </div>
 
-        <!-- Khách hàng mới (Leads) -->
         <div class="col-xl-3 col-md-6">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
                 <div class="card-body">
@@ -67,7 +63,6 @@
             </div>
         </div>
 
-        <!-- Lịch hẹn -->
         <div class="col-xl-3 col-md-6">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
                 <div class="card-body">
@@ -87,7 +82,6 @@
             </div>
         </div>
 
-        <!-- Tỷ lệ đến khám -->
         <div class="col-xl-3 col-md-6">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
                 <div class="card-body">
@@ -108,7 +102,6 @@
         </div>
     </div>
 
-    <!-- 3. Conversion Funnel (Phễu chuyển đổi) - MỚI -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3">
             <h6 class="font-weight-bold text-primary mb-3"><i class="bi bi-funnel-fill me-2"></i>Phễu Chuyển Đổi Vận Hành</h6>
@@ -136,9 +129,7 @@
         </div>
     </div>
 
-    <!-- 4. Charts Section -->
     <div class="row mb-4">
-        <!-- Area Chart: Revenue Trend -->
         <div class="col-lg-8 mb-4 mb-lg-0">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-3 d-flex flex-row align-items-center justify-content-between">
@@ -152,7 +143,6 @@
             </div>
         </div>
 
-        <!-- Pie Chart: Top Services -->
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-3 d-flex flex-row align-items-center justify-content-between">
@@ -178,38 +168,45 @@
         </div>
     </div>
 
-    <!-- 5. Tables Section (Updated) -->
     <div class="row">
-        <!-- Top Sales Table (Spa) -->
-        <div class="col-lg-6 mb-4">
+        <div class="col-lg-12 mb-4">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-trophy-fill text-warning me-2"></i>Top Sale Tại Spa (Consultant)</h6>
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-person-badge-fill me-2"></i>HIỆU SUẤT TƯ VẤN VIÊN (HÔM NAY: {{ today|date:"d/m" }})</h6>
+                    <small class="text-muted">Thống kê vận hành hôm nay</small>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-striped align-middle mb-0">
-                            <thead class="table-light">
+                        <table class="table table-bordered align-middle mb-0 text-center">
+                            <thead class="bg-light text-secondary">
                                 <tr>
-                                    <th class="ps-4">Nhân viên</th>
-                                    <th class="text-end pe-4">Doanh số</th>
+                                    <th class="text-start ps-4">Tư vấn viên</th>
+                                    <th>Được phân bổ</th>
+                                    <th>Check-in</th>
+                                    <th class="text-success">Thành công</th>
+                                    <th class="text-danger">Thất bại</th>
+                                    <th>Doanh thu</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for sale in top_sales %}
+                                {% for sale in consultant_stats_today %}
                                 <tr>
-                                    <td class="ps-4 fw-bold text-dark">
-                                        {% if sale.assigned_consultant__last_name or sale.assigned_consultant__first_name %}
-                                            {{ sale.assigned_consultant__last_name }} {{ sale.assigned_consultant__first_name }}
+                                    <td class="text-start ps-4 fw-bold text-dark">{{ sale.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ sale.assigned }}</span></td>
+                                    <td><span class="badge bg-info text-dark">{{ sale.checkin }}</span></td>
+                                    <td><span class="badge bg-success">{{ sale.success }}</span></td>
+                                    <td>
+                                        {% if sale.failed > 0 %}
+                                            <span class="badge bg-danger">{{ sale.failed }}</span>
                                         {% else %}
-                                            <span class="text-muted">{{ sale.assigned_consultant__username }}</span>
+                                            <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-end pe-4 text-success fw-bold">{{ sale.total|intcomma }} đ</td>
+                                    <td class="text-end pe-4 fw-bold text-success">{{ sale.revenue|intcomma }} đ</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="2" class="text-center py-3 text-muted">Chưa có dữ liệu</td>
+                                    <td colspan="6" class="text-center py-4 text-muted">Chưa có dữ liệu hôm nay</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -219,7 +216,6 @@
             </div>
         </div>
 
-        <!-- Top Telesales Table (Online) -->
         <div class="col-lg-6 mb-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-3">
@@ -261,12 +257,9 @@
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Recent Orders Table (Full Width) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm h-100">
+        
+        <div class="col-lg-6 mb-4">
+             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-clock-history me-2"></i>Đơn Hàng Gần Đây</h6>
                 </div>
@@ -276,9 +269,6 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-4">Khách hàng</th>
-                                    <th>Dịch vụ</th>
-                                    <th>Sale Spa</th>
-                                    <th>Telesale</th>
                                     <th class="text-end pe-4">Giá trị</th>
                                 </tr>
                             </thead>
@@ -289,26 +279,11 @@
                                         <div class="fw-bold text-dark small">{{ order.customer.name }}</div>
                                         <div class="text-muted small" style="font-size: 0.75rem;">{{ order.created_at|date:"d/m H:i" }}</div>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-light text-secondary border">
-                                            {% if order.service %}{{ order.service.name }}{% else %}Khác{% endif %}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if order.assigned_consultant %}
-                                            {{ order.assigned_consultant.last_name }} {{ order.assigned_consultant.first_name }}
-                                        {% else %}-{% endif %}
-                                    </td>
-                                    <td>
-                                        {% if order.customer.assigned_telesale %}
-                                            {{ order.customer.assigned_telesale.last_name }} {{ order.customer.assigned_telesale.first_name }}
-                                        {% else %}-{% endif %}
-                                    </td>
                                     <td class="text-end pe-4 fw-bold text-primary small">{{ order.total_amount|intcomma }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-3 text-muted">Chưa có đơn hàng</td>
+                                    <td colspan="2" class="text-center py-3 text-muted">Chưa có đơn hàng</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -317,10 +292,10 @@
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
-<!-- Chart.js Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Set new default font family and font color to mimic Bootstrap's default styling
