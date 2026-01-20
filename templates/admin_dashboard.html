@@ -185,7 +185,7 @@
                                     <th>Check-in</th>
                                     <th class="text-success">Thành công</th>
                                     <th class="text-danger">Thất bại</th>
-                                    <th>Doanh thu</th>
+                                    <th>TB/Khách</th> <th>Doanh thu</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -202,11 +202,12 @@
                                             <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
+                                    <td class="fw-bold text-info">{{ sale.avg_revenue|intcomma }}</td>
                                     <td class="text-end pe-4 fw-bold text-success">{{ sale.revenue|intcomma }} đ</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">Chưa có dữ liệu cho khoảng thời gian này</td>
+                                    <td colspan="7" class="text-center py-4 text-muted">Chưa có dữ liệu cho khoảng thời gian này</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

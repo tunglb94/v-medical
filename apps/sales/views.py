@@ -54,7 +54,7 @@ def revenue_dashboard(request):
     
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # --- THỐNG KÊ CHI TIẾT HIỆU SUẤT SALE TƯ VẤN (REVENUE DASHBOARD) ---
+    # --- THỐNG KÊ CHI TIẾT HIỆU SUẤT SALE TƯ VẤN ---
     consultants_list = User.objects.filter(role='CONSULTANT')
     if consultant_id:
         consultants_list = consultants_list.filter(id=consultant_id)
@@ -62,27 +62,25 @@ def revenue_dashboard(request):
     sale_performance_data = []
 
     for cons in consultants_list:
-        # Lấy lịch hẹn trong khoảng thời gian được gán cho Sale này
         apps = Appointment.objects.filter(
             assigned_consultant=cons, 
             appointment_date__date__range=[date_start, date_end]
         )
         
-        assigned_count = apps.count() # Tổng phân bổ
-        
-        # Check-in: Khách đã đến (tính cả đang chờ, đang làm, đã xong)
+        assigned_count = apps.count()
+        # Khách đã tiếp = Check-in (bao gồm thành công + thất bại)
         checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
         
-        # Thành công: Đã xong và Có đơn hàng
         success_count = apps.filter(status='COMPLETED', order__isnull=False).distinct().count()
-        
-        # Thất bại: Đã xong (COMPLETED) nhưng KHÔNG có đơn hàng
         failed_count = apps.filter(status='COMPLETED', order__isnull=True).count()
         
-        # Doanh thu (tính từ bảng Order)
         revenue_val = orders.filter(assigned_consultant=cons).aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
         
-        # Tên hiển thị
+        # [MỚI] Tính trung bình doanh thu / khách đã tiếp
+        avg_revenue = 0
+        if checkin_count > 0:
+            avg_revenue = revenue_val / checkin_count
+
         display_name = f"{cons.last_name} {cons.first_name}".strip() or cons.username
 
         sale_performance_data.append({
@@ -91,14 +89,13 @@ def revenue_dashboard(request):
             'checkin': checkin_count,
             'success': success_count,
             'failed': failed_count,
-            'revenue': revenue_val
+            'revenue': revenue_val,
+            'avg_revenue': avg_revenue # <--- Thêm trường này
         })
     
-    # Sắp xếp theo doanh thu giảm dần
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
-    # -----------------------------------------------------
-
-    # Thống kê Telesale
+    
+    # ... (Các phần thống kê Telesale, Marketing giữ nguyên) ...
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
@@ -120,7 +117,6 @@ def revenue_dashboard(request):
         
         telesale_revenue_table.append({'name': display_name, 'amount': float(item['total'] or 0)})
 
-    # Các thống kê Marketing & Khách hàng
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
 
@@ -289,11 +285,10 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- [CẬP NHẬT QUAN TRỌNG] THỐNG KÊ CHI TIẾT SALE THEO BỘ LỌC NGÀY ---
+    # --- [CẬP NHẬT] THỐNG KÊ CHI TIẾT SALE CÓ THÊM AVG_REVENUE ---
     consultants = User.objects.filter(role='CONSULTANT')
     consultant_stats_filtered = []
     
-    # Sử dụng date_start và date_end thay vì today
     for cons in consultants:
         apps_filtered = Appointment.objects.filter(
             assigned_consultant=cons, 
@@ -311,13 +306,19 @@ def admin_dashboard(request):
             is_paid=True
         ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         
+        # [MỚI] Tính TB/Khách
+        avg_revenue = 0
+        if checkin > 0:
+            avg_revenue = rev_filtered / checkin
+
         consultant_stats_filtered.append({
             'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
             'assigned': assigned,
             'checkin': checkin,
             'success': success,
             'failed': failed,
-            'revenue': rev_filtered
+            'revenue': rev_filtered,
+            'avg_revenue': avg_revenue # <--- Thêm trường này
         })
     # ---------------------------------------------------------------------------------
 
@@ -341,7 +342,7 @@ def admin_dashboard(request):
         'chart_data': chart_data,
         'service_labels': service_labels,
         'service_data': service_data,
-        'consultant_stats_filtered': consultant_stats_filtered, # Đổi tên biến context
+        'consultant_stats_filtered': consultant_stats_filtered,
         'top_telesales': top_telesales,
         'recent_orders': recent_orders,
     }
