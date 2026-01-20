@@ -25,7 +25,7 @@ def revenue_dashboard(request):
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
 
-    # --- 1. LẤY ĐƠN HÀNG THÀNH CÔNG (ĐỂ TÍNH DOANH THU) ---
+    # --- 1. LẤY ĐƠN HÀNG (Order) ---
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale', 'service', 'assigned_consultant')
@@ -47,7 +47,7 @@ def revenue_dashboard(request):
     if total_orders_success > 0:
         avg_order_value = int(total_sales / total_orders_success)
 
-    # --- 2. LẤY DANH SÁCH "THẤT BẠI" (LỊCH HẸN COMPLETED NHƯNG KHÔNG CÓ ORDER) ---
+    # --- 2. LẤY CA THẤT BẠI (Lịch hẹn Completed nhưng chưa có Order) ---
     failed_apps = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end],
         status='COMPLETED',
@@ -61,42 +61,43 @@ def revenue_dashboard(request):
         elif consultant_id.isdigit():
             failed_apps = failed_apps.filter(assigned_consultant_id=consultant_id)
 
-    # --- 3. GỘP DANH SÁCH ĐỂ HIỂN THỊ NHẬT KÝ ---
+    # --- 3. GỘP DANH SÁCH NHẬT KÝ ---
     order_logs = []
     
-    # a. Thêm đơn thành công
+    # a. Thêm Order
     for o in orders:
         order_logs.append({
             'is_fail': False,
             'id': o.id,
-            'item_id': o.id, # ID dùng để định danh khi sửa
-            'type': 'order',
+            'item_id': o.id, 
+            'type': 'order', 
             'date': o.order_date,
             'customer_name': o.customer.name,
             'customer_phone': o.customer.phone,
             'service_name': o.service.name if o.service else "Khác",
+            'service_id': o.service.id if o.service else "",
             'consultant': o.assigned_consultant,
             'telesale': o.customer.assigned_telesale,
             'total_amount': o.total_amount
         })
         
-    # b. Thêm ca thất bại
+    # b. Thêm Appointment (Fail)
     for app in failed_apps:
         order_logs.append({
             'is_fail': True,
-            'id': app.id, # Dùng ID lịch hẹn để hiển thị tạm
-            'item_id': app.id, # ID thực tế của Appointment
-            'type': 'appointment',
+            'id': app.id, # Dùng ID lịch hẹn
+            'item_id': app.id, 
+            'type': 'appointment', 
             'date': app.appointment_date.date(),
             'customer_name': app.customer.name,
             'customer_phone': app.customer.phone,
             'service_name': "Không phát sinh dịch vụ (Fail)",
+            'service_id': "",
             'consultant': app.assigned_consultant,
             'telesale': app.customer.assigned_telesale,
             'total_amount': 0
         })
         
-    # Sắp xếp theo ngày mới nhất
     order_logs.sort(key=lambda x: x['date'], reverse=True)
 
     # --- 4. TÍNH HIỆU SUẤT SALE ---
@@ -118,7 +119,7 @@ def revenue_dashboard(request):
     sale_performance_data = []
 
     for cons in consultants_list:
-        # a. Vận hành (Lịch hẹn)
+        # Vận hành (Lịch hẹn)
         apps = Appointment.objects.filter(
             assigned_consultant=cons, 
             appointment_date__date__range=[date_start, date_end]
@@ -128,12 +129,11 @@ def revenue_dashboard(request):
         success_count = apps.filter(status='COMPLETED', order__isnull=False).distinct().count()
         failed_count = apps.filter(status='COMPLETED', order__isnull=True).count()
         
-        # b. Tài chính (Đơn hàng)
+        # Tài chính (Đơn hàng)
         my_orders = orders.filter(assigned_consultant=cons)
         real_orders_count = my_orders.count()
         revenue_val = my_orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
         
-        # c. Tính trung bình
         avg_revenue = 0
         if checkin_count > 0:
             avg_revenue = int(revenue_val / checkin_count)
@@ -152,7 +152,7 @@ def revenue_dashboard(request):
     
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
 
-    # Thống kê Telesale & Marketing
+    # Thống kê Telesale
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name'
     ).annotate(total=Sum('actual_revenue')).order_by('-total')
@@ -165,54 +165,15 @@ def revenue_dashboard(request):
         display_name = f"{last or ''} {first or ''}".strip() if (first or last) else (username or 'Không có Telesale')
         telesale_revenue_table.append({'name': display_name, 'amount': float(item['total'] or 0)})
 
-    new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
-    marketing_total_leads = new_customers.count()
-    source_stats = new_customers.values('source').annotate(count=Count('id')).order_by('-count')
-    source_dict = dict(Customer.Source.choices)
-    mkt_source_labels = [source_dict.get(item['source'], item['source']) for item in source_stats]
-    mkt_source_data = [item['count'] for item in source_stats]
-    source_table = [{'name': source_dict.get(item['source'], item['source']), 'count': item['count']} for item in source_stats]
-
-    skin_stats = new_customers.values('skin_condition').annotate(count=Count('id')).order_by('-count')
-    skin_dict = dict(Customer.SkinIssue.choices)
-    mkt_skin_labels = [skin_dict.get(item['skin_condition'], item['skin_condition']) for item in skin_stats]
-    mkt_skin_data = [item['count'] for item in skin_stats]
-    skin_table = [{'name': skin_dict.get(item['skin_condition'], item['skin_condition']), 'count': item['count']} for item in skin_stats]
-
-    city_stats = new_customers.values('city').annotate(count=Count('id')).order_by('-count')[:10]
-    mkt_city_labels = [item['city'] or 'Chưa rõ' for item in city_stats]
-    mkt_city_data = [item['count'] for item in city_stats]
-    city_table = [{'name': item['city'] or 'Chưa rõ', 'count': item['count']} for item in city_stats]
-
-    age_groups = {'<18': 0, '18-25': 0, '26-35': 0, '36-45': 0, '46+': 0, 'Chưa rõ': 0}
-    for cus in new_customers:
-        age = cus.age
-        if age is None: age_groups['Chưa rõ'] += 1
-        elif age < 18: age_groups['<18'] += 1
-        elif 18 <= age <= 25: age_groups['18-25'] += 1
-        elif 26 <= age <= 35: age_groups['26-35'] += 1
-        elif 36 <= age <= 45: age_groups['36-45'] += 1
-        else: age_groups['46+'] += 1
-    mkt_age_labels = list(age_groups.keys())
-    mkt_age_data = list(age_groups.values())
-    age_table = [{'group': k, 'count': v} for k, v in age_groups.items() if v > 0]
-
-    logs = CallLog.objects.filter(call_time__date__range=[date_start, date_end])
-    if consultant_id and consultant_id != 'none' and consultant_id.isdigit():
-        logs = logs.filter(caller_id=consultant_id)
-    total_calls = logs.count()
-    status_stats = logs.values('status').annotate(count=Count('id')).order_by('-count')
-    status_dict = dict(CallLog.CallStatus.choices)
-    tele_status_labels = [status_dict.get(item['status'], item['status']) for item in status_stats]
-    tele_status_data = [item['count'] for item in status_stats]
-    tele_table = [{'status': status_dict.get(item['status'], item['status']), 'count': item['count']} for item in status_stats]
-
     doctors = User.objects.filter(role='DOCTOR')
     consultants = User.objects.filter(role='CONSULTANT')
+    
+    # [MỚI] Lấy danh sách dịch vụ cho Popup Sửa
+    services = Service.objects.all().order_by('name')
 
     context = {
         'orders': orders, 
-        'order_logs': order_logs, # Danh sách gộp
+        'order_logs': order_logs,
         'total_revenue': total_revenue, 
         'total_sales': total_sales,
         'total_debt': total_debt,
@@ -221,54 +182,79 @@ def revenue_dashboard(request):
         'chart_dates': chart_dates, 
         'chart_revenues': chart_revenues,
         'sale_performance_data': sale_performance_data,
-        'marketing_total_leads': marketing_total_leads,
-        'mkt_source_labels': mkt_source_labels, 'mkt_source_data': mkt_source_data,
-        'mkt_skin_labels': mkt_skin_labels, 'mkt_skin_data': mkt_skin_data,
-        'mkt_city_labels': mkt_city_labels, 'mkt_city_data': mkt_city_data,
-        'mkt_age_labels': mkt_age_labels, 'mkt_age_data': mkt_age_data,
-        'total_calls': total_calls,
-        'tele_status_labels': tele_status_labels, 'tele_status_data': tele_status_data,
-        'revenue_table': revenue_table, 
         'telesale_revenue_table': telesale_revenue_table,
-        'source_table': source_table, 'skin_table': skin_table,
-        'city_table': city_table, 'age_table': age_table,
-        'tele_table': tele_table,
+        'revenue_table': revenue_table, 
         'date_start': date_start, 'date_end': date_end,
         'selected_doctor': int(doctor_id) if doctor_id else None,
         'selected_consultant': int(consultant_id) if consultant_id and consultant_id.isdigit() else consultant_id,
         'doctors': doctors, 'consultants': consultants,
+        'services': services, 
     }
     return render(request, 'sales/revenue_dashboard.html', context)
 
-# [MỚI] Hàm cập nhật Sale phụ trách (Cho cả Order và Appointment)
+# [MỚI] HÀM CẬP NHẬT CHI TIẾT ĐƠN HÀNG (FULL FIELDS)
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MANAGER', 'RECEPTIONIST', 'TELESALE'])
-def update_consultant_assignment(request):
+def update_order_details(request):
     if request.method == "POST":
         item_id = request.POST.get('item_id')
         item_type = request.POST.get('item_type') # 'order' hoặc 'appointment'
+        
+        # Các trường cần sửa
         new_consultant_id = request.POST.get('consultant_id')
+        new_service_id = request.POST.get('service_id')
+        new_total_amount = request.POST.get('total_amount')
+        new_date = request.POST.get('order_date')
         
         try:
+            # 1. Xử lý Consultant
             new_cons = None
             if new_consultant_id:
                 new_cons = User.objects.get(id=new_consultant_id)
             
+            # 2. Xử lý Service
+            new_service = None
+            if new_service_id:
+                new_service = Service.objects.get(id=new_service_id)
+
             if item_type == 'order':
+                # --- SỬA ĐƠN HÀNG ---
                 order = Order.objects.get(id=item_id)
                 order.assigned_consultant = new_cons
+                if new_service: order.service = new_service
+                
+                if new_total_amount is not None and new_total_amount != '':
+                    # Clean định dạng số (1.000.000 -> 1000000)
+                    clean_amount = float(new_total_amount.replace('.', '').replace(',', ''))
+                    order.total_amount = clean_amount
+                    # Tạm thời set thực thu = tổng tiền (logic đơn giản)
+                    order.actual_revenue = clean_amount 
+                
+                if new_date:
+                    order.order_date = new_date
+                
                 order.save()
+                
                 # Đồng bộ ngược Appointment nếu có
                 if order.appointment:
                     order.appointment.assigned_consultant = new_cons
                     order.appointment.save()
-                messages.success(request, f"Đã cập nhật Sale cho đơn hàng #{order.id}")
+                    
+                messages.success(request, f"Đã cập nhật chi tiết đơn hàng #{order.id}")
                 
             elif item_type == 'appointment':
+                # --- SỬA LỊCH HẸN THẤT BẠI ---
                 appt = Appointment.objects.get(id=item_id)
                 appt.assigned_consultant = new_cons
+                
+                if new_date:
+                    # Giữ nguyên giờ, chỉ đổi ngày
+                    original_time = appt.appointment_date.time()
+                    new_date_obj = datetime.strptime(new_date, '%Y-%m-%d').date()
+                    appt.appointment_date = datetime.combine(new_date_obj, original_time)
+                
                 appt.save()
-                messages.success(request, f"Đã cập nhật Sale cho lịch hẹn thất bại của {appt.customer.name}")
+                messages.success(request, f"Đã cập nhật thông tin lịch hẹn của {appt.customer.name}")
                 
         except Exception as e:
             messages.error(request, f"Lỗi cập nhật: {str(e)}")
@@ -290,6 +276,68 @@ def print_invoice(request, order_id):
         }
     }
     return render(request, 'sales/invoice_print.html', context)
+
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
+def debt_manager(request):
+    orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
+    
+    today = timezone.now().date()
+    date_start = request.GET.get('date_start', '')
+    date_end = request.GET.get('date_end', '')
+    
+    if date_start and date_end:
+        try:
+            d_start = datetime.strptime(date_start, '%Y-%m-%d').date()
+            d_end = datetime.strptime(date_end, '%Y-%m-%d').date()
+            orders = orders.filter(order_date__range=[d_start, d_end])
+        except ValueError:
+            pass
+
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        orders = orders.filter(
+            Q(customer__name__icontains=search_query) |
+            Q(customer__phone__icontains=search_query) |
+            Q(customer__customer_code__icontains=search_query)
+        )
+
+    total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
+    total_count = orders.count()
+    
+    debt_by_sale = orders.values(
+        'assigned_consultant__username', 
+        'assigned_consultant__last_name', 
+        'assigned_consultant__first_name'
+    ).annotate(total=Sum('debt_amount')).order_by('-total')[:5]
+    
+    sale_labels = []
+    sale_data = []
+    for item in debt_by_sale:
+        last = item['assigned_consultant__last_name']
+        first = item['assigned_consultant__first_name']
+        if last and first: name = f"{last} {first}"
+        else: name = item['assigned_consultant__username'] or "Chưa gán"
+        sale_labels.append(name)
+        sale_data.append(float(item['total']))
+
+    debt_by_date = orders.values('order_date').annotate(total=Sum('debt_amount')).order_by('order_date')
+    date_labels = [item['order_date'].strftime('%d/%m') for item in debt_by_date]
+    date_data = [float(item['total']) for item in debt_by_date]
+
+    context = {
+        'debt_orders': orders,
+        'total_debt': total_debt,
+        'total_count': total_count,
+        'search_query': search_query,
+        'date_start': date_start,
+        'date_end': date_end,
+        'sale_labels': sale_labels,
+        'sale_data': sale_data,
+        'date_labels': date_labels,
+        'date_data': date_data,
+    }
+    return render(request, 'sales/debt_list.html', context)
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
@@ -428,65 +476,3 @@ def admin_dashboard(request):
         'recent_orders': recent_orders,
     }
     return render(request, 'admin_dashboard.html', context)
-
-@login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
-def debt_manager(request):
-    orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
-    
-    today = timezone.now().date()
-    date_start = request.GET.get('date_start', '')
-    date_end = request.GET.get('date_end', '')
-    
-    if date_start and date_end:
-        try:
-            d_start = datetime.strptime(date_start, '%Y-%m-%d').date()
-            d_end = datetime.strptime(date_end, '%Y-%m-%d').date()
-            orders = orders.filter(order_date__range=[d_start, d_end])
-        except ValueError:
-            pass
-
-    search_query = request.GET.get('q', '').strip()
-    if search_query:
-        orders = orders.filter(
-            Q(customer__name__icontains=search_query) |
-            Q(customer__phone__icontains=search_query) |
-            Q(customer__customer_code__icontains=search_query)
-        )
-
-    total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
-    total_count = orders.count()
-    
-    debt_by_sale = orders.values(
-        'assigned_consultant__username', 
-        'assigned_consultant__last_name', 
-        'assigned_consultant__first_name'
-    ).annotate(total=Sum('debt_amount')).order_by('-total')[:5]
-    
-    sale_labels = []
-    sale_data = []
-    for item in debt_by_sale:
-        last = item['assigned_consultant__last_name']
-        first = item['assigned_consultant__first_name']
-        if last and first: name = f"{last} {first}"
-        else: name = item['assigned_consultant__username'] or "Chưa gán"
-        sale_labels.append(name)
-        sale_data.append(float(item['total']))
-
-    debt_by_date = orders.values('order_date').annotate(total=Sum('debt_amount')).order_by('order_date')
-    date_labels = [item['order_date'].strftime('%d/%m') for item in debt_by_date]
-    date_data = [float(item['total']) for item in debt_by_date]
-
-    context = {
-        'debt_orders': orders,
-        'total_debt': total_debt,
-        'total_count': total_count,
-        'search_query': search_query,
-        'date_start': date_start,
-        'date_end': date_end,
-        'sale_labels': sale_labels,
-        'sale_data': sale_data,
-        'date_labels': date_labels,
-        'date_data': date_data,
-    }
-    return render(request, 'sales/debt_list.html', context)

@@ -17,10 +17,9 @@ from apps.bookings.views import (
 )
 
 # Import views từ Sales
-# [CẬP NHẬT] Thêm 'update_consultant_assignment' vào đây
 from apps.sales.views import (
     revenue_dashboard, print_invoice, admin_dashboard, debt_manager,
-    update_consultant_assignment
+    update_order_details # <--- Hàm mới cập nhật chi tiết
 )
 
 urlpatterns = [
@@ -42,27 +41,19 @@ urlpatterns = [
     
     # --- 5. RECEPTION (LỄ TÂN) ---
     path('reception/', reception_dashboard, name='reception_home'),
-    
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin_appointment'),
-    
-    # [QUAN TRỌNG] ĐƯỜNG DẪN SỬA LỊCH HẸN
     path('reception/edit/<int:appointment_id>/', edit_appointment, name='edit_appointment'),
-    
     path('reception/create-appointment/', create_appointment_reception, name='create_appointment_reception'),
-    
     path('reception/finish/', finish_appointment, name='finish_appointment'),
-    
     path('reception/walk-in/', add_walkin_appointment, name='add_walkin_appointment'),
-    
-    # API cho Lịch
     path('api/calendar/appointments/', get_appointments_api, name='get_appointments_api'),
 
     # --- 6. SALES & BÁO CÁO ---
     path('sales/report/', revenue_dashboard, name='sales_report'),
     path('sales/invoice/<int:order_id>/', print_invoice, name='print_invoice'),
     
-    # [MỚI] Đường dẫn xử lý sửa Sale phụ trách
-    path('sales/update-consultant/', update_consultant_assignment, name='update_consultant_assignment'),
+    # [QUAN TRỌNG] Đường dẫn sửa chi tiết đơn hàng
+    path('sales/update-details/', update_order_details, name='update_order_details'),
     
     path('sales/debt/', debt_manager, name='debt_manager'),
 
@@ -70,14 +61,9 @@ urlpatterns = [
     path('customers/', include('apps.customers.urls')), 
     path('marketing/', include('apps.marketing.urls')), 
     path('hr/', include('apps.hr.urls')),
-    
-    # --- 8. CHAT ---
     path('chat/', include('apps.chat.urls')), 
-
     path('resources/', include('apps.resources.urls')),
     path('inventory/', include('apps.inventory.urls')),
-
-    # --- 9. MODULE LỊCH DỊCH VỤ ---
     path('service-calendar/', include('apps.service_calendar.urls')),
 ]
 
