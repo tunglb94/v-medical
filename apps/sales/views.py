@@ -41,7 +41,9 @@ def revenue_dashboard(request):
     total_sales = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
     total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
-    total_orders_success = orders.count()
+    
+    # [LOGIC MỚI] Chỉ đếm đơn > 0đ vào KPI tổng đơn
+    total_orders_success = orders.filter(total_amount__gt=0).count()
     
     avg_order_value = 0
     if total_orders_success > 0:
@@ -64,10 +66,11 @@ def revenue_dashboard(request):
     # --- 3. GỘP DANH SÁCH NHẬT KÝ ---
     order_logs = []
     
-    # a. Thêm Order
+    # a. Thêm Order (Xử lý 0đ -> Fail)
     for o in orders:
+        is_zero_amount = (o.total_amount == 0)
         order_logs.append({
-            'is_fail': False,
+            'is_fail': is_zero_amount, # Nếu 0đ -> Fail (Màu đỏ)
             'id': o.id,
             'item_id': o.id, 
             'type': 'order', 
@@ -81,11 +84,11 @@ def revenue_dashboard(request):
             'total_amount': o.total_amount
         })
         
-    # b. Thêm Appointment (Fail)
+    # b. Thêm Appointment (Fail do không có đơn)
     for app in failed_apps:
         order_logs.append({
             'is_fail': True,
-            'id': app.id, # Dùng ID lịch hẹn
+            'id': app.id, 
             'item_id': app.id, 
             'type': 'appointment', 
             'date': app.appointment_date.date(),
@@ -119,26 +122,32 @@ def revenue_dashboard(request):
     sale_performance_data = []
 
     for cons in consultants_list:
-        # Vận hành (Lịch hẹn)
         apps = Appointment.objects.filter(
             assigned_consultant=cons, 
             appointment_date__date__range=[date_start, date_end]
         )
         assigned_count = apps.count()
         checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
-        success_count = apps.filter(status='COMPLETED', order__isnull=False).distinct().count()
-        failed_count = apps.filter(status='COMPLETED', order__isnull=True).count()
         
-        # Tài chính (Đơn hàng)
+        # [LOGIC MỚI] Thành công = Lịch hẹn Completed CÓ đơn hàng > 0đ
+        success_count = apps.filter(status='COMPLETED', order__total_amount__gt=0).distinct().count()
+        
+        # [LOGIC MỚI] Thất bại = Tổng Completed - Thành công (Bao gồm cả 0đ và Không đơn)
+        completed_total = apps.filter(status='COMPLETED').count()
+        failed_count = completed_total - success_count
+        if failed_count < 0: failed_count = 0
+        
+        # [LOGIC MỚI] Số đơn = Đếm các đơn > 0đ
         my_orders = orders.filter(assigned_consultant=cons)
-        real_orders_count = my_orders.count()
+        real_orders_count = my_orders.filter(total_amount__gt=0).count()
+        
         revenue_val = my_orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
         
         avg_revenue = 0
         if checkin_count > 0:
             avg_revenue = int(revenue_val / checkin_count)
 
-        if assigned_count > 0 or real_orders_count > 0:
+        if assigned_count > 0 or my_orders.exists():
             sale_performance_data.append({
                 'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
                 'assigned': assigned_count,
@@ -152,7 +161,7 @@ def revenue_dashboard(request):
     
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
 
-    # Thống kê Telesale
+    # Thống kê Telesale & Marketing
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name'
     ).annotate(total=Sum('actual_revenue')).order_by('-total')
@@ -168,7 +177,7 @@ def revenue_dashboard(request):
     doctors = User.objects.filter(role='DOCTOR')
     consultants = User.objects.filter(role='CONSULTANT')
     
-    # [MỚI] Lấy danh sách dịch vụ cho Popup Sửa
+    # Lấy danh sách dịch vụ cho Popup Sửa
     services = Service.objects.all().order_by('name')
 
     context = {
@@ -192,7 +201,8 @@ def revenue_dashboard(request):
     }
     return render(request, 'sales/revenue_dashboard.html', context)
 
-# [MỚI] HÀM CẬP NHẬT CHI TIẾT ĐƠN HÀNG (FULL FIELDS)
+# --- HÀM CẬP NHẬT CHI TIẾT ĐƠN HÀNG (FULL FIELDS) ---
+# ĐÂY LÀ HÀM BỊ THIẾU Ở BẢN TRƯỚC
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MANAGER', 'RECEPTIONIST', 'TELESALE'])
 def update_order_details(request):
@@ -227,7 +237,6 @@ def update_order_details(request):
                     # Clean định dạng số (1.000.000 -> 1000000)
                     clean_amount = float(new_total_amount.replace('.', '').replace(',', ''))
                     order.total_amount = clean_amount
-                    # Tạm thời set thực thu = tổng tiền (logic đơn giản)
                     order.actual_revenue = clean_amount 
                 
                 if new_date:
