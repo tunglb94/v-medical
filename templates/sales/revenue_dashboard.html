@@ -157,7 +157,7 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Nhật Ký Hoạt Động (Đơn hàng & Khách đến)</h6>
+            <h6 class="m-0 font-weight-bold text-primary">Nhật Ký Hoạt Động</h6>
             <span class="badge bg-secondary">{{ order_logs|length }} Dòng</span>
         </div>
         <div class="card-body p-0">
@@ -180,7 +180,7 @@
                         <tr class="{% if log.is_fail %}table-danger{% endif %}">
                             <td>
                                 {% if log.is_fail %}
-                                    <span class="badge bg-danger">Thất bại</span>
+                                    <span class="badge bg-danger">Fail</span>
                                 {% else %}
                                     <span class="badge bg-light text-dark border">#{{ log.id }}</span>
                                 {% endif %}
@@ -192,13 +192,36 @@
                             </td>
                             <td>
                                 {% if log.is_fail %}
-                                    <span class="text-danger fw-bold fst-italic">Không phát sinh dịch vụ</span>
+                                    <span class="text-danger fst-italic"><i class="bi bi-x-circle me-1"></i>{{ log.service_name }}</span>
                                 {% else %}
                                     {{ log.service_name }}
                                 {% endif %}
                             </td>
-                            <td>{{ log.consultant_name }}</td>
-                            <td>{{ log.telesale_name }}</td>
+                            <td>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="me-2 fw-bold text-dark">
+                                        {% if log.consultant %}
+                                            {{ log.consultant.last_name }} {{ log.consultant.first_name }}
+                                        {% else %}
+                                            <span class="text-muted fst-italic">-- Chưa gán --</span>
+                                        {% endif %}
+                                    </span>
+                                    
+                                    <button type="button" 
+                                            class="btn btn-link btn-sm p-0 text-primary" 
+                                            onclick="openEditSale('{{ log.item_id }}', '{{ log.type }}', '{{ log.consultant.id }}')"
+                                            title="Sửa Sale phụ trách">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                {% if log.telesale %}
+                                    <span class="text-muted small">{{ log.telesale.last_name }} {{ log.telesale.first_name }}</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
                             
                             <td class="text-end fw-bold {% if log.is_fail %}text-danger{% else %}text-success{% endif %}">
                                 {{ log.total_amount|intcomma }}
@@ -214,7 +237,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">Không có dữ liệu trong khoảng thời gian này.</td>
+                            <td colspan="8" class="text-center py-4 text-muted">Không có dữ liệu.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -224,8 +247,46 @@
     </div>
 </div>
 
+<div class="modal fade" id="editSaleModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title fw-bold">Chọn Sale Phụ Trách</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'update_consultant_assignment' %}" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="item_id" id="editItemId">
+                <input type="hidden" name="item_type" id="editItemType">
+                
+                <div class="modal-body">
+                    <label class="form-label small text-muted">Chọn nhân viên Sale Spa:</label>
+                    <select name="consultant_id" class="form-select form-select-sm" id="editSaleSelect">
+                        <option value="">-- Bỏ trống (Chưa gán) --</option>
+                        {% for sale in consultants %}
+                            <option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer p-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">Lưu Thay Đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // JS Mở Modal
+    function openEditSale(itemId, itemType, currentSaleId) {
+        document.getElementById('editItemId').value = itemId;
+        document.getElementById('editItemType').value = itemType;
+        document.getElementById('editSaleSelect').value = currentSaleId || "";
+        new bootstrap.Modal(document.getElementById('editSaleModal')).show();
+    }
+
+    // Chart
     const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
     new Chart(ctxRevenue, {
         type: 'line',

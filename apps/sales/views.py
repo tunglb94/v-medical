@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -36,7 +37,7 @@ def revenue_dashboard(request):
         elif consultant_id.isdigit():
             orders = orders.filter(assigned_consultant_id=consultant_id)
 
-    # Tổng hợp KPI Tài chính (Chỉ tính trên đơn thành công)
+    # Tổng hợp KPI Tài chính
     total_sales = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
     total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
@@ -68,12 +69,14 @@ def revenue_dashboard(request):
         order_logs.append({
             'is_fail': False,
             'id': o.id,
+            'item_id': o.id, # ID dùng để định danh khi sửa
+            'type': 'order',
             'date': o.order_date,
             'customer_name': o.customer.name,
             'customer_phone': o.customer.phone,
             'service_name': o.service.name if o.service else "Khác",
-            'consultant_name': f"{o.assigned_consultant.last_name} {o.assigned_consultant.first_name}" if o.assigned_consultant else "-",
-            'telesale_name': f"{o.customer.assigned_telesale.last_name} {o.customer.assigned_telesale.first_name}" if o.customer.assigned_telesale else "-",
+            'consultant': o.assigned_consultant,
+            'telesale': o.customer.assigned_telesale,
             'total_amount': o.total_amount
         })
         
@@ -81,20 +84,22 @@ def revenue_dashboard(request):
     for app in failed_apps:
         order_logs.append({
             'is_fail': True,
-            'id': app.id, # Dùng ID lịch hẹn
+            'id': app.id, # Dùng ID lịch hẹn để hiển thị tạm
+            'item_id': app.id, # ID thực tế của Appointment
+            'type': 'appointment',
             'date': app.appointment_date.date(),
             'customer_name': app.customer.name,
             'customer_phone': app.customer.phone,
             'service_name': "Không phát sinh dịch vụ (Fail)",
-            'consultant_name': f"{app.assigned_consultant.last_name} {app.assigned_consultant.first_name}" if app.assigned_consultant else "-",
-            'telesale_name': f"{app.customer.assigned_telesale.last_name} {app.customer.assigned_telesale.first_name}" if app.customer.assigned_telesale else "-",
+            'consultant': app.assigned_consultant,
+            'telesale': app.customer.assigned_telesale,
             'total_amount': 0
         })
         
-    # Sắp xếp theo ngày mới nhất (Gộp chung lại)
+    # Sắp xếp theo ngày mới nhất
     order_logs.sort(key=lambda x: x['date'], reverse=True)
 
-    # --- 4. TÍNH HIỆU SUẤT SALE (LOGIC CŨ ĐÃ KHỚP) ---
+    # --- 4. TÍNH HIỆU SUẤT SALE ---
     revenue_data = {}
     raw_orders = orders.values('order_date').annotate(daily_revenue=Sum('actual_revenue')).order_by('order_date')
     for item in raw_orders:
@@ -113,6 +118,7 @@ def revenue_dashboard(request):
     sale_performance_data = []
 
     for cons in consultants_list:
+        # a. Vận hành (Lịch hẹn)
         apps = Appointment.objects.filter(
             assigned_consultant=cons, 
             appointment_date__date__range=[date_start, date_end]
@@ -122,10 +128,12 @@ def revenue_dashboard(request):
         success_count = apps.filter(status='COMPLETED', order__isnull=False).distinct().count()
         failed_count = apps.filter(status='COMPLETED', order__isnull=True).count()
         
+        # b. Tài chính (Đơn hàng)
         my_orders = orders.filter(assigned_consultant=cons)
         real_orders_count = my_orders.count()
         revenue_val = my_orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
         
+        # c. Tính trung bình
         avg_revenue = 0
         if checkin_count > 0:
             avg_revenue = int(revenue_val / checkin_count)
@@ -144,7 +152,7 @@ def revenue_dashboard(request):
     
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
 
-    # Thống kê Telesale & Marketing (Giữ nguyên)
+    # Thống kê Telesale & Marketing
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name'
     ).annotate(total=Sum('actual_revenue')).order_by('-total')
@@ -204,7 +212,7 @@ def revenue_dashboard(request):
 
     context = {
         'orders': orders, 
-        'order_logs': order_logs, # [QUAN TRỌNG] Danh sách gộp mới
+        'order_logs': order_logs, # Danh sách gộp
         'total_revenue': total_revenue, 
         'total_sales': total_sales,
         'total_debt': total_debt,
@@ -231,6 +239,41 @@ def revenue_dashboard(request):
         'doctors': doctors, 'consultants': consultants,
     }
     return render(request, 'sales/revenue_dashboard.html', context)
+
+# [MỚI] Hàm cập nhật Sale phụ trách (Cho cả Order và Appointment)
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'MANAGER', 'RECEPTIONIST', 'TELESALE'])
+def update_consultant_assignment(request):
+    if request.method == "POST":
+        item_id = request.POST.get('item_id')
+        item_type = request.POST.get('item_type') # 'order' hoặc 'appointment'
+        new_consultant_id = request.POST.get('consultant_id')
+        
+        try:
+            new_cons = None
+            if new_consultant_id:
+                new_cons = User.objects.get(id=new_consultant_id)
+            
+            if item_type == 'order':
+                order = Order.objects.get(id=item_id)
+                order.assigned_consultant = new_cons
+                order.save()
+                # Đồng bộ ngược Appointment nếu có
+                if order.appointment:
+                    order.appointment.assigned_consultant = new_cons
+                    order.appointment.save()
+                messages.success(request, f"Đã cập nhật Sale cho đơn hàng #{order.id}")
+                
+            elif item_type == 'appointment':
+                appt = Appointment.objects.get(id=item_id)
+                appt.assigned_consultant = new_cons
+                appt.save()
+                messages.success(request, f"Đã cập nhật Sale cho lịch hẹn thất bại của {appt.customer.name}")
+                
+        except Exception as e:
+            messages.error(request, f"Lỗi cập nhật: {str(e)}")
+            
+    return redirect(request.META.get('HTTP_REFERER', 'sales_report'))
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN', 'TELESALE'])
@@ -323,7 +366,6 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # Admin Dashboard - Hiệu suất Sale
     consultants = User.objects.filter(role='CONSULTANT')
     consultant_stats_filtered = []
     

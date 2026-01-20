@@ -10,7 +10,6 @@ from apps.authentication.views import root_view, global_search
 from apps.telesales.views import telesale_dashboard 
 
 # Import views từ Bookings
-# [CẬP NHẬT] Thêm 'edit_appointment' vào dòng import dưới đây
 from apps.bookings.views import (
     reception_dashboard, checkin_appointment, create_appointment_reception,
     finish_appointment, add_walkin_appointment, get_appointments_api,
@@ -18,8 +17,10 @@ from apps.bookings.views import (
 )
 
 # Import views từ Sales
+# [CẬP NHẬT] Thêm 'update_consultant_assignment' vào đây
 from apps.sales.views import (
-    revenue_dashboard, print_invoice, admin_dashboard, debt_manager
+    revenue_dashboard, print_invoice, admin_dashboard, debt_manager,
+    update_consultant_assignment
 )
 
 urlpatterns = [
@@ -44,7 +45,7 @@ urlpatterns = [
     
     path('reception/checkin/<int:appointment_id>/', checkin_appointment, name='checkin_appointment'),
     
-    # [QUAN TRỌNG] ĐƯỜNG DẪN SỬA LỊCH HẸN (MỚI THÊM)
+    # [QUAN TRỌNG] ĐƯỜNG DẪN SỬA LỊCH HẸN
     path('reception/edit/<int:appointment_id>/', edit_appointment, name='edit_appointment'),
     
     path('reception/create-appointment/', create_appointment_reception, name='create_appointment_reception'),
@@ -59,6 +60,10 @@ urlpatterns = [
     # --- 6. SALES & BÁO CÁO ---
     path('sales/report/', revenue_dashboard, name='sales_report'),
     path('sales/invoice/<int:order_id>/', print_invoice, name='print_invoice'),
+    
+    # [MỚI] Đường dẫn xử lý sửa Sale phụ trách
+    path('sales/update-consultant/', update_consultant_assignment, name='update_consultant_assignment'),
+    
     path('sales/debt/', debt_manager, name='debt_manager'),
 
     # --- 7. MODULES KHÁC ---
