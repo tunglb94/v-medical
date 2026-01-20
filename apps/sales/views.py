@@ -24,78 +24,97 @@ def revenue_dashboard(request):
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
 
-    # Lọc đơn hàng
+    # --- 1. LẤY DỮ LIỆU ĐƠN HÀNG (NGUỒN GỐC CHO BẢNG NHẬT KÝ) ---
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale')
 
+    # Áp dụng bộ lọc
     if doctor_id: orders = orders.filter(appointment__assigned_doctor_id=doctor_id)
-    if consultant_id: orders = orders.filter(assigned_consultant_id=consultant_id)
+    if consultant_id: 
+        if consultant_id == 'none':
+            orders = orders.filter(assigned_consultant__isnull=True)
+        elif consultant_id.isdigit():
+            orders = orders.filter(assigned_consultant_id=consultant_id)
 
+    # Tổng hợp số liệu chung
     total_sales = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
     total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
-
     total_orders = orders.count()
-    avg_order_value = round(total_sales / total_orders) if total_orders > 0 else 0
+    
+    avg_order_value = 0
+    if total_orders > 0:
+        avg_order_value = int(total_sales / total_orders)
 
-    # Dữ liệu biểu đồ doanh thu
+    # Biểu đồ
     revenue_data = {}
     raw_orders = orders.values('order_date').annotate(daily_revenue=Sum('actual_revenue')).order_by('order_date')
-    
     for item in raw_orders:
         d = item['order_date']
-        if d:
-            revenue_data[d] = float(item['daily_revenue'] or 0)
+        if d: revenue_data[d] = float(item['daily_revenue'] or 0)
     
     sorted_dates = sorted(revenue_data.keys())
     chart_dates = [d.strftime('%d/%m') for d in sorted_dates]
     chart_revenues = [revenue_data[d] for d in sorted_dates]
-    
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # --- THỐNG KÊ CHI TIẾT HIỆU SUẤT SALE TƯ VẤN ---
+    # --- 2. TÍNH TOÁN HIỆU SUẤT SALE (BẢNG TỔNG HỢP) ---
     consultants_list = User.objects.filter(role='CONSULTANT')
-    if consultant_id:
+    if consultant_id and consultant_id != 'none' and consultant_id.isdigit():
         consultants_list = consultants_list.filter(id=consultant_id)
         
     sale_performance_data = []
 
     for cons in consultants_list:
+        # A. Số liệu VẬN HÀNH (Dựa trên Lịch hẹn)
+        # Để đếm xem nhân viên "Tiếp bao nhiêu khách", "Rớt bao nhiêu khách"
         apps = Appointment.objects.filter(
             assigned_consultant=cons, 
             appointment_date__date__range=[date_start, date_end]
         )
-        
         assigned_count = apps.count()
-        # Khách đã tiếp = Check-in (bao gồm thành công + thất bại)
         checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
         
+        # Thành công = Số khách (Lịch hẹn) đã chốt
         success_count = apps.filter(status='COMPLETED', order__isnull=False).distinct().count()
+        # Thất bại = Số khách đã tiếp xong nhưng không có đơn
         failed_count = apps.filter(status='COMPLETED', order__isnull=True).count()
         
-        revenue_val = orders.filter(assigned_consultant=cons).aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
+        # B. Số liệu TÀI CHÍNH (Dựa trên Đơn hàng - Chính là bảng Nhật ký)
+        # Lấy trực tiếp từ queryset 'orders' đã lọc ở trên để đảm bảo KHỚP 100% với bảng Nhật Ký
+        my_orders = orders.filter(assigned_consultant=cons)
         
-        # [FIX] Làm tròn số nguyên (int) cho dễ nhìn
+        # [QUAN TRỌNG] Đây chính là con số 17 đơn bạn cần (Tổng hợp từ Nhật ký)
+        real_orders_count = my_orders.count() 
+        
+        revenue_val = my_orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
+        
+        # C. Tính trung bình / Khách đã tiếp (Check-in)
         avg_revenue = 0
         if checkin_count > 0:
             avg_revenue = int(revenue_val / checkin_count)
 
         display_name = f"{cons.last_name} {cons.first_name}".strip() or cons.username
 
-        sale_performance_data.append({
-            'name': display_name,
-            'assigned': assigned_count,
-            'checkin': checkin_count,
-            'success': success_count,
-            'failed': failed_count,
-            'revenue': revenue_val,
-            'avg_revenue': avg_revenue 
-        })
+        # Chỉ thêm vào danh sách nếu có hoạt động (Có lịch hoặc Có đơn)
+        if assigned_count > 0 or real_orders_count > 0:
+            sale_performance_data.append({
+                'name': display_name,
+                'assigned': assigned_count,       # Phân bổ
+                'checkin': checkin_count,         # Đã tiếp (Check-in)
+                'success': success_count,         # Khách chốt (Số người)
+                'failed': failed_count,           # Khách rớt
+                'total_orders': real_orders_count,# Số đơn (Tổng hợp từ Nhật ký)
+                'revenue': revenue_val,           # Doanh số
+                'avg_revenue': avg_revenue        # TB/Khách tiếp
+            })
     
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
     
-    # ... (Phần còn lại giữ nguyên) ...
+    # -----------------------------------------------------
+
+    # Thống kê Telesale
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
@@ -107,19 +126,14 @@ def revenue_dashboard(request):
         username = item['customer__assigned_telesale__username']
         first = item['customer__assigned_telesale__first_name']
         last = item['customer__assigned_telesale__last_name']
-
-        if not username:
-            display_name = 'Không có Telesale'
-        elif first or last:
-            display_name = f"{last or ''} {first or ''}".strip()
-        else:
-            display_name = username
-        
+        if not username: display_name = 'Không có Telesale'
+        elif first or last: display_name = f"{last or ''} {first or ''}".strip()
+        else: display_name = username
         telesale_revenue_table.append({'name': display_name, 'amount': float(item['total'] or 0)})
 
+    # Marketing Stats
     new_customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     marketing_total_leads = new_customers.count()
-
     source_stats = new_customers.values('source').annotate(count=Count('id')).order_by('-count')
     source_dict = dict(Customer.Source.choices)
     mkt_source_labels = [source_dict.get(item['source'], item['source']) for item in source_stats]
@@ -146,18 +160,16 @@ def revenue_dashboard(request):
         elif 26 <= age <= 35: age_groups['26-35'] += 1
         elif 36 <= age <= 45: age_groups['36-45'] += 1
         else: age_groups['46+'] += 1
-    
     mkt_age_labels = list(age_groups.keys())
     mkt_age_data = list(age_groups.values())
     age_table = [{'group': k, 'count': v} for k, v in age_groups.items() if v > 0]
 
     logs = CallLog.objects.filter(call_time__date__range=[date_start, date_end])
-    if consultant_id: logs = logs.filter(caller_id=consultant_id)
-
+    if consultant_id and consultant_id != 'none' and consultant_id.isdigit():
+        logs = logs.filter(caller_id=consultant_id)
     total_calls = logs.count()
     status_stats = logs.values('status').annotate(count=Count('id')).order_by('-count')
     status_dict = dict(CallLog.CallStatus.choices)
-    
     tele_status_labels = [status_dict.get(item['status'], item['status']) for item in status_stats]
     tele_status_data = [item['count'] for item in status_stats]
     tele_table = [{'status': status_dict.get(item['status'], item['status']), 'count': item['count']} for item in status_stats]
@@ -189,7 +201,7 @@ def revenue_dashboard(request):
         'tele_table': tele_table,
         'date_start': date_start, 'date_end': date_end,
         'selected_doctor': int(doctor_id) if doctor_id else None,
-        'selected_consultant': int(consultant_id) if consultant_id else None,
+        'selected_consultant': int(consultant_id) if consultant_id and consultant_id.isdigit() else consultant_id,
         'doctors': doctors, 'consultants': consultants,
     }
     return render(request, 'sales/revenue_dashboard.html', context)
@@ -285,7 +297,7 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- [CẬP NHẬT] THỐNG KÊ CHI TIẾT SALE CÓ AVG_REVENUE LÀM TRÒN ---
+    # --- [CẬP NHẬT] DASHBOARD ADMIN CŨNG THÊM SỐ ĐƠN & AVG ---
     consultants = User.objects.filter(role='CONSULTANT')
     consultant_stats_filtered = []
     
@@ -294,33 +306,36 @@ def admin_dashboard(request):
             assigned_consultant=cons, 
             appointment_date__date__range=[date_start, date_end]
         )
-        
         assigned = apps_filtered.count()
         checkin = apps_filtered.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
         success = apps_filtered.filter(status='COMPLETED', order__isnull=False).distinct().count()
         failed = apps_filtered.filter(status='COMPLETED', order__isnull=True).count()
         
-        rev_filtered = Order.objects.filter(
+        # Đơn hàng thực tế trong kỳ (bao gồm cả đơn không qua lịch hẹn)
+        my_orders_admin = Order.objects.filter(
             assigned_consultant=cons, 
-            order_date__range=[date_start, date_end], 
+            order_date__range=[date_start, date_end],
             is_paid=True
-        ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        )
+        rev_filtered = my_orders_admin.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        total_orders_admin = my_orders_admin.count()
         
-        # [FIX] Làm tròn số nguyên (int)
         avg_revenue = 0
         if checkin > 0:
             avg_revenue = int(rev_filtered / checkin)
 
-        consultant_stats_filtered.append({
-            'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
-            'assigned': assigned,
-            'checkin': checkin,
-            'success': success,
-            'failed': failed,
-            'revenue': rev_filtered,
-            'avg_revenue': avg_revenue 
-        })
-    # ---------------------------------------------------------------------------------
+        if assigned > 0 or total_orders_admin > 0:
+            consultant_stats_filtered.append({
+                'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
+                'assigned': assigned,
+                'checkin': checkin,
+                'success': success,
+                'failed': failed,
+                'total_orders': total_orders_admin,
+                'revenue': rev_filtered,
+                'avg_revenue': avg_revenue 
+            })
+    # ----------------------------------------------------------------------
 
     top_telesales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
         .values('customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name')\
@@ -354,7 +369,6 @@ def debt_manager(request):
     orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
     
     today = timezone.now().date()
-    
     date_start = request.GET.get('date_start', '')
     date_end = request.GET.get('date_end', '')
     
@@ -385,14 +399,11 @@ def debt_manager(request):
     
     sale_labels = []
     sale_data = []
-    
     for item in debt_by_sale:
         last = item['assigned_consultant__last_name']
         first = item['assigned_consultant__first_name']
-        if last and first:
-            name = f"{last} {first}"
-        else:
-            name = item['assigned_consultant__username'] or "Chưa gán"
+        if last and first: name = f"{last} {first}"
+        else: name = item['assigned_consultant__username'] or "Chưa gán"
         sale_labels.append(name)
         sale_data.append(float(item['total']))
 
