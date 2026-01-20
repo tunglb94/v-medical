@@ -97,8 +97,10 @@
                                     <th class="text-start ps-4">Sale</th>
                                     <th>Phân bổ</th>
                                     <th>Check-in</th>
-                                    <th class="text-success">Khách Chốt</th> <th class="text-danger">Thất bại</th>
-                                    <th class="bg-primary bg-opacity-10 text-primary">Số Đơn</th> <th>TB/Khách</th>
+                                    <th class="text-success">Khách Chốt</th>
+                                    <th class="text-danger">Thất bại</th>
+                                    <th class="bg-primary bg-opacity-10 text-primary">Số Đơn</th>
+                                    <th>TB/Khách</th>
                                     <th>Doanh thu</th>
                                 </tr>
                             </thead>
@@ -110,9 +112,7 @@
                                     <td>{{ sale.checkin }}</td>
                                     <td class="text-success fw-bold">{{ sale.success }}</td>
                                     <td class="bg-danger bg-opacity-10 text-danger fw-bold">{{ sale.failed }}</td>
-                                    
                                     <td class="bg-primary bg-opacity-10 fw-bold text-primary">{{ sale.total_orders }}</td>
-                                    
                                     <td class="fw-bold text-info">{{ sale.avg_revenue|intcomma }}</td>
                                     <td class="text-end pe-4 fw-bold text-primary">{{ sale.revenue|intcomma }} đ</td>
                                 </tr>
@@ -157,8 +157,8 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Nhật Ký Đơn Hàng</h6>
-            <span class="badge bg-secondary">{{ orders.count }} Đơn</span>
+            <h6 class="m-0 font-weight-bold text-primary">Nhật Ký Hoạt Động (Đơn hàng & Khách đến)</h6>
+            <span class="badge bg-secondary">{{ order_logs|length }} Dòng</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -176,45 +176,45 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for order in orders %}
-                        <tr>
-                            <td><span class="badge bg-light text-dark border">#{{ order.id }}</span></td>
-                            <td>{{ order.order_date|date:"d/m/Y" }}</td>
+                        {% for log in order_logs %}
+                        <tr class="{% if log.is_fail %}table-danger{% endif %}">
                             <td>
-                                <div class="fw-bold">{{ order.customer.name }}</div>
-                                <div class="small text-muted">{{ order.customer.phone }}</div>
-                            </td>
-                            <td>
-                                {% if order.service %}
-                                    {{ order.service.name }}
+                                {% if log.is_fail %}
+                                    <span class="badge bg-danger">Thất bại</span>
                                 {% else %}
-                                    <span class="text-muted">Dịch vụ khác</span>
+                                    <span class="badge bg-light text-dark border">#{{ log.id }}</span>
                                 {% endif %}
                             </td>
+                            <td>{{ log.date|date:"d/m/Y" }}</td>
                             <td>
-                                {% if order.assigned_consultant %}
-                                    {{ order.assigned_consultant.last_name }} {{ order.assigned_consultant.first_name }}
-                                {% else %}
-                                    -
-                                {% endif %}
+                                <div class="fw-bold">{{ log.customer_name }}</div>
+                                <div class="small text-muted">{{ log.customer_phone }}</div>
                             </td>
                             <td>
-                                {% if order.customer.assigned_telesale %}
-                                    <span class="text-danger fw-bold">{{ order.customer.assigned_telesale.last_name }} {{ order.customer.assigned_telesale.first_name }}</span>
+                                {% if log.is_fail %}
+                                    <span class="text-danger fw-bold fst-italic">Không phát sinh dịch vụ</span>
                                 {% else %}
-                                    <span class="text-muted small">-</span>
+                                    {{ log.service_name }}
                                 {% endif %}
                             </td>
-                            <td class="text-end fw-bold text-success">{{ order.total_amount|intcomma }}</td>
+                            <td>{{ log.consultant_name }}</td>
+                            <td>{{ log.telesale_name }}</td>
+                            
+                            <td class="text-end fw-bold {% if log.is_fail %}text-danger{% else %}text-success{% endif %}">
+                                {{ log.total_amount|intcomma }}
+                            </td>
+                            
                             <td class="text-center">
-                                <a href="{% url 'print_invoice' order.id %}" target="_blank" class="btn btn-sm btn-outline-secondary" title="In hóa đơn">
-                                    <i class="bi bi-printer"></i>
-                                </a>
+                                {% if not log.is_fail %}
+                                    <a href="{% url 'print_invoice' log.id %}" target="_blank" class="btn btn-sm btn-outline-secondary" title="In hóa đơn">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">Không có đơn hàng nào trong khoảng thời gian này.</td>
+                            <td colspan="8" class="text-center py-4 text-muted">Không có dữ liệu trong khoảng thời gian này.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
