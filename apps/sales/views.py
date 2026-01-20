@@ -76,10 +76,10 @@ def revenue_dashboard(request):
         
         revenue_val = orders.filter(assigned_consultant=cons).aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
         
-        # [MỚI] Tính trung bình doanh thu / khách đã tiếp
+        # [FIX] Làm tròn số nguyên (int) cho dễ nhìn
         avg_revenue = 0
         if checkin_count > 0:
-            avg_revenue = revenue_val / checkin_count
+            avg_revenue = int(revenue_val / checkin_count)
 
         display_name = f"{cons.last_name} {cons.first_name}".strip() or cons.username
 
@@ -90,12 +90,12 @@ def revenue_dashboard(request):
             'success': success_count,
             'failed': failed_count,
             'revenue': revenue_val,
-            'avg_revenue': avg_revenue # <--- Thêm trường này
+            'avg_revenue': avg_revenue 
         })
     
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
     
-    # ... (Các phần thống kê Telesale, Marketing giữ nguyên) ...
+    # ... (Phần còn lại giữ nguyên) ...
     revenue_by_telesale = orders.values(
         'customer__assigned_telesale__username',
         'customer__assigned_telesale__first_name',
@@ -285,7 +285,7 @@ def admin_dashboard(request):
     service_labels = [item['service__name'] for item in top_services]
     service_data = [float(item['total']) for item in top_services]
 
-    # --- [CẬP NHẬT] THỐNG KÊ CHI TIẾT SALE CÓ THÊM AVG_REVENUE ---
+    # --- [CẬP NHẬT] THỐNG KÊ CHI TIẾT SALE CÓ AVG_REVENUE LÀM TRÒN ---
     consultants = User.objects.filter(role='CONSULTANT')
     consultant_stats_filtered = []
     
@@ -306,10 +306,10 @@ def admin_dashboard(request):
             is_paid=True
         ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         
-        # [MỚI] Tính TB/Khách
+        # [FIX] Làm tròn số nguyên (int)
         avg_revenue = 0
         if checkin > 0:
-            avg_revenue = rev_filtered / checkin
+            avg_revenue = int(rev_filtered / checkin)
 
         consultant_stats_filtered.append({
             'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
@@ -318,7 +318,7 @@ def admin_dashboard(request):
             'success': success,
             'failed': failed,
             'revenue': rev_filtered,
-            'avg_revenue': avg_revenue # <--- Thêm trường này
+            'avg_revenue': avg_revenue 
         })
     # ---------------------------------------------------------------------------------
 
