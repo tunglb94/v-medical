@@ -229,7 +229,8 @@
                                             '{{ log.consultant.id|default:'' }}', 
                                             '{{ log.total_amount|floatformat:0 }}',
                                             '{{ log.date|date:'Y-m-d' }}',
-                                            '{{ log.service_id|default:'' }}'
+                                            '{{ log.service_id|default:'' }}',
+                                            '{{ log.telesale.id|default:'' }}'
                                         )"
                                         title="Chỉnh sửa thông tin">
                                     <i class="bi bi-pencil-square"></i>
@@ -288,14 +289,26 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Sale Spa phụ trách</label>
-                        <select name="consultant_id" id="editSale" class="form-select form-select-sm">
-                            <option value="">-- Bỏ trống (Chưa gán) --</option>
-                            {% for sale in consultants %}
-                                <option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>
-                            {% endfor %}
-                        </select>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">Sale Spa (Tư vấn)</label>
+                            <select name="consultant_id" id="editSale" class="form-select form-select-sm">
+                                <option value="">-- Bỏ trống --</option>
+                                {% for sale in consultants %}
+                                    <option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold text-danger">Telesale (Data)</label>
+                            <select name="telesale_id" id="editTelesale" class="form-select form-select-sm">
+                                <option value="">-- Bỏ trống --</option>
+                                {% for tele in telesales_list %}
+                                    <option value="{{ tele.id }}">{{ tele.last_name }} {{ tele.first_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer p-1 bg-light">
@@ -309,12 +322,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // JS Mở Modal Full
-    function openEditModal(itemId, itemType, saleId, amount, dateStr, serviceId) {
+    function openEditModal(itemId, itemType, saleId, amount, dateStr, serviceId, telesaleId) {
         document.getElementById('editItemId').value = itemId;
         document.getElementById('editItemType').value = itemType;
         
         document.getElementById('editDate').value = dateStr;
         document.getElementById('editSale').value = saleId;
+        document.getElementById('editTelesale').value = telesaleId; // Set Telesale
         
         // Nếu là Order thì cho sửa tiền và dịch vụ
         if (itemType === 'order') {
@@ -324,7 +338,7 @@
             document.getElementById('divService').style.display = 'block';
             document.getElementById('editService').value = serviceId;
         } else {
-            // Nếu là Appointment (Fail) thì tạm ẩn tiền và dịch vụ cho đỡ rối
+            // Nếu là Appointment (Fail) thì ẩn tiền và dịch vụ
             document.getElementById('divAmount').style.display = 'none'; 
             document.getElementById('divService').style.display = 'none';
         }
