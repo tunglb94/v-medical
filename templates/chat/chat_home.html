@@ -1,127 +1,186 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Hệ thống Chat & Thông báo{% endblock %}
+{% block title %}V-Chat Pro{% endblock %}
 
 {% block content %}
 <style>
-    /* ... (Style cũ giữ nguyên) ... */
-    .chat-wrapper { height: calc(100vh - 130px); display: flex; gap: 15px; }
-    .user-sidebar { width: 320px; background: white; border-radius: 10px; display: flex; flex-direction: column; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .search-box { padding: 15px; border-bottom: 1px solid #f0f0f0; }
-    .user-list { flex: 1; overflow-y: auto; }
+    /* Layout */
+    .chat-wrapper { height: calc(100vh - 130px); display: flex; gap: 0; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; background: white; }
     
-    /* STYLE MỚI CHO THÔNG BÁO */
-    .announcement-box { background: #fff3cd; border-bottom: 1px solid #ffecb5; padding: 12px 15px; cursor: pointer; transition: 0.2s; }
-    .announcement-box:hover { background: #ffe69c; }
-    .ann-icon { font-size: 1.2rem; color: #856404; margin-right: 10px; }
-    .ann-title { font-weight: bold; color: #856404; font-size: 0.9rem; margin-bottom: 2px; }
-    .ann-preview { font-size: 0.8rem; color: #856404; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Sidebar Left */
+    .chat-sidebar { width: 320px; background: #fff; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 15px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; }
+    .room-list { flex: 1; overflow-y: auto; }
     
-    /* ... (Các style khác giữ nguyên) ... */
-    .user-item { padding: 12px 15px; display: flex; align-items: center; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #f8f9fa; }
-    .user-item:hover { background-color: #f8f9fa; }
-    .user-item.active { background-color: #e3f2fd; border-left: 4px solid #3498db; }
-    .avatar-wrapper { position: relative; margin-right: 12px; }
-    .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; }
-    .status-dot { width: 12px; height: 12px; background-color: #2ecc71; border: 2px solid white; border-radius: 50%; position: absolute; bottom: 0; right: 0; }
+    /* Room Item in Sidebar */
+    .room-item { padding: 12px 15px; display: flex; align-items: center; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #fcfcfc; }
+    .room-item:hover { background-color: #f1f3f5; }
+    .room-item.active { background-color: #e3f2fd; border-left: 4px solid #3498db; }
+    .room-avatar { width: 45px; height: 45px; background: #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #555; margin-right: 12px; font-size: 1.1rem; flex-shrink: 0; }
+    .group-avatar { background: #d1c4e9; color: #512da8; }
     
-    .chat-main { flex: 1; background: white; border-radius: 10px; display: flex; flex-direction: column; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; }
-    .chat-header { padding: 10px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; height: 60px; }
-    .messages-area { flex: 1; padding: 20px; overflow-y: auto; background-color: #f4f6f8; display: flex; flex-direction: column; gap: 8px; }
-    .message { max-width: 75%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; cursor: pointer; }
-    .message.sent { align-self: flex-end; background: #3498db; color: white; border-bottom-right-radius: 2px; }
-    .message.received { align-self: flex-start; background: white; border: 1px solid #dee2e6; border-bottom-left-radius: 2px; color: #333; }
-    .msg-meta { font-size: 0.7rem; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; opacity: 0.8; }
-    .reply-preview { display: none; background: #f8f9fa; padding: 10px 15px; border-left: 4px solid #3498db; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
-    .reply-quote { display: block; margin-bottom: 5px; padding: 5px 8px; background: rgba(0,0,0,0.1); border-left: 3px solid rgba(255,255,255,0.5); border-radius: 4px; font-size: 0.8rem; opacity: 0.9; }
-    .message.received .reply-quote { background: #f1f2f6; border-left: 3px solid #3498db; color: #555; }
+    /* Announcement Box */
+    .announcement-section { background: #fff3cd; border-bottom: 1px solid #ffeeba; max-height: 150px; overflow-y: auto; }
+    .ann-item { padding: 10px 15px; border-bottom: 1px solid rgba(0,0,0,0.05); cursor: pointer; }
+    .ann-item:hover { background: #ffe69c; }
+    
+    /* Main Chat Area */
+    .chat-main { flex: 1; display: flex; flex-direction: column; background: white; position: relative; }
+    .chat-header { padding: 10px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; height: 65px; background: #fff; }
+    .messages-area { flex: 1; padding: 20px; overflow-y: auto; background-color: #f0f2f5; display: flex; flex-direction: column; gap: 5px; }
+    
+    /* Message Bubbles */
+    .message { max-width: 70%; padding: 8px 12px; border-radius: 18px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; margin-bottom: 2px; }
+    .message.sent { align-self: flex-end; background: #0084ff; color: white; border-bottom-right-radius: 2px; }
+    .message.received { align-self: flex-start; background: white; border: 1px solid #e0e0e0; border-bottom-left-radius: 2px; color: #333; margin-left: 35px; } /* Margin for avatar */
+    
+    .msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: #ccc; position: absolute; left: -35px; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: white; font-weight: bold; }
+    .msg-sender-name { font-size: 0.7rem; color: #777; margin-left: 35px; margin-bottom: 2px; margin-top: 5px; }
+    
     .input-area { padding: 15px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; align-items: center; }
-    .info-sidebar { width: 0; overflow: hidden; background: white; border-radius: 10px; transition: width 0.3s ease; border-left: 1px solid #f0f0f0; display: flex; flex-direction: column; }
-    .info-sidebar.open { width: 280px; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
-    .info-header { padding: 15px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center; background: #f8f9fa; }
-    .link-list { flex: 1; overflow-y: auto; padding: 15px; }
-    .link-item { display: block; padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px; text-decoration: none; color: #3498db; font-size: 0.85rem; border: 1px solid #eee; word-break: break-all; }
-    .highlight { background-color: yellow; color: black; font-weight: bold; }
 </style>
 
 <div class="chat-wrapper">
-    <div class="user-sidebar">
-        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
-        <div class="p-2 border-bottom bg-light text-center">
-            <button class="btn btn-warning btn-sm fw-bold w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#announcementModal">
-                <i class="bi bi-megaphone-fill me-1"></i> TẠO THÔNG BÁO
-            </button>
+    <div class="chat-sidebar">
+        <div class="sidebar-header">
+            <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-chat-dots-fill"></i> Chat</h5>
+            <div>
+                <button class="btn btn-light btn-sm rounded-circle border" title="Tạo nhóm" data-bs-toggle="modal" data-bs-target="#createGroupModal"><i class="bi bi-people-fill text-dark"></i></button>
+                <button class="btn btn-light btn-sm rounded-circle border" title="Chat mới" data-bs-toggle="modal" data-bs-target="#newChatModal"><i class="bi bi-pencil-square text-primary"></i></button>
+            </div>
+        </div>
+
+        {% if announcements %}
+        <div class="announcement-section">
+            {% for ann in announcements %}
+            <div class="ann-item" onclick="showAnnouncement('{{ ann.title|escapejs }}', '{{ ann.content|escapejs }}')">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-megaphone-fill text-warning me-2"></i>
+                    <div class="small fw-bold text-dark text-truncate">{{ ann.title }}</div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         {% endif %}
 
-        <div class="search-box">
-            <input type="text" id="userSearch" class="form-control form-control-sm rounded-pill" placeholder="🔍 Tìm nhân viên..." onkeyup="filterUsers()">
-        </div>
-
-        <div class="bg-light border-bottom">
-            {% for ann in announcements %}
-            <div class="announcement-box" onclick="showAnnouncement('{{ ann.title|escapejs }}', '{{ ann.content|escapejs }}', '{{ ann.creator.username }}', '{{ ann.created_at|date:"d/m/Y H:i" }}')">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-pin-angle-fill ann-icon"></i>
-                    <div class="overflow-hidden">
-                        <div class="ann-title">{{ ann.title }}</div>
-                        <div class="ann-preview">{{ ann.content }}</div>
+        <div class="room-list" id="roomList">
+            {% for room in rooms %}
+            <div class="room-item" onclick="selectRoom({{ room.id }}, '{{ room.name|escapejs }}', {{ room.is_group|lower }})">
+                <div class="room-avatar {% if room.is_group %}group-avatar{% endif %}">
+                    {{ room.avatar }}
+                </div>
+                <div class="overflow-hidden w-100">
+                    <div class="d-flex justify-content-between">
+                        <div class="fw-bold text-dark text-truncate" style="max-width: 140px;">{{ room.name }}</div>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{ room.updated_at|date:"H:i" }}</small>
                     </div>
+                    <div class="small text-muted text-truncate">{{ room.last_msg }}</div>
                 </div>
             </div>
             {% endfor %}
         </div>
-
-        <div class="user-list" id="userListContainer">
-            {% for u in users %}
-            <div class="user-item" data-name="{{ u.last_name }} {{ u.first_name }} {{ u.username }}" onclick="selectUser('{{ u.id }}', '{{ u.last_name }} {{ u.first_name }}')">
-                <div class="avatar-wrapper">
-                    <div class="user-avatar">{{ u.username|slice:":1"|upper }}</div>
-                    <div class="status-dot online"></div> 
-                </div>
-                <div class="overflow-hidden">
-                    <div class="fw-bold text-dark text-truncate" style="max-width: 180px;">{{ u.last_name }} {{ u.first_name }}</div>
-                    <div class="small text-muted">{{ u.get_role_display }}</div>
-                </div>
-            </div>
-            {% endfor %}
+        
+        {% if request.user.role == 'ADMIN' or request.user.is_superuser %}
+        <div class="p-2 border-top">
+            <button class="btn btn-warning btn-sm w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#announcementModal">📢 Tạo Thông Báo</button>
         </div>
+        {% endif %}
     </div>
 
     <div class="chat-main">
         <div class="chat-header">
-            <div class="d-flex align-items-center"><span class="fw-bold fs-5 text-dark" id="chatTitle">Chọn người để chat</span></div>
-            <div class="d-flex gap-2" id="headerActions" style="display: none !important;">
-                <div class="input-group input-group-sm" style="width: 200px;">
-                    <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
-                    <input type="text" id="msgSearch" class="form-control border-0 bg-light" placeholder="Tìm nội dung..." onkeyup="searchMessages()">
-                </div>
-                <button class="btn btn-light btn-sm border" onclick="toggleInfoPanel()" title="Kho Link"><i class="bi bi-layout-sidebar-reverse"></i></button>
+            <div class="d-flex align-items-center">
+                <span class="fw-bold fs-5 text-dark" id="chatTitle">Chọn hội thoại</span>
+                <span class="badge bg-secondary ms-2" id="groupLabel" style="display:none;">Nhóm</span>
+            </div>
+            <div id="roomActions" style="display:none;">
+                <button class="btn btn-light btn-sm border" onclick="openAddMemberModal()" title="Thêm thành viên"><i class="bi bi-person-plus"></i></button>
             </div>
         </div>
 
         <div class="messages-area" id="messagesBox">
-            <div class="text-center mt-5 text-muted"><i class="bi bi-chat-square-dots display-1 opacity-25"></i><p class="mt-3">Chọn đồng nghiệp để bắt đầu.</p></div>
-        </div>
-
-        <div id="replyPreview" class="reply-preview" style="display: none;">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-reply-fill text-primary me-2 fs-5"></i>
-                <div><strong class="d-block small text-dark" id="replyTargetName">Trả lời...</strong><span id="replyTargetContent" class="reply-content-box">...</span></div>
-            </div>
-            <button class="btn btn-sm btn-link text-danger" onclick="cancelReply()"><i class="bi bi-x-lg"></i></button>
+            <div class="text-center mt-5 text-muted"><i class="bi bi-chat-square-text display-1 opacity-25"></i><p class="mt-3">Hãy bắt đầu trò chuyện</p></div>
         </div>
 
         <div class="input-area" id="inputArea" style="display: none;">
-            <input type="text" id="msgInput" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Nhập tin nhắn..." onkeypress="handleEnter(event)">
-            <button class="btn btn-primary rounded-circle" style="width: 40px; height: 40px;" onclick="sendMessage()"><i class="bi bi-send-fill"></i></button>
+            <input type="text" id="msgInput" class="form-control rounded-pill bg-white border px-3 shadow-sm" placeholder="Nhập tin nhắn..." onkeypress="handleEnter(event)">
+            <button class="btn btn-primary rounded-circle shadow-sm" style="width: 40px; height: 40px;" onclick="sendMessage()"><i class="bi bi-send-fill"></i></button>
         </div>
     </div>
+</div>
 
-    <div class="info-sidebar" id="infoPanel">
-        <div class="info-header text-primary"><i class="bi bi-link-45deg me-2"></i>KHO LINK ĐÃ GỬI</div>
-        <div class="link-list" id="linkList"></div>
+<div class="modal fade" id="newChatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title fw-bold">Chat với ai?</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <input type="text" class="form-control mb-3" placeholder="Tìm kiếm..." onkeyup="filterUserList(this)">
+                <div class="list-group">
+                    {% for u in users %}
+                    <button class="list-group-item list-group-item-action d-flex align-items-center user-select-item" onclick="createDirectChat({{ u.id }})">
+                        <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-3" style="width: 35px; height: 35px;">{{ u.username|slice:":1"|upper }}</div>
+                        <div>
+                            <div class="fw-bold">{{ u.last_name }} {{ u.first_name }}</div>
+                            <small class="text-muted">{{ u.get_role_display }}</small>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title fw-bold">Tạo Nhóm Mới</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên nhóm</label>
+                    <input type="text" id="newGroupName" class="form-control" placeholder="VD: Team Marketing">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Chọn thành viên</label>
+                    <select id="newGroupMembers" class="form-select" multiple size="5">
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }} ({{ u.username }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Giữ Ctrl để chọn nhiều người</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary w-100" onclick="submitCreateGroup()">Tạo nhóm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title fw-bold">Thêm vào nhóm</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <select id="addMemberSelect" class="form-select mb-3">
+                    <option value="">-- Chọn người --</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-success w-100" onclick="submitAddMember()">Thêm ngay</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="viewAnnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning"><h5 class="modal-title fw-bold" id="viewAnnTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" id="viewAnnContent" style="white-space: pre-line;"></div>
+        </div>
     </div>
 </div>
 
@@ -129,134 +188,163 @@
 <div class="modal fade" id="announcementModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark"><h5 class="modal-title fw-bold">📣 TẠO THÔNG BÁO MỚI</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{% url 'create_announcement' %}" method="POST">
                 {% csrf_token %}
+                <div class="modal-header bg-danger text-white"><h5 class="modal-title fw-bold">Tạo Thông Báo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
-                    <div class="mb-3"><label class="fw-bold small">Tiêu đề</label><input type="text" name="title" class="form-control" required></div>
-                    <div class="mb-3"><label class="fw-bold small">Gửi tới</label><select name="target" class="form-select"><option value="ALL">Toàn bộ hệ thống</option><option value="TELESALE">Team Telesale</option><option value="MARKETING">Team Marketing</option><option value="RECEPTIONIST">Team Lễ tân</option></select></div>
-                    <div class="mb-3"><label class="fw-bold small">Nội dung</label><textarea name="content" class="form-control" rows="4" required></textarea></div>
+                    <input type="text" name="title" class="form-control mb-2" placeholder="Tiêu đề" required>
+                    <select name="target" class="form-select mb-2"><option value="ALL">Tất cả</option><option value="TELESALE">Telesale</option></select>
+                    <textarea name="content" class="form-control" rows="3" required placeholder="Nội dung..."></textarea>
                 </div>
-                <div class="modal-footer"><button type="submit" class="btn btn-primary fw-bold w-100">ĐĂNG & GHIM</button></div>
+                <div class="modal-footer"><button type="submit" class="btn btn-danger w-100">Đăng</button></div>
             </form>
         </div>
     </div>
 </div>
 {% endif %}
 
-<div class="modal fade" id="viewAnnModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header"><h5 class="modal-title fw-bold text-danger" id="viewAnnTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body">
-                <p class="text-muted small mb-3"><i class="bi bi-person-circle"></i> <span id="viewAnnCreator"></span> - <i class="bi bi-clock"></i> <span id="viewAnnTime"></span></p>
-                <div id="viewAnnContent" style="white-space: pre-line;"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
-    let currentReceiverId = null;
+    let currentRoomId = null;
     let pollInterval = null;
-    let replyingToId = null;
 
-    function selectUser(userId, userName) {
-        currentReceiverId = userId;
-        document.getElementById('chatTitle').innerText = userName;
+    function selectRoom(roomId, roomName, isGroup) {
+        currentRoomId = roomId;
+        document.getElementById('chatTitle').innerText = roomName;
         document.getElementById('inputArea').style.display = 'flex';
-        document.getElementById('headerActions').style.setProperty('display', 'flex', 'important');
-        cancelReply();
-        document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+        document.getElementById('roomActions').style.display = isGroup ? 'block' : 'none';
+        document.getElementById('groupLabel').style.display = isGroup ? 'inline-block' : 'none';
+        
+        // Highlight active room
+        document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
+
         loadMessages();
         if (pollInterval) clearInterval(pollInterval);
-        pollInterval = setInterval(loadMessages, 3000);
+        pollInterval = setInterval(loadMessages, 3000); // Tự động load tin nhắn mỗi 3s
     }
 
     function loadMessages() {
-        if (!currentReceiverId) return;
-        const searchText = document.getElementById('msgSearch').value.toLowerCase();
-        fetch(`/chat/api/get/${currentReceiverId}/`)
-            .then(response => response.json())
+        if (!currentRoomId) return;
+        fetch(`/chat/api/room/${currentRoomId}/messages/`)
+            .then(res => res.json())
             .then(data => {
+                if (data.error) return;
                 const box = document.getElementById('messagesBox');
                 const isAtBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 100;
                 box.innerHTML = '';
-                const linkContainer = document.getElementById('linkList');
-                linkContainer.innerHTML = '';
-                let hasLink = false;
+                
+                let lastSenderId = null;
 
                 data.forEach(msg => {
-                    let contentHtml = msg.content;
-                    const urlRegex = /(https?:\/\/[^\s]+)/g;
-                    const links = msg.content.match(urlRegex);
-                    if (links) {
-                        hasLink = true;
-                        links.forEach(link => {
-                            contentHtml = contentHtml.replace(link, `<a href="${link}" target="_blank" class="text-decoration-underline">${link}</a>`);
-                            const linkItem = document.createElement('a');
-                            linkItem.href = link; linkItem.target = "_blank"; linkItem.className = "link-item";
-                            linkItem.innerHTML = `<i class="bi bi-globe link-icon"></i> ${link}`;
-                            linkContainer.appendChild(linkItem);
-                        });
-                    }
-                    if (searchText && contentHtml.toLowerCase().includes(searchText)) {
-                        contentHtml = contentHtml.replace(new RegExp(searchText, "gi"), (match) => `<span class="highlight">${match}</span>`);
-                    }
-                    let statusHtml = '';
-                    if (msg.is_me) { statusHtml = msg.is_read ? '<i class="bi bi-check2-all text-info"></i>' : '<i class="bi bi-check2 text-light"></i>'; }
-                    let replyHtml = '';
-                    if (msg.parent) { replyHtml = `<div class="reply-quote"><strong><i class="bi bi-reply-fill"></i> ${msg.parent.sender}</strong>: ${msg.parent.content}</div>`; }
-
                     const div = document.createElement('div');
                     div.className = `message ${msg.is_me ? 'sent' : 'received'}`;
-                    div.ondblclick = () => startReply(msg.id, msg.is_me ? 'Tôi' : 'Đối phương', msg.content);
-                    div.innerHTML = `${replyHtml} ${contentHtml} <div class="msg-meta">${msg.time} ${statusHtml}</div>`;
+                    
+                    // Hiển thị tên người gửi nếu là chat nhóm và người gửi khác mình
+                    let senderInfo = '';
+                    if (!msg.is_me && msg.sender_id !== lastSenderId) {
+                        senderInfo = `<div class="msg-sender-name">${msg.sender_name}</div>`;
+                        // Thêm avatar nhỏ bên cạnh
+                        div.innerHTML += `<div class="msg-avatar" style="background-color: #${Math.floor(Math.random()*16777215).toString(16)}">${msg.avatar}</div>`;
+                    }
+                    
+                    div.innerHTML += `${senderInfo}${msg.content}`;
+                    div.title = msg.time;
                     box.appendChild(div);
+                    lastSenderId = msg.sender_id;
                 });
-                if (!hasLink) linkContainer.innerHTML = '<div class="text-center text-muted small mt-3">Không có link nào.</div>';
+
                 if (isAtBottom || box.scrollTop === 0) box.scrollTop = box.scrollHeight;
             });
     }
 
-    function startReply(msgId, senderName, content) {
-        replyingToId = msgId;
-        document.getElementById('replyTargetName').innerText = `Trả lời ${senderName}`;
-        document.getElementById('replyTargetContent').innerText = content;
-        document.getElementById('replyPreview').style.display = 'flex';
-        document.getElementById('msgInput').focus();
-    }
-    function cancelReply() { replyingToId = null; document.getElementById('replyPreview').style.display = 'none'; }
-
     function sendMessage() {
         const input = document.getElementById('msgInput');
         const content = input.value.trim();
-        if (!content || !currentReceiverId) return;
+        if (!content || !currentRoomId) return;
+
         fetch('/chat/api/send/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-            body: JSON.stringify({ 'receiver_id': currentReceiverId, 'content': content, 'parent_id': replyingToId })
-        }).then(res => { if (res.ok) { input.value = ''; cancelReply(); loadMessages(); } });
-    }
-    function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
-    function filterUsers() {
-        const query = document.getElementById('userSearch').value.toLowerCase();
-        document.querySelectorAll('.user-item').forEach(item => {
-            const name = item.getAttribute('data-name').toLowerCase();
-            item.style.display = name.includes(query) ? 'flex' : 'none';
+            body: JSON.stringify({ 'room_id': currentRoomId, 'content': content })
+        }).then(res => {
+            if (res.ok) {
+                input.value = '';
+                loadMessages();
+            }
         });
     }
-    function searchMessages() { loadMessages(); }
-    function toggleInfoPanel() { document.getElementById('infoPanel').classList.toggle('open'); }
 
-    // XEM THÔNG BÁO
-    function showAnnouncement(title, content, creator, time) {
+    function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
+
+    // --- API TẠO CHAT 1-1 ---
+    function createDirectChat(userId) {
+        fetch(`/chat/api/create-direct/${userId}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    // Đóng modal, reload trang hoặc thêm room vào list bằng JS (ở đây reload cho nhanh)
+                    location.reload(); 
+                }
+            });
+    }
+
+    // --- API TẠO NHÓM ---
+    function submitCreateGroup() {
+        const name = document.getElementById('newGroupName').value;
+        const select = document.getElementById('newGroupMembers');
+        const members = Array.from(select.selectedOptions).map(opt => opt.value);
+        
+        if (!name || members.length === 0) {
+            alert("Vui lòng nhập tên nhóm và chọn thành viên!");
+            return;
+        }
+
+        fetch('/chat/api/create-group/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({ 'group_name': name, 'members': members })
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'ok') location.reload();
+        });
+    }
+
+    // --- API THÊM THÀNH VIÊN ---
+    function openAddMemberModal() {
+        new bootstrap.Modal(document.getElementById('addMemberModal')).show();
+    }
+
+    function submitAddMember() {
+        const userId = document.getElementById('addMemberSelect').value;
+        if (!userId || !currentRoomId) return;
+
+        fetch('/chat/api/add-member/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({ 'room_id': currentRoomId, 'user_id': userId })
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'ok') {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+
+    // --- XEM THÔNG BÁO ---
+    function showAnnouncement(title, content) {
         document.getElementById('viewAnnTitle').innerText = title;
         document.getElementById('viewAnnContent').innerText = content;
-        document.getElementById('viewAnnCreator').innerText = creator;
-        document.getElementById('viewAnnTime').innerText = time;
         new bootstrap.Modal(document.getElementById('viewAnnModal')).show();
+    }
+    
+    function filterUserList(input) {
+        const filter = input.value.toLowerCase();
+        const items = document.querySelectorAll('.user-select-item');
+        items.forEach(item => {
+            const text = item.innerText.toLowerCase();
+            item.style.display = text.includes(filter) ? 'flex' : 'none';
+        });
     }
 </script>
 {% endblock %}
