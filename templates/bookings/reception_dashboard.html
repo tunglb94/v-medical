@@ -10,16 +10,14 @@
     .status-arrived { border-left: 5px solid #ffc107; background-color: #fff3cd; }
     .status-completed { border-left: 5px solid #198754; background-color: #d1e7dd; }
     .status-cancelled { border-left: 5px solid #dc3545; opacity: 0.6; }
+    .status-no-show { border-left: 5px solid #6c757d; background-color: #e2e3e5; opacity: 0.8; } /* Style cho No Show */
     
-    /* Calendar Styles */
     #calendar { min-height: 650px; font-family: 'Segoe UI', sans-serif; background: white; padding: 10px; border-radius: 8px; }
     .fc-event { cursor: pointer; border-radius: 4px; border: none; font-size: 0.85rem; padding: 2px 4px; margin-bottom: 2px; }
     .fc-toolbar-title { font-size: 1.2rem !important; font-weight: bold; color: #2c3e50; }
     .fc-button-primary { background-color: #2c3e50 !important; border-color: #2c3e50 !important; }
     .fc-button-active { background-color: #1a252f !important; }
     .fc-day-today { background-color: rgba(52, 152, 219, 0.05) !important; }
-
-    /* Custom style for dashed button */
     .border-dashed { border-style: dashed !important; }
 </style>
 {% endblock %}
@@ -92,7 +90,7 @@
                             </thead>
                             <tbody>
                                 {% for app in appointments %}
-                                <tr class="{% if app.status == 'SCHEDULED' %}status-scheduled{% elif app.status == 'ARRIVED' %}status-arrived{% elif app.status == 'COMPLETED' %}status-completed{% else %}status-cancelled{% endif %}">
+                                <tr class="{% if app.status == 'SCHEDULED' %}status-scheduled{% elif app.status == 'ARRIVED' %}status-arrived{% elif app.status == 'COMPLETED' %}status-completed{% elif app.status == 'NO_SHOW' %}status-no-show{% else %}status-cancelled{% endif %}">
                                     <td class="ps-4 fw-bold text-primary fs-5">
                                         {{ app.appointment_date|date:"H:i" }}
                                     </td>
@@ -114,7 +112,8 @@
                                         {% if app.status == 'SCHEDULED' %}<span class="badge bg-primary">Đã đặt</span>
                                         {% elif app.status == 'ARRIVED' %}<span class="badge bg-warning text-dark">Đang chờ</span>
                                         {% elif app.status == 'COMPLETED' %}<span class="badge bg-success">Hoàn thành</span>
-                                        {% else %}<span class="badge bg-secondary">Hủy/Vắng</span>{% endif %}
+                                        {% elif app.status == 'NO_SHOW' %}<span class="badge bg-secondary">Không đến</span>
+                                        {% else %}<span class="badge bg-secondary">Hủy</span>{% endif %}
                                     </td>
                                     <td class="text-end pe-4">
                                         {% if app.status == 'SCHEDULED' or app.status == 'ARRIVED' %}
@@ -128,10 +127,25 @@
 
                                         {% if app.status == 'SCHEDULED' %}
                                             <button type="button" 
-                                                    class="btn btn-sm btn-warning fw-bold shadow-sm"
+                                                    class="btn btn-sm btn-warning fw-bold shadow-sm me-1"
                                                     onclick="openCheckinModal({{ app.id }}, '{{ app.customer.name }}', '{{ app.appointment_date|date:'H:i d/m/Y' }}', '{{ app.customer.customer_code|default:'' }}')">
-                                                <i class="bi bi-box-arrow-in-right me-1"></i> CHECK-IN
+                                                <i class="bi bi-box-arrow-in-right"></i> Check-in
                                             </button>
+                                            
+                                            <a href="{% url 'noshow_appointment' app.id %}" 
+                                               class="btn btn-sm btn-outline-secondary me-1"
+                                               title="Khách không đến (No-Show)"
+                                               onclick="return confirm('Xác nhận khách {{ app.customer.name }} KHÔNG ĐẾN?')">
+                                                <i class="bi bi-person-x-fill"></i>
+                                            </a>
+
+                                            <a href="{% url 'delete_appointment_reception' app.id %}" 
+                                               class="btn btn-sm btn-outline-danger" 
+                                               title="Xóa lịch (Đặt nhầm)"
+                                               onclick="return confirm('CẢNH BÁO: Bạn chắc chắn muốn XÓA VĨNH VIỄN lịch hẹn này không?')">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </a>
+
                                         {% elif app.status == 'ARRIVED' %}
                                             <button class="btn btn-sm btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#finishModal" data-id="{{ app.id }}" data-name="{{ app.customer.name }}">
                                                 <i class="bi bi-clipboard-check me-1"></i> CHỐT CA

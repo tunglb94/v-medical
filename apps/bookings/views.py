@@ -16,7 +16,6 @@ from apps.authentication.decorators import allowed_users
 User = get_user_model()
 
 @login_required(login_url='/auth/login/')
-# [CẬP NHẬT] Thêm 'CONSULTANT' để Sale Tư vấn vào xem được Dashboard
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT']) 
 def reception_dashboard(request):
     today = timezone.now().date()
@@ -98,7 +97,6 @@ def get_appointments_api(request):
     return JsonResponse(events, safe=False)
 
 @login_required(login_url='/auth/login/')
-# [CẬP NHẬT] Thêm 'CONSULTANT' để Sale Tư vấn bấm được nút Check-in
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def checkin_appointment(request, appointment_id):
     app = get_object_or_404(Appointment.objects.select_related('customer'), pk=appointment_id)
@@ -128,7 +126,6 @@ def checkin_appointment(request, appointment_id):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-# [CẬP NHẬT] Thêm 'CONSULTANT'
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def create_appointment_reception(request):
     if request.method == "POST":
@@ -147,7 +144,6 @@ def create_appointment_reception(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-# [CẬP NHẬT] Thêm 'CONSULTANT'
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def add_walkin_appointment(request):
     if request.method == "POST":
@@ -182,7 +178,6 @@ def add_walkin_appointment(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-# [CẬP NHẬT] Thêm 'CONSULTANT' để Sale Tư vấn có thể Chốt đơn/Hoàn thành
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def finish_appointment(request):
     if request.method == "POST":
@@ -264,7 +259,6 @@ def finish_appointment(request):
 
     return redirect('reception_home')
 
-# [MỚI] Hàm xử lý sửa lịch hẹn
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
 def edit_appointment(request, appointment_id):
@@ -273,7 +267,6 @@ def edit_appointment(request, appointment_id):
     if request.method == "POST":
         new_date = request.POST.get('appointment_date')
         
-        # Kiểm tra trạng thái, nếu đã hoàn thành thì không cho sửa (hoặc tuỳ ý bạn)
         if app.status == 'COMPLETED':
             messages.error(request, "Không thể sửa lịch hẹn đã hoàn thành/chốt đơn!")
             return redirect('reception_home')
@@ -288,4 +281,38 @@ def edit_appointment(request, appointment_id):
         else:
             messages.error(request, "Vui lòng chọn ngày giờ hợp lệ.")
             
+    return redirect('reception_home')
+
+# [MỚI] 1. HÀM XÓA LỊCH (CHO TRƯỜNG HỢP ĐẶT NHẦM)
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+def delete_appointment_reception(request, appointment_id):
+    try:
+        appt = get_object_or_404(Appointment, id=appointment_id)
+        
+        # Chỉ cho phép xóa khi chưa có đơn hàng (để an toàn dữ liệu)
+        if hasattr(appt, 'order') and appt.order:
+            messages.error(request, "Không thể xóa lịch đã có đơn hàng! Hãy hủy đơn hàng bên Sales trước.")
+        else:
+            cust_name = appt.customer.name
+            appt.delete()
+            messages.success(request, f"Đã xóa vĩnh viễn lịch hẹn của {cust_name}.")
+    except Exception as e:
+        messages.error(request, f"Lỗi xóa: {str(e)}")
+        
+    return redirect('reception_home')
+
+# [MỚI] 2. HÀM BÁO KHÁCH KHÔNG ĐẾN (NO-SHOW)
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+def noshow_appointment(request, appointment_id):
+    try:
+        appt = get_object_or_404(Appointment, id=appointment_id)
+        # Đổi trạng thái sang NO_SHOW (Khách vắng mặt)
+        appt.status = 'NO_SHOW' 
+        appt.save()
+        messages.warning(request, f"Đã đánh dấu khách {appt.customer.name} KHÔNG ĐẾN.")
+    except Exception as e:
+        messages.error(request, f"Lỗi: {str(e)}")
+        
     return redirect('reception_home')
