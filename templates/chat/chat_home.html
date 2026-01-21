@@ -28,16 +28,20 @@
     /* Main Chat Area */
     .chat-main { flex: 1; display: flex; flex-direction: column; background: white; position: relative; }
     .chat-header { padding: 10px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; height: 65px; background: #fff; }
-    .messages-area { flex: 1; padding: 20px; overflow-y: auto; background-color: #f0f2f5; display: flex; flex-direction: column; gap: 5px; }
+    .messages-area { flex: 1; padding: 20px; overflow-y: auto; background-color: #f0f2f5; display: flex; flex-direction: column; gap: 10px; }
     
     /* Message Bubbles */
     .message { max-width: 70%; padding: 8px 12px; border-radius: 18px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; margin-bottom: 2px; }
     .message.sent { align-self: flex-end; background: #0084ff; color: white; border-bottom-right-radius: 2px; }
-    .message.received { align-self: flex-start; background: white; border: 1px solid #e0e0e0; border-bottom-left-radius: 2px; color: #333; margin-left: 35px; } /* Margin for avatar */
+    .message.received { align-self: flex-start; background: white; border: 1px solid #e0e0e0; border-bottom-left-radius: 2px; color: #333; margin-left: 35px; }
     
     .msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: #ccc; position: absolute; left: -35px; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: white; font-weight: bold; }
     .msg-sender-name { font-size: 0.7rem; color: #777; margin-left: 35px; margin-bottom: 2px; margin-top: 5px; }
     
+    /* Image in chat */
+    .chat-image { max-width: 100%; border-radius: 12px; margin-bottom: 5px; display: block; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); }
+    .message.sent .chat-image { border: 1px solid rgba(255,255,255,0.2); }
+
     .input-area { padding: 15px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; align-items: center; }
 </style>
 
@@ -104,7 +108,22 @@
         </div>
 
         <div class="input-area" id="inputArea" style="display: none;">
-            <input type="text" id="msgInput" class="form-control rounded-pill bg-white border px-3 shadow-sm" placeholder="Nhập tin nhắn..." onkeypress="handleEnter(event)">
+            <input type="file" id="fileInput" style="display: none;" onchange="previewFile()" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+            <button class="btn btn-light text-secondary rounded-circle border" onclick="document.getElementById('fileInput').click()">
+                <i class="bi bi-paperclip"></i>
+            </button>
+
+            <div class="flex-grow-1 position-relative">
+                <div id="filePreview" class="position-absolute bottom-100 start-0 bg-white border rounded p-2 mb-2 shadow-sm" style="display:none; width: 100%; z-index: 10;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-truncate fw-bold text-primary" id="fileNameDisplay" style="max-width: 90%;"></span>
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="clearFile()"><i class="bi bi-x-circle-fill"></i></button>
+                    </div>
+                </div>
+                
+                <input type="text" id="msgInput" class="form-control rounded-pill bg-white border px-3 shadow-sm" placeholder="Nhập tin nhắn..." onkeypress="handleEnter(event)" autocomplete="off">
+            </div>
+            
             <button class="btn btn-primary rounded-circle shadow-sm" style="width: 40px; height: 40px;" onclick="sendMessage()"><i class="bi bi-send-fill"></i></button>
         </div>
     </div>
@@ -214,15 +233,15 @@
         document.getElementById('roomActions').style.display = isGroup ? 'block' : 'none';
         document.getElementById('groupLabel').style.display = isGroup ? 'inline-block' : 'none';
         
-        // Highlight active room
         document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
 
         loadMessages();
         if (pollInterval) clearInterval(pollInterval);
-        pollInterval = setInterval(loadMessages, 3000); // Tự động load tin nhắn mỗi 3s
+        pollInterval = setInterval(loadMessages, 3000); 
     }
 
+    // [MỚI] Xử lý hiển thị tin nhắn (có ảnh/file)
     function loadMessages() {
         if (!currentRoomId) return;
         fetch(`/chat/api/room/${currentRoomId}/messages/`)
@@ -239,15 +258,28 @@
                     const div = document.createElement('div');
                     div.className = `message ${msg.is_me ? 'sent' : 'received'}`;
                     
-                    // Hiển thị tên người gửi nếu là chat nhóm và người gửi khác mình
                     let senderInfo = '';
                     if (!msg.is_me && msg.sender_id !== lastSenderId) {
                         senderInfo = `<div class="msg-sender-name">${msg.sender_name}</div>`;
-                        // Thêm avatar nhỏ bên cạnh
                         div.innerHTML += `<div class="msg-avatar" style="background-color: #${Math.floor(Math.random()*16777215).toString(16)}">${msg.avatar}</div>`;
                     }
                     
-                    div.innerHTML += `${senderInfo}${msg.content}`;
+                    // Nội dung tin nhắn (Ảnh/File + Text)
+                    let contentHtml = '';
+                    
+                    if (msg.file_url) {
+                        if (msg.is_image) {
+                            contentHtml += `<a href="${msg.file_url}" target="_blank"><img src="${msg.file_url}" class="chat-image" style="max-width: 200px;"></a>`;
+                        } else {
+                            contentHtml += `<div class="bg-light p-2 rounded border mb-1"><a href="${msg.file_url}" target="_blank" class="text-decoration-none text-dark"><i class="bi bi-file-earmark-fill text-primary"></i> ${msg.file_name}</a></div>`;
+                        }
+                    }
+                    
+                    if (msg.content) {
+                        contentHtml += `<span>${msg.content}</span>`;
+                    }
+
+                    div.innerHTML += `${senderInfo}${contentHtml}`;
                     div.title = msg.time;
                     box.appendChild(div);
                     lastSenderId = msg.sender_id;
@@ -257,18 +289,46 @@
             });
     }
 
+    // [MỚI] Xử lý Preview File
+    function previewFile() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        if (file) {
+            document.getElementById('filePreview').style.display = 'block';
+            document.getElementById('fileNameDisplay').innerText = `📎 ${file.name}`;
+            document.getElementById('msgInput').focus();
+        }
+    }
+
+    function clearFile() {
+        document.getElementById('fileInput').value = '';
+        document.getElementById('filePreview').style.display = 'none';
+    }
+
+    // [MỚI] Gửi tin nhắn bằng FormData
     function sendMessage() {
         const input = document.getElementById('msgInput');
+        const fileInput = document.getElementById('fileInput');
         const content = input.value.trim();
-        if (!content || !currentRoomId) return;
+        const file = fileInput.files[0];
+
+        if ((!content && !file) || !currentRoomId) return;
+
+        const formData = new FormData();
+        formData.append('room_id', currentRoomId);
+        formData.append('content', content);
+        if (file) {
+            formData.append('attachment', file);
+        }
 
         fetch('/chat/api/send/', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-            body: JSON.stringify({ 'room_id': currentRoomId, 'content': content })
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData
         }).then(res => {
             if (res.ok) {
                 input.value = '';
+                clearFile(); // Xóa file khỏi input
                 loadMessages();
             }
         });
@@ -276,62 +336,35 @@
 
     function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
 
-    // --- API TẠO CHAT 1-1 ---
+    // --- Các hàm API khác (Direct, Group, Add Member) giữ nguyên ---
     function createDirectChat(userId) {
-        fetch(`/chat/api/create-direct/${userId}/`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    // Đóng modal, reload trang hoặc thêm room vào list bằng JS (ở đây reload cho nhanh)
-                    location.reload(); 
-                }
-            });
+        fetch(`/chat/api/create-direct/${userId}/`).then(res => res.json()).then(data => { if (data.status === 'ok') location.reload(); });
     }
 
-    // --- API TẠO NHÓM ---
     function submitCreateGroup() {
         const name = document.getElementById('newGroupName').value;
         const select = document.getElementById('newGroupMembers');
         const members = Array.from(select.selectedOptions).map(opt => opt.value);
-        
-        if (!name || members.length === 0) {
-            alert("Vui lòng nhập tên nhóm và chọn thành viên!");
-            return;
-        }
-
+        if (!name || members.length === 0) { alert("Vui lòng nhập tên và chọn thành viên"); return; }
         fetch('/chat/api/create-group/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
             body: JSON.stringify({ 'group_name': name, 'members': members })
-        }).then(res => res.json()).then(data => {
-            if (data.status === 'ok') location.reload();
-        });
+        }).then(res => res.json()).then(data => { if (data.status === 'ok') location.reload(); });
     }
 
-    // --- API THÊM THÀNH VIÊN ---
-    function openAddMemberModal() {
-        new bootstrap.Modal(document.getElementById('addMemberModal')).show();
-    }
+    function openAddMemberModal() { new bootstrap.Modal(document.getElementById('addMemberModal')).show(); }
 
     function submitAddMember() {
         const userId = document.getElementById('addMemberSelect').value;
         if (!userId || !currentRoomId) return;
-
         fetch('/chat/api/add-member/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
             body: JSON.stringify({ 'room_id': currentRoomId, 'user_id': userId })
-        }).then(res => res.json()).then(data => {
-            if (data.status === 'ok') {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert(data.message);
-            }
-        });
+        }).then(res => res.json()).then(data => { if (data.status === 'ok') { alert(data.message); location.reload(); } else { alert(data.message); } });
     }
 
-    // --- XEM THÔNG BÁO ---
     function showAnnouncement(title, content) {
         document.getElementById('viewAnnTitle').innerText = title;
         document.getElementById('viewAnnContent').innerText = content;
@@ -340,10 +373,8 @@
     
     function filterUserList(input) {
         const filter = input.value.toLowerCase();
-        const items = document.querySelectorAll('.user-select-item');
-        items.forEach(item => {
-            const text = item.innerText.toLowerCase();
-            item.style.display = text.includes(filter) ? 'flex' : 'none';
+        document.querySelectorAll('.user-select-item').forEach(item => {
+            item.style.display = item.innerText.toLowerCase().includes(filter) ? 'flex' : 'none';
         });
     }
 </script>
