@@ -1,12 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, CharField
+from django.db.models.functions import Cast
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import datetime, timedelta
-from django.db.models.functions import Cast
-from django.db.models import CharField
 
 from apps.sales.models import Order, Service
 from apps.customers.models import Customer
@@ -16,23 +15,26 @@ from apps.authentication.decorators import allowed_users
 
 User = get_user_model()
 
-# --- HÀM AN TOÀN ---
+# --- HÀM AN TOÀN TUYỆT ĐỐI ---
 def safe_float(value):
-    """Chuyển đổi chuỗi/số bất kỳ thành float, trả về 0 nếu lỗi"""
+    """Chuyển đổi bất cứ thứ gì thành số float, chấp nhận cả '1,000,000'"""
     if value is None: return 0.0
     try:
-        # Xóa dấu phẩy, khoảng trắng nếu là string
+        # Nếu là số thì trả về luôn
+        if isinstance(value, (int, float)):
+            return float(value)
+        # Nếu là chuỗi
         clean_val = str(value).replace(',', '').strip()
         if not clean_val: return 0.0
         return float(clean_val)
     except:
         return 0.0
 
-# --- KỸ THUẬT QUAN TRỌNG: TRÁNH CRASH DO DECIMAL ---
+# --- KỸ THUẬT CAST: BIẾN SỐ THÀNH CHỮ ĐỂ TRÁNH CRASH DB ---
 def get_safe_orders(queryset):
     """
-    Biến đổi queryset để lấy dữ liệu số dưới dạng TEXT.
-    Giúp tránh lỗi 'decimal.InvalidOperation' khi database chứa rác.
+    Ép kiểu các cột Decimal sang CharField (Text) ngay trong câu truy vấn.
+    Điều này đánh lừa Django để nó không cố convert dữ liệu rác thành số.
     """
     return queryset.annotate(
         txt_total=Cast('total_amount', CharField()),
@@ -43,6 +45,12 @@ def get_safe_orders(queryset):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'CONSULTANT', 'TELESALE'])
 def revenue_dashboard(request):
+    # Khai báo biến sớm để tránh NameError
+    doctors = User.objects.filter(role='DOCTOR')
+    consultants = User.objects.filter(role='CONSULTANT')
+    services = Service.objects.all().order_by('name')
+    telesales_list = User.objects.filter(role='TELESALE').order_by('first_name')
+
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
     
@@ -51,40 +59,49 @@ def revenue_dashboard(request):
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
 
-    # Lọc cơ bản
+    # 1. Query Orders Cơ bản
     orders_qs = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale', 'service', 'assigned_consultant')
 
-    if doctor_id: orders_qs = orders_qs.filter(appointment__assigned_doctor_id=doctor_id)
+    if doctor_id: 
+        orders_qs = orders_qs.filter(appointment__assigned_doctor_id=doctor_id)
     if consultant_id: 
-        if consultant_id == 'none': orders_qs = orders_qs.filter(assigned_consultant__isnull=True)
-        elif consultant_id.isdigit(): orders_qs = orders_qs.filter(assigned_consultant_id=consultant_id)
+        if consultant_id == 'none':
+            orders_qs = orders_qs.filter(assigned_consultant__isnull=True)
+        elif consultant_id.isdigit():
+            orders_qs = orders_qs.filter(assigned_consultant_id=consultant_id)
 
-    # Dùng hàm an toàn để lấy dữ liệu
+    # 2. Áp dụng Safe Mode (Lấy dữ liệu dạng Text)
+    # Lưu ý: Convert sang list ngay để ngắt kết nối DB
     orders = list(get_safe_orders(orders_qs))
 
-    # Tính toán thủ công
+    # 3. Tính toán bằng Python Loop (Không dùng Aggregate)
     total_sales = 0
     total_revenue = 0
     total_debt = 0
     total_orders_success = 0
     
     for o in orders:
-        # Lấy từ field đã ép kiểu sang text (txt_...)
+        # Lấy từ field txt_... đã ép kiểu
         t_amt = safe_float(o.txt_total)
-        act_rev = safe_float(o.txt_revenue)
+        rev = safe_float(o.txt_revenue)
         debt = safe_float(o.txt_debt)
         
+        # Gán ngược lại vào object để dùng ở template (nếu cần)
+        o.safe_total = t_amt 
+        o.safe_revenue = rev
+        
         total_sales += t_amt
-        total_revenue += act_rev
+        total_revenue += rev
         total_debt += debt
         
-        if t_amt > 0: total_orders_success += 1
+        if t_amt > 0:
+            total_orders_success += 1
     
     avg_order_value = int(total_sales / total_orders_success) if total_orders_success > 0 else 0
 
-    # Lấy Ca thất bại
+    # 4. Lấy Ca thất bại
     failed_apps = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end],
         status='COMPLETED',
@@ -96,6 +113,7 @@ def revenue_dashboard(request):
         if consultant_id == 'none': failed_apps = failed_apps.filter(assigned_consultant__isnull=True)
         elif consultant_id.isdigit(): failed_apps = failed_apps.filter(assigned_consultant_id=consultant_id)
 
+    # 5. Gộp Log
     order_logs = []
     for o in orders:
         amt = safe_float(o.txt_total)
@@ -120,6 +138,7 @@ def revenue_dashboard(request):
         })
     order_logs.sort(key=lambda x: x['date'], reverse=True)
 
+    # 6. Biểu đồ & Bảng
     revenue_data = {}
     for o in orders:
         d = o.order_date
@@ -130,13 +149,13 @@ def revenue_dashboard(request):
     chart_revenues = [revenue_data[d] for d in sorted_dates]
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
-    # Sale Performance
-    consultants_list = User.objects.filter(role='CONSULTANT')
+    # 7. Hiệu suất Sale
+    consultants_list_filter = consultants
     if consultant_id and consultant_id.isdigit():
-        consultants_list = consultants_list.filter(id=consultant_id)
+        consultants_list_filter = consultants_list_filter.filter(id=consultant_id)
         
     sale_performance_data = []
-    for cons in consultants_list:
+    for cons in consultants_list_filter:
         apps = Appointment.objects.filter(assigned_consultant=cons, appointment_date__date__range=[date_start, date_end])
         assigned_count = apps.count()
         checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
@@ -160,6 +179,7 @@ def revenue_dashboard(request):
             })
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
 
+    # 8. Telesale
     telesale_map = {}
     for o in orders:
         tele = o.customer.assigned_telesale
@@ -179,10 +199,10 @@ def revenue_dashboard(request):
         'date_start': date_start, 'date_end': date_end,
         'selected_doctor': int(doctor_id) if doctor_id else None,
         'selected_consultant': int(consultant_id) if consultant_id and consultant_id.isdigit() else consultant_id,
-        'doctors': User.objects.filter(role='DOCTOR'), 
+        'doctors': doctors, 
         'consultants': consultants,
-        'services': Service.objects.all().order_by('name'), 
-        'telesales_list': User.objects.filter(role='TELESALE').order_by('first_name'),
+        'services': services, 
+        'telesales_list': telesales_list,
     }
     return render(request, 'sales/revenue_dashboard.html', context)
 
@@ -197,13 +217,10 @@ def update_order_details(request):
             new_cons = User.objects.get(id=request.POST.get('consultant_id')) if request.POST.get('consultant_id') else None
             new_service = Service.objects.get(id=request.POST.get('service_id')) if request.POST.get('service_id') else None
             new_telesale = User.objects.get(id=request.POST.get('telesale_id')) if request.POST.get('telesale_id') else None
-            
-            # Sửa số tiền
             new_amount = request.POST.get('total_amount')
-            
             new_date = request.POST.get('order_date')
-            target_customer = None
 
+            target_customer = None
             if item_type == 'order':
                 order = Order.objects.get(id=item_id)
                 target_customer = order.customer
@@ -245,7 +262,7 @@ def update_order_details(request):
 @allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN', 'TELESALE'])
 def print_invoice(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    # Tính lại để hiển thị
+    # Fix hiển thị an toàn
     order.safe_total = safe_float(order.total_amount)
     return render(request, 'sales/invoice_print.html', {
         'order': order, 'now': timezone.now(),
@@ -255,7 +272,7 @@ def print_invoice(request, order_id):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
 def debt_manager(request):
-    # Lấy raw text để tránh lỗi
+    # Sử dụng get_safe_orders cho Debt luôn để tránh crash
     qs = Order.objects.select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
     orders_safe = get_safe_orders(qs)
     
@@ -279,7 +296,6 @@ def debt_manager(request):
             if (search_query not in (o.customer.name or '').lower()) and (search_query not in (o.customer.phone or '').lower()):
                 continue
         
-        # Dùng txt_debt thay vì debt_amount
         debt = safe_float(o.txt_debt)
         if debt > 0:
             o.safe_debt = debt
@@ -329,22 +345,20 @@ def admin_dashboard(request):
     prev_end = date_start - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days_diff)
 
-    # --- KHỐI XỬ LÝ AN TOÀN TUYỆT ĐỐI ---
-    # 1. Load Orders bằng get_safe_orders (Defer các cột lỗi)
+    # --- SỬ DỤNG HÀM get_safe_orders ĐỂ TRÁNH CRASH ---
     qs_current = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)
     orders_current = list(get_safe_orders(qs_current))
     
     qs_prev = Order.objects.filter(order_date__range=[prev_start, prev_end], is_paid=True)
     orders_prev = list(get_safe_orders(qs_prev))
 
-    # 2. Loop tính toán
     revenue_current = 0
     trend_data = {}
     service_map = {}
     telesale_map = {}
 
     for o in orders_current:
-        # Dùng txt_total đã cast sang string
+        # Lấy từ txt_total thay vì total_amount
         amt = safe_float(o.txt_total)
         revenue_current += amt
         
@@ -367,7 +381,6 @@ def admin_dashboard(request):
         growth_rate = ((revenue_current - revenue_previous) / revenue_previous) * 100
     elif revenue_current > 0: growth_rate = 100
 
-    # Các chỉ số Count (Không bị ảnh hưởng bởi lỗi Decimal)
     appts_total = Appointment.objects.filter(appointment_date__date__range=[date_start, date_end]).values('customer').distinct().count()
     appts_arrived = Appointment.objects.filter(appointment_date__date__range=[date_start, date_end], status__in=['ARRIVED', 'COMPLETED']).values('customer').distinct().count()
     arrival_rate = (appts_arrived / appts_total * 100) if appts_total > 0 else 0
@@ -386,7 +399,6 @@ def admin_dashboard(request):
     sorted_tele = sorted(telesale_map.items(), key=lambda x: x[1], reverse=True)[:5]
     top_telesales = [{'name': k, 'total': v} for k,v in sorted_tele]
 
-    # Consultant Stats
     consultants = User.objects.filter(role='CONSULTANT')
     consultant_stats_filtered = []
     
@@ -408,6 +420,14 @@ def admin_dashboard(request):
                 'avg_revenue': int(rev_filtered / checkin) if checkin > 0 else 0
             })
 
+    # [FIX CRITICAL] Dùng get_safe_orders cho cả Recent Orders
+    qs_recent = Order.objects.filter(order_date__range=[date_start, date_end]).order_by('-order_date')[:10]
+    recent_orders = []
+    # Loop và gán giá trị safe để hiển thị
+    for o in list(get_safe_orders(qs_recent)):
+        o.safe_total = safe_float(o.txt_total)
+        recent_orders.append(o)
+
     context = {
         'date_start': date_start.strftime('%Y-%m-%d'),
         'date_end': date_end.strftime('%Y-%m-%d'),
@@ -418,6 +438,6 @@ def admin_dashboard(request):
         'service_labels': service_labels, 'service_data': service_data,
         'consultant_stats_filtered': consultant_stats_filtered,
         'top_telesales': top_telesales,
-        'recent_orders': Order.objects.filter(order_date__range=[date_start, date_end]).order_by('-order_date')[:10]
+        'recent_orders': recent_orders,
     }
     return render(request, 'admin_dashboard.html', context)
