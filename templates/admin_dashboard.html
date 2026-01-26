@@ -235,15 +235,7 @@
                                 {% for tele in top_telesales %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-dark">
-                                        {% if tele.customer__assigned_telesale__last_name or tele.customer__assigned_telesale__first_name %}
-                                            {{ tele.customer__assigned_telesale__last_name }} {{ tele.customer__assigned_telesale__first_name }}
-                                        {% else %}
-                                            {% if tele.customer__assigned_telesale__username %}
-                                                <span class="text-muted">{{ tele.customer__assigned_telesale__username }}</span>
-                                            {% else %}
-                                                <span class="text-muted fst-italic">Không có Telesale</span>
-                                            {% endif %}
-                                        {% endif %}
+                                        {{ tele.name }}
                                     </td>
                                     <td class="text-end pe-4 text-success fw-bold">{{ tele.total|intcomma }} đ</td>
                                 </tr>
