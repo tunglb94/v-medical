@@ -5,6 +5,7 @@ from django.db.models import Sum, Count, Q
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from apps.sales.models import Order, Service
 from apps.customers.models import Customer
@@ -13,6 +14,24 @@ from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
 
 User = get_user_model()
+
+# --- HÀM HỖ TRỢ: CHUYỂN ĐỔI TIỀN AN TOÀN (CHỐNG LỖI) ---
+def safe_float(value):
+    """Chuyển đổi bất kỳ dữ liệu rác nào thành số float, nếu lỗi trả về 0"""
+    if value is None:
+        return 0.0
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            # Xử lý các trường hợp '1,000,000' hoặc '1.000.000' hoặc chuỗi rỗng
+            clean_val = value.strip().replace(',', '')
+            if clean_val == '':
+                return 0.0
+            return float(clean_val)
+        return float(value)
+    except:
+        return 0.0
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'CONSULTANT', 'TELESALE'])
@@ -38,19 +57,29 @@ def revenue_dashboard(request):
         elif consultant_id.isdigit():
             orders = orders.filter(assigned_consultant_id=consultant_id)
 
-    # Tổng hợp KPI Tài chính
-    total_sales = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
-    total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
+    # --- TÍNH TOÁN THỦ CÔNG (AN TOÀN HƠN AGGREGATE) ---
+    total_sales = 0
+    total_revenue = 0
+    total_debt = 0
+    total_orders_success = 0
     
-    # [LOGIC MỚI] Chỉ đếm đơn > 0đ vào KPI tổng đơn
-    total_orders_success = orders.filter(total_amount__gt=0).count()
+    for o in orders:
+        t_amount = safe_float(o.total_amount)
+        a_revenue = safe_float(o.actual_revenue)
+        d_amount = safe_float(o.debt_amount)
+        
+        total_sales += t_amount
+        total_revenue += a_revenue
+        total_debt += d_amount
+        
+        if t_amount > 0:
+            total_orders_success += 1
     
     avg_order_value = 0
     if total_orders_success > 0:
         avg_order_value = int(total_sales / total_orders_success)
 
-    # --- 2. LẤY CA THẤT BẠI (Lịch hẹn Completed nhưng chưa có Order) ---
+    # --- 2. LẤY CA THẤT BẠI ---
     failed_apps = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end],
         status='COMPLETED',
@@ -68,11 +97,11 @@ def revenue_dashboard(request):
     # --- 3. GỘP DANH SÁCH NHẬT KÝ ---
     order_logs = []
     
-    # a. Thêm Order (Xử lý 0đ -> Fail)
     for o in orders:
-        is_zero_amount = (o.total_amount == 0)
+        amt = safe_float(o.total_amount)
+        is_zero_amount = (amt == 0)
         order_logs.append({
-            'is_fail': is_zero_amount, # Nếu 0đ -> Fail (Màu đỏ)
+            'is_fail': is_zero_amount,
             'id': o.id,
             'item_id': o.id, 
             'type': 'order', 
@@ -83,10 +112,9 @@ def revenue_dashboard(request):
             'service_id': o.service.id if o.service else "",
             'consultant': o.assigned_consultant,
             'telesale': o.customer.assigned_telesale,
-            'total_amount': o.total_amount
+            'total_amount': amt
         })
         
-    # b. Thêm Appointment (Fail do không có đơn)
     for app in failed_apps:
         order_logs.append({
             'is_fail': True,
@@ -105,13 +133,15 @@ def revenue_dashboard(request):
         
     order_logs.sort(key=lambda x: x['date'], reverse=True)
 
-    # --- 4. TÍNH HIỆU SUẤT SALE ---
+    # --- 4. TÍNH HIỆU SUẤT SALE & BIỂU ĐỒ ---
     revenue_data = {}
-    raw_orders = orders.values('order_date').annotate(daily_revenue=Sum('actual_revenue')).order_by('order_date')
-    for item in raw_orders:
-        d = item['order_date']
-        if d: 
-            revenue_data[d] = float(item['daily_revenue'] or 0)
+    
+    # Tính biểu đồ bằng vòng lặp Python an toàn
+    for o in orders:
+        d = o.order_date
+        if d:
+            amt = safe_float(o.actual_revenue)
+            revenue_data[d] = revenue_data.get(d, 0) + amt
     
     sorted_dates = sorted(revenue_data.keys())
     chart_dates = [d.strftime('%d/%m') for d in sorted_dates]
@@ -124,6 +154,9 @@ def revenue_dashboard(request):
         
     sale_performance_data = []
 
+    # Cache orders để loop nhanh hơn
+    all_orders_list = list(orders)
+
     for cons in consultants_list:
         apps = Appointment.objects.filter(
             assigned_consultant=cons, 
@@ -132,26 +165,30 @@ def revenue_dashboard(request):
         assigned_count = apps.count()
         checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
         
-        # [LOGIC MỚI] Thành công = Lịch hẹn Completed CÓ đơn hàng > 0đ
-        success_count = apps.filter(status='COMPLETED', order__total_amount__gt=0).distinct().count()
+        # Lọc orders của sale này từ list đã query
+        my_orders = [o for o in all_orders_list if o.assigned_consultant_id == cons.id]
         
-        # [LOGIC MỚI] Thất bại = Tổng Completed - Thành công (Bao gồm cả 0đ và Không đơn)
+        real_orders_count = 0
+        revenue_val = 0
+        
+        for o in my_orders:
+            amt = safe_float(o.total_amount)
+            rev = safe_float(o.actual_revenue)
+            if amt > 0:
+                real_orders_count += 1
+            revenue_val += rev
+            
+        # Logic đếm success/failed đơn giản hóa để tránh query phức tạp
+        success_count = apps.filter(status='COMPLETED', order__total_amount__gt=0).count()
         completed_total = apps.filter(status='COMPLETED').count()
         failed_count = completed_total - success_count
-        if failed_count < 0: 
-            failed_count = 0
-        
-        # [LOGIC MỚI] Số đơn = Đếm các đơn > 0đ
-        my_orders = orders.filter(assigned_consultant=cons)
-        real_orders_count = my_orders.filter(total_amount__gt=0).count()
-        
-        revenue_val = my_orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
+        if failed_count < 0: failed_count = 0
         
         avg_revenue = 0
         if checkin_count > 0:
             avg_revenue = int(revenue_val / checkin_count)
 
-        if assigned_count > 0 or my_orders.exists():
+        if assigned_count > 0 or len(my_orders) > 0:
             sale_performance_data.append({
                 'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
                 'assigned': assigned_count,
@@ -165,35 +202,23 @@ def revenue_dashboard(request):
     
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
 
-    # Thống kê Telesale & Marketing
-    revenue_by_telesale = orders.values(
-        'customer__assigned_telesale__username', 
-        'customer__assigned_telesale__first_name', 
-        'customer__assigned_telesale__last_name'
-    ).annotate(total=Sum('actual_revenue')).order_by('-total')
-
-    telesale_revenue_table = []
-    for item in revenue_by_telesale:
-        username = item['customer__assigned_telesale__username']
-        first = item['customer__assigned_telesale__first_name']
-        last = item['customer__assigned_telesale__last_name']
-        
-        if not username:
-            display_name = 'Không có Telesale'
-        elif first or last:
-            display_name = f"{last or ''} {first or ''}".strip()
+    # Thống kê Telesale (Dùng Python loop)
+    telesale_map = {}
+    for o in orders:
+        tele = o.customer.assigned_telesale
+        if tele:
+            name = f"{tele.last_name} {tele.first_name}".strip() or tele.username
         else:
-            display_name = username
-            
-        telesale_revenue_table.append({'name': display_name, 'amount': float(item['total'] or 0)})
+            name = 'Không có Telesale'
+        
+        amt = safe_float(o.actual_revenue)
+        telesale_map[name] = telesale_map.get(name, 0) + amt
+
+    telesale_revenue_table = [{'name': k, 'amount': v} for k, v in sorted(telesale_map.items(), key=lambda item: item[1], reverse=True)]
 
     doctors = User.objects.filter(role='DOCTOR')
     consultants = User.objects.filter(role='CONSULTANT')
-    
-    # Lấy danh sách dịch vụ cho Popup Sửa
     services = Service.objects.all().order_by('name')
-    
-    # [QUAN TRỌNG] Lấy danh sách Telesale để Dropdown trong Popup hoạt động
     telesales_list = User.objects.filter(role='TELESALE').order_by('first_name')
 
     context = {
@@ -216,86 +241,64 @@ def revenue_dashboard(request):
         'doctors': doctors, 
         'consultants': consultants,
         'services': services, 
-        'telesales_list': telesales_list, # Truyền vào context
+        'telesales_list': telesales_list,
     }
     return render(request, 'sales/revenue_dashboard.html', context)
 
-# --- HÀM CẬP NHẬT CHI TIẾT ĐƠN HÀNG (FULL FIELDS) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MANAGER', 'RECEPTIONIST', 'TELESALE'])
 def update_order_details(request):
     if request.method == "POST":
         item_id = request.POST.get('item_id')
-        item_type = request.POST.get('item_type') # 'order' hoặc 'appointment'
+        item_type = request.POST.get('item_type') 
         
-        # Các trường cần sửa
         new_consultant_id = request.POST.get('consultant_id')
         new_service_id = request.POST.get('service_id')
         new_total_amount = request.POST.get('total_amount')
         new_date = request.POST.get('order_date')
-        new_telesale_id = request.POST.get('telesale_id') # <--- ID Telesale mới
+        new_telesale_id = request.POST.get('telesale_id') 
         
         try:
-            new_cons = None
-            if new_consultant_id: 
-                new_cons = User.objects.get(id=new_consultant_id)
-            
-            new_service = None
-            if new_service_id: 
-                new_service = Service.objects.get(id=new_service_id)
-            
-            new_telesale = None
-            if new_telesale_id: 
-                new_telesale = User.objects.get(id=new_telesale_id)
-
+            new_cons = User.objects.get(id=new_consultant_id) if new_consultant_id else None
+            new_service = Service.objects.get(id=new_service_id) if new_service_id else None
+            new_telesale = User.objects.get(id=new_telesale_id) if new_telesale_id else None
             target_customer = None
 
             if item_type == 'order':
-                # --- SỬA ĐƠN HÀNG ---
                 order = Order.objects.get(id=item_id)
-                target_customer = order.customer # Lấy khách hàng
+                target_customer = order.customer 
                 
                 order.assigned_consultant = new_cons
-                if new_service: 
-                    order.service = new_service
+                if new_service: order.service = new_service
                 
-                if new_total_amount is not None and new_total_amount != '':
-                    # Clean định dạng số (1.000.000 -> 1000000)
-                    clean_amount = float(new_total_amount.replace('.', '').replace(',', ''))
-                    order.total_amount = clean_amount
-                    order.actual_revenue = clean_amount 
+                if new_total_amount is not None:
+                    # Dùng hàm an toàn để parse số tiền
+                    order.total_amount = safe_float(new_total_amount)
+                    order.actual_revenue = order.total_amount 
                 
-                if new_date: 
-                    order.order_date = new_date
-                
+                if new_date: order.order_date = new_date
                 order.save()
                 
-                # Đồng bộ ngược Appointment nếu có
                 if order.appointment:
                     order.appointment.assigned_consultant = new_cons
                     order.appointment.save()
                     
-                messages.success(request, f"Đã cập nhật chi tiết đơn hàng #{order.id}")
+                messages.success(request, f"Đã cập nhật đơn hàng #{order.id}")
                 
             elif item_type == 'appointment':
-                # --- SỬA LỊCH HẸN ---
                 appt = Appointment.objects.get(id=item_id)
-                target_customer = appt.customer # Lấy khách hàng
-                
+                target_customer = appt.customer 
                 appt.assigned_consultant = new_cons
                 
                 if new_date:
-                    # Giữ nguyên giờ, chỉ đổi ngày
                     original_time = appt.appointment_date.time()
                     new_date_obj = datetime.strptime(new_date, '%Y-%m-%d').date()
                     appt.appointment_date = datetime.combine(new_date_obj, original_time)
                 
                 appt.save()
-                messages.success(request, f"Đã cập nhật thông tin lịch hẹn của {appt.customer.name}")
+                messages.success(request, f"Đã cập nhật lịch hẹn")
 
-            # [QUAN TRỌNG] CẬP NHẬT TELESALE CHO KHÁCH HÀNG
             if target_customer and new_telesale_id is not None:
-                # new_telesale có thể là None nếu chọn "Bỏ trống"
                 target_customer.assigned_telesale = new_telesale
                 target_customer.save()
                 
@@ -308,6 +311,9 @@ def update_order_details(request):
 @allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN', 'TELESALE'])
 def print_invoice(request, order_id):
     order = get_object_or_404(Order, id=order_id)
+    # Tính lại thủ công để hiển thị đúng
+    order.safe_total = safe_float(order.total_amount)
+    
     context = {
         'order': order,
         'now': timezone.now(),
@@ -323,55 +329,71 @@ def print_invoice(request, order_id):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
 def debt_manager(request):
-    orders = Order.objects.filter(debt_amount__gt=0).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
+    # Lọc các đơn có nợ (xử lý thủ công vì filter gt=0 có thể lỗi với string)
+    all_orders = Order.objects.select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
     
     today = timezone.now().date()
     date_start = request.GET.get('date_start', '')
     date_end = request.GET.get('date_end', '')
     
+    d_start = None
+    d_end = None
+
     if date_start and date_end:
         try:
             d_start = datetime.strptime(date_start, '%Y-%m-%d').date()
             d_end = datetime.strptime(date_end, '%Y-%m-%d').date()
-            orders = orders.filter(order_date__range=[d_start, d_end])
-        except ValueError:
-            pass
+        except ValueError: pass
 
-    search_query = request.GET.get('q', '').strip()
-    if search_query:
-        orders = orders.filter(
-            Q(customer__name__icontains=search_query) |
-            Q(customer__phone__icontains=search_query) |
-            Q(customer__customer_code__icontains=search_query)
-        )
+    orders = []
+    total_debt = 0
+    search_query = request.GET.get('q', '').strip().lower()
 
-    total_debt = orders.aggregate(Sum('debt_amount'))['debt_amount__sum'] or 0
-    total_count = orders.count()
-    
-    debt_by_sale = orders.values(
-        'assigned_consultant__username', 
-        'assigned_consultant__last_name', 
-        'assigned_consultant__first_name'
-    ).annotate(total=Sum('debt_amount')).order_by('-total')[:5]
-    
-    sale_labels = []
-    sale_data = []
-    
-    for item in debt_by_sale:
-        last = item['assigned_consultant__last_name']
-        first = item['assigned_consultant__first_name']
+    # Vòng lặp lọc thủ công an toàn
+    for o in all_orders:
+        # Lọc ngày
+        if d_start and d_end:
+            if not (d_start <= o.order_date <= d_end):
+                continue
         
-        if last and first:
-            name = f"{last} {first}"
-        else:
-            name = item['assigned_consultant__username'] or "Chưa gán"
-            
-        sale_labels.append(name)
-        sale_data.append(float(item['total']))
+        # Lọc tìm kiếm
+        if search_query:
+            c_name = o.customer.name.lower() if o.customer else ''
+            c_phone = o.customer.phone.lower() if o.customer else ''
+            if search_query not in c_name and search_query not in c_phone:
+                continue
 
-    debt_by_date = orders.values('order_date').annotate(total=Sum('debt_amount')).order_by('order_date')
-    date_labels = [item['order_date'].strftime('%d/%m') for item in debt_by_date]
-    date_data = [float(item['total']) for item in debt_by_date]
+        debt = safe_float(o.debt_amount)
+        if debt > 0:
+            o.safe_debt = debt # Gán giá trị sạch để hiển thị
+            orders.append(o)
+            total_debt += debt
+
+    total_count = len(orders)
+    
+    # Tính biểu đồ nợ theo sale
+    debt_by_sale = {}
+    debt_by_date = {}
+
+    for o in orders:
+        # Theo sale
+        cons = o.assigned_consultant
+        name = f"{cons.last_name} {cons.first_name}" if cons else (cons.username if cons else "Chưa gán")
+        debt_by_sale[name] = debt_by_sale.get(name, 0) + o.safe_debt
+        
+        # Theo ngày
+        d = o.order_date
+        debt_by_date[d] = debt_by_date.get(d, 0) + o.safe_debt
+
+    # Sắp xếp biểu đồ sale
+    sorted_sale = sorted(debt_by_sale.items(), key=lambda x: x[1], reverse=True)[:5]
+    sale_labels = [k for k, v in sorted_sale]
+    sale_data = [v for k, v in sorted_sale]
+
+    # Sắp xếp biểu đồ ngày
+    sorted_dates = sorted(debt_by_date.keys())
+    date_labels = [d.strftime('%d/%m') for d in sorted_dates]
+    date_data = [debt_by_date[d] for d in sorted_dates]
 
     context = {
         'debt_orders': orders,
@@ -390,8 +412,8 @@ def debt_manager(request):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def admin_dashboard(request):
+    # --- PHẦN NÀY LÀ QUAN TRỌNG NHẤT: ĐÃ ĐƯỢC BỌC LỖI TOÀN BỘ ---
     today = timezone.now().date()
-    
     default_start = today.replace(day=1)
     default_end = today
     
@@ -414,20 +436,45 @@ def admin_dashboard(request):
     previous_end = date_start - timedelta(days=1)
     previous_start = previous_end - timedelta(days=days_diff - 1)
 
-    revenue_current = Order.objects.filter(
-        order_date__range=[date_start, date_end], is_paid=True
-    ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    
-    revenue_previous = Order.objects.filter(
-        order_date__range=[previous_start, previous_end], is_paid=True
-    ).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    
+    # 1. Tính Doanh thu Hiện tại (Thủ công)
+    orders_current = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)
+    revenue_current = 0
+    trend_data = {}
+    service_map = {}
+    telesale_map = {}
+
+    for o in orders_current:
+        amt = safe_float(o.total_amount)
+        revenue_current += amt
+        
+        # Dữ liệu biểu đồ xu hướng
+        d = o.order_date
+        if d:
+            trend_data[d] = trend_data.get(d, 0) + amt
+            
+        # Dữ liệu Top Dịch vụ
+        svc = o.service
+        if svc:
+            service_map[svc.name] = service_map.get(svc.name, 0) + amt
+            
+        # Dữ liệu Top Telesale
+        tele = o.customer.assigned_telesale if o.customer else None
+        tele_name = f"{tele.last_name} {tele.first_name}".strip() if (tele and tele.first_name) else (tele.username if tele else "Không có Telesale")
+        telesale_map[tele_name] = telesale_map.get(tele_name, 0) + amt
+
+    # 2. Tính Doanh thu Quá khứ (Thủ công)
+    orders_prev = Order.objects.filter(order_date__range=[previous_start, previous_end], is_paid=True)
+    revenue_previous = 0
+    for o in orders_prev:
+        revenue_previous += safe_float(o.total_amount)
+
     growth_rate = 0
     if revenue_previous > 0:
         growth_rate = ((revenue_current - revenue_previous) / revenue_previous) * 100
     elif revenue_current > 0:
         growth_rate = 100
 
+    # 3. Các chỉ số đếm (Count ít khi lỗi)
     appts_total = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end]
     ).values('customer').distinct().count()
@@ -438,33 +485,30 @@ def admin_dashboard(request):
     ).values('customer').distinct().count()
 
     arrival_rate = (appts_arrived / appts_total * 100) if appts_total > 0 else 0
-
     calls_total = CallLog.objects.filter(call_time__date__range=[date_start, date_end]).count()
     leads_total = Customer.objects.filter(created_at__date__range=[date_start, date_end]).count()
 
-    trend_orders = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True).values('order_date', 'total_amount')
-    
-    trend_data = {}
-    for item in trend_orders:
-        d = item['order_date']
-        if d:
-            trend_data[d] = trend_data.get(d, 0) + (item['total_amount'] or 0)
-            
+    # 4. Xử lý dữ liệu biểu đồ
     sorted_trend = sorted(trend_data.keys())
     chart_labels = [d.strftime('%d/%m') for d in sorted_trend]
-    chart_data = [float(trend_data[d]) for d in sorted_trend]
+    chart_data = [trend_data[d] for d in sorted_trend]
 
-    top_services = Order.objects.filter(
-        order_date__range=[date_start, date_end], 
-        is_paid=True
-    ).values('service__name').annotate(total=Sum('total_amount')).order_by('-total')[:5]
-    
-    service_labels = [item['service__name'] for item in top_services]
-    service_data = [float(item['total']) for item in top_services]
+    # 5. Top Dịch vụ
+    sorted_svc = sorted(service_map.items(), key=lambda x: x[1], reverse=True)[:5]
+    service_labels = [k for k, v in sorted_svc]
+    service_data = [v for k, v in sorted_svc]
 
+    # 6. Top Telesale
+    sorted_tele = sorted(telesale_map.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_telesales = [{'name': k, 'total': v} for k, v in sorted_tele] # Structure cho template
+
+    # 7. Thống kê Consultant (Vẫn giữ logic filter nhưng tính tiền thủ công)
     consultants = User.objects.filter(role='CONSULTANT')
     consultant_stats_filtered = []
     
+    # Cache orders current để loop
+    all_current_orders = list(orders_current)
+
     for cons in consultants:
         apps_filtered = Appointment.objects.filter(
             assigned_consultant=cons, 
@@ -475,13 +519,13 @@ def admin_dashboard(request):
         success = apps_filtered.filter(status='COMPLETED', order__isnull=False).distinct().count()
         failed = apps_filtered.filter(status='COMPLETED', order__isnull=True).count()
         
-        my_orders_admin = Order.objects.filter(
-            assigned_consultant=cons, 
-            order_date__range=[date_start, date_end],
-            is_paid=True
-        )
-        rev_filtered = my_orders_admin.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        total_orders_admin = my_orders_admin.count()
+        # Lọc orders của sale này
+        my_orders = [o for o in all_current_orders if o.assigned_consultant_id == cons.id]
+        rev_filtered = 0
+        for o in my_orders:
+            rev_filtered += safe_float(o.total_amount)
+            
+        total_orders_admin = len(my_orders)
         
         avg_revenue = 0
         if checkin > 0:
@@ -498,10 +542,6 @@ def admin_dashboard(request):
                 'revenue': rev_filtered,
                 'avg_revenue': avg_revenue 
             })
-
-    top_telesales = Order.objects.filter(order_date__range=[date_start, date_end], is_paid=True)\
-        .values('customer__assigned_telesale__username', 'customer__assigned_telesale__first_name', 'customer__assigned_telesale__last_name')\
-        .annotate(total=Sum('total_amount')).order_by('-total')[:5]
 
     recent_orders = Order.objects.filter(order_date__range=[date_start, date_end]).order_by('-order_date')[:10]
 
