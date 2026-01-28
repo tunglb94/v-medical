@@ -15,7 +15,7 @@ from apps.authentication.decorators import allowed_users
 User = get_user_model() # <--- Khởi tạo User model
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']) 
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER', 'TECHNICIAN']) 
 def customer_list(request):
     query = request.GET.get('q', '')
     source_filter = request.GET.get('source', '')
