@@ -20,8 +20,7 @@ def calendar_dashboard(request):
     tomorrow = today + timedelta(days=1)
     user = request.user
 
-    # --- 1. DANH SÁCH KHÁCH HÀNG (CỘT TRÁI) ---
-    # Giữ nguyên logic: Khách đã mua hàng mới hiện ra để đặt lịch liệu trình
+    # --- 1. KHÁCH HÀNG (CỘT TRÁI) ---
     customers_query = Customer.objects.filter(order__is_paid=True).distinct().prefetch_related(
         'order_set', 'order_set__service', 'order_set__assigned_consultant'
     )
@@ -32,7 +31,6 @@ def calendar_dashboard(request):
 
     customers = []
     for cus in customers_query:
-        # Lấy thông tin tóm tắt dịch vụ đã mua
         paid_orders = cus.order_set.filter(is_paid=True)
         service_names = set(o.service.name for o in paid_orders if o.service)
         cus.service_summary = ", ".join(service_names) if service_names else "Chưa rõ"
@@ -40,14 +38,16 @@ def calendar_dashboard(request):
 
     # --- 2. LẤY DỮ LIỆU LỊCH (CỘT PHẢI) ---
     
-    # [LOGIC MỚI QUAN TRỌNG]
-    # Chỉ lấy lịch thỏa mãn: 
-    # 1. Đã được gán KTV (assigned_technician có dữ liệu)
-    # 2. HOẶC: Do KTV tạo ra (created_by là TECHNICIAN)
-    # 3. Loại bỏ các lịch nháp/hủy nếu cần (ở đây ta giữ lại để theo dõi nhưng tô màu khác)
+    # [FIX LOGIC QUAN TRỌNG]
+    # Điều kiện 1: Phải có KTV (assigned_technician) HOẶC do KTV tạo
+    # Điều kiện 2 (BẮT BUỘC): KHÔNG PHẢI do Telesale tạo (exclude)
+    # Điều kiện 3 (BẮT BUỘC): KHÔNG PHẢI do Sale Tư vấn tạo (nếu cần thiết)
+    
     appointments = Appointment.objects.filter(
         Q(assigned_technician__isnull=False) | 
         Q(created_by__role='TECHNICIAN')
+    ).exclude(
+        created_by__role='TELESALE'  # <--- CHẶN ĐỨNG LỊCH TELESALE TẠI ĐÂY
     ).select_related('customer', 'reminder_log', 'assigned_doctor', 'assigned_technician')
 
     # --- BỘ LỌC TÌM KIẾM ---
@@ -64,28 +64,26 @@ def calendar_dashboard(request):
     
     events_list = []
     for appt in appointments:
-        # --- MÀU SẮC NHẬN DIỆN CHO KTV ---
-        # Mặc định: Màu xám (Lịch của người khác -> Không quan tâm)
+        # Mặc định: Màu xám (Lịch của người khác)
         color = '#6c757d' 
         
-        # 1. Lịch chưa gán KTV -> Màu vàng (Cảnh báo cần nhận)
+        # 1. Chưa gán KTV -> Vàng
         if not appt.assigned_technician:
             color = '#ffc107' 
             
-        # 2. Lịch CỦA MÌNH -> Màu xanh lá (Nổi bật)
+        # 2. Lịch CỦA MÌNH -> Xanh lá
         if appt.assigned_technician_id == user.id:
             color = '#28a745' 
             
-        # 3. Nếu đã hủy -> Màu đỏ
+        # 3. Đã hủy -> Đỏ
         if appt.status == 'CANCELLED':
             color = '#e74a3b'
 
-        # Tạo tiêu đề hiển thị
         title = f"{appt.customer.name}"
         
-        # Thông tin chi tiết cho Popup
         doc_name = f"BS. {appt.assigned_doctor.last_name} {appt.assigned_doctor.first_name}" if appt.assigned_doctor else ""
         
+        # Logic hiển thị tên KTV
         tech_name = "Chưa gán KTV"
         if appt.assigned_technician:
             tech_name = f"KTV. {appt.assigned_technician.last_name} {appt.assigned_technician.first_name}"
@@ -104,26 +102,27 @@ def calendar_dashboard(request):
             }
         })
 
-    # --- 3. DANH SÁCH NHẮC HẸN (Chỉ nhắc các lịch liên quan KTV) ---
+    # --- 3. NHẮC HẸN (Cũng phải chặn Telesale) ---
     reminders_needed = []
     tomorrow_appts = Appointment.objects.filter(
         appointment_date__date=tomorrow, 
         status='SCHEDULED'
     ).filter(
         Q(assigned_technician__isnull=False) | Q(created_by__role='TECHNICIAN')
+    ).exclude(
+        created_by__role='TELESALE' # <--- CHẶN CẢ Ở NHẮC HẸN
     )
 
     for appt in tomorrow_appts:
         if not hasattr(appt, 'reminder_log') or not appt.reminder_log.is_reminded:
             reminders_needed.append(appt)
 
-    # Data cho dropdown lọc
     doctors_list = User.objects.filter(role='DOCTOR', is_active=True)
     techs_list = User.objects.filter(role='TECHNICIAN', is_active=True)
 
     context = {
         'customers': customers,
-        'events': json.dumps(events_list), # Truyền thẳng JSON vào template
+        'events': json.dumps(events_list),
         'reminders_needed': reminders_needed,
         'doctors': doctors_list,
         'technicians': techs_list,
@@ -134,17 +133,11 @@ def calendar_dashboard(request):
     }
     return render(request, 'service_calendar/dashboard.html', context)
 
-# --- API CHO TEMPLATE MOBILE (Để tương thích với template mới) ---
+# --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
+
 @login_required
 def get_service_events(request):
-    """
-    API này dùng để FullCalendar fetch dữ liệu nếu cấu hình 'events' là URL.
-    Tuy nhiên, để bộ lọc hoạt động tốt nhất, ta nên dùng cách truyền trực tiếp context ở trên.
-    Hàm này giữ lại để tránh lỗi 404 nếu template gọi vào.
-    """
-    return calendar_dashboard(request) # Tạm thời redirect về dashboard hoặc trả JSON tương tự logic trên
-
-# --- CÁC HÀM XỬ LÝ KHÁC (GIỮ NGUYÊN) ---
+    return calendar_dashboard(request)
 
 @login_required
 def quick_add_appointment(request):
@@ -162,12 +155,11 @@ def quick_add_appointment(request):
         count = 0
         for d, t in zip(dates, times):
             if d and t:
-                # Mặc định người tạo là KTV hiện tại -> Sẽ hiện trên lịch
                 Appointment.objects.create(
                     customer=customer,
                     appointment_date=f"{d} {t}",
                     assigned_doctor_id=doctor_id if doctor_id else None,
-                    assigned_technician=request.user, # Tự gán cho chính mình
+                    assigned_technician=request.user, # KTV tự tạo thì gán cho chính mình luôn
                     created_by=request.user,
                     status='SCHEDULED'
                 )
@@ -206,7 +198,7 @@ def update_appointment_status(request):
                     customer=appt.customer,
                     appointment_date=reschedule_date,
                     assigned_doctor=appt.assigned_doctor,
-                    assigned_technician=appt.assigned_technician, 
+                    assigned_technician=appt.assigned_technician,
                     created_by=request.user,
                     status='SCHEDULED'
                 )
