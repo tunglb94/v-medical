@@ -4,42 +4,51 @@
 {% block title %}Lịch Dịch Vụ & Nhắc Hẹn{% endblock %}
 
 {% block content %}
+<div class="d-md-none p-2 bg-white border-bottom">
+    <button class="btn btn-primary w-100 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false">
+        <i class="bi bi-funnel-fill"></i> Mở Bộ Lọc & DS Khách Hàng
+    </button>
+</div>
+
 <div class="row h-100 g-0">
-    <div class="col-md-3 border-end bg-white d-flex flex-column" style="height: calc(100vh - 80px);">
+    <div class="col-md-3 border-end bg-white collapse d-md-flex flex-column" id="sidebarMenu" style="height: calc(100vh - 80px);">
+        
         <div class="p-3 bg-light border-bottom">
-            <h6 class="fw-bold mb-3"><i class="bi bi-funnel-fill"></i> BỘ LỌC & TÌM KIẾM</h6>
+            <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-funnel-fill"></i> BỘ LỌC</h6>
             <form method="GET" id="filterForm">
                 <div class="input-group input-group-sm mb-2">
                     <input type="text" name="q" class="form-control" placeholder="Tên hoặc SĐT..." value="{{ search_query|default:'' }}">
                     <button class="btn btn-primary"><i class="bi bi-search"></i></button>
                 </div>
                 
-                <div class="mb-2">
-                    <input type="text" name="filter_code" class="form-control form-control-sm" placeholder="Mã khách hàng..." value="{{ filter_code|default:'' }}">
+                <div class="row g-2">
+                    <div class="col-12">
+                        <input type="text" name="filter_code" class="form-control form-control-sm" placeholder="Mã KH..." value="{{ filter_code|default:'' }}">
+                    </div>
+                    <div class="col-12">
+                        <select name="filter_doctor" class="form-select form-select-sm">
+                            <option value="">-- Tất cả Bác sĩ --</option>
+                            {% for doc in doctors %}
+                            <option value="{{ doc.id }}" {% if filter_doctor|stringformat:"s" == doc.id|stringformat:"s" %}selected{% endif %}>{{ doc.last_name }} {{ doc.first_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <select name="filter_tech" class="form-select form-select-sm">
+                            <option value="">-- Tất cả KTV --</option>
+                            {% for tech in technicians %}
+                            <option value="{{ tech.id }}" {% if filter_tech|stringformat:"s" == tech.id|stringformat:"s" %}selected{% endif %}>{{ tech.last_name }} {{ tech.first_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <div class="mb-2">
-                    <select name="filter_doctor" class="form-select form-select-sm">
-                        <option value="">-- Tất cả Bác sĩ --</option>
-                        {% for doc in doctors %}
-                        <option value="{{ doc.id }}" {% if filter_doctor|stringformat:"s" == doc.id|stringformat:"s" %}selected{% endif %}>{{ doc.last_name }} {{ doc.first_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-2">
-                    <select name="filter_tech" class="form-select form-select-sm">
-                        <option value="">-- Tất cả KTV --</option>
-                        {% for tech in technicians %}
-                        <option value="{{ tech.id }}" {% if filter_tech|stringformat:"s" == tech.id|stringformat:"s" %}selected{% endif %}>{{ tech.last_name }} {{ tech.first_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Áp dụng lọc</button>
+                <div class="d-grid mt-2">
+                    <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Áp dụng lọc</button>
                 </div>
             </form>
         </div>
         
-        <div class="overflow-auto flex-grow-1 p-2">
+        <div class="overflow-auto flex-grow-1 p-2" style="max-height: 100%;">
             {% if reminders_needed %}
             <div class="alert alert-warning small mb-3 shadow-sm border-warning">
                 <strong><i class="bi bi-bell-fill"></i> Cần nhắc ngày mai ({{ reminders_needed|length }})</strong>
@@ -54,28 +63,35 @@
             </div>
             {% endif %}
 
-            <h6 class="fw-bold px-2 mt-2 small text-muted">DANH SÁCH KHÁCH HÀNG</h6>
+            <h6 class="fw-bold px-2 mt-2 small text-muted border-bottom pb-2">DANH SÁCH KHÁCH HÀNG</h6>
             <div class="list-group list-group-flush">
                 {% for cus in customers %}
-                <a href="#" class="list-group-item list-group-item-action py-3 border-bottom" 
-                   onclick="openBookingModal('{{ cus.id }}', '{{ cus.name }}')">
+                <div class="list-group-item list-group-item-action py-3 border-bottom">
                     <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                        <h6 class="mb-0 fw-bold text-primary">{{ cus.name }}</h6>
-                        <span class="badge bg-light text-dark border"><i class="bi bi-plus-lg"></i> Đặt lịch</span>
+                        <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem;">{{ cus.name }}</h6>
+                        <button class="btn btn-sm btn-light border text-primary" onclick="openBookingModal('{{ cus.id }}', '{{ cus.name }}')">
+                            <i class="bi bi-calendar-plus"></i> Đặt lịch
+                        </button>
                     </div>
                     <div class="small text-muted mb-1"><i class="bi bi-telephone"></i> {{ cus.phone }}</div>
-                    <div class="small text-success fw-bold">{{ cus.sale_summary }}</div>
-                </a>
+                    <div class="small text-success fw-bold text-truncate" style="max-width: 200px;">
+                        <i class="bi bi-bag-check"></i> {{ cus.service_summary|default:"Chưa có dịch vụ" }}
+                    </div>
+                </div>
                 {% empty %}
-                <div class="text-center py-5 text-muted">Chưa có dữ liệu phù hợp.</div>
+                <div class="text-center py-5 text-muted small">
+                    <i class="bi bi-inbox fs-1"></i><br>
+                    Không tìm thấy khách hàng nào.<br>
+                    (Chỉ hiện khách đã từng mua hàng)
+                </div>
                 {% endfor %}
             </div>
         </div>
     </div>
 
-    <div class="col-md-9 p-3 bg-light" style="height: calc(100vh - 80px); overflow-y: auto;">
-        <div class="card shadow-sm h-100 border-0">
-            <div class="card-body p-0">
+    <div class="col-md-9 p-0 bg-light d-flex flex-column" style="height: calc(100vh - 80px);">
+        <div class="card shadow-sm h-100 border-0 rounded-0">
+            <div class="card-body p-2 p-md-3">
                 <div id="calendar" style="height: 100%;"></div>
             </div>
         </div>
@@ -83,22 +99,22 @@
 </div>
 
 <div class="modal fade" id="quickBookingModal" tabindex="-1">
-    <div class="modal-dialog modal-lg"> 
+    <div class="modal-dialog modal-lg modal-dialog-centered"> 
         <form action="{% url 'service_calendar:quick_add' %}" method="POST">
             {% csrf_token %}
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-calendar-plus"></i> Đặt Lịch / Liệu Trình</h5>
+                <div class="modal-header bg-primary text-white py-2">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-calendar-plus"></i> Đặt Lịch / Liệu Trình</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body bg-light">
                     <input type="hidden" name="customer_id" id="modalCusId">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                    <div class="row mb-3 g-2">
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-bold small text-muted">Khách hàng</label>
                             <input type="text" class="form-control bg-white fw-bold" id="modalCusName" readonly>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-bold small text-muted">Bác sĩ (Tùy chọn)</label>
                             <select name="doctor_id" class="form-select">
                                 <option value="">-- Chọn bác sĩ --</option>
@@ -109,13 +125,13 @@
                         </div>
                     </div>
                     <hr>
-                    <label class="form-label fw-bold text-primary mb-2">Chọn lịch các buổi:</label>
+                    <label class="form-label fw-bold text-primary mb-2 small">CHỌN THỜI GIAN:</label>
                     <div id="schedule-container">
                         <div class="row g-2 mb-2 schedule-row align-items-end">
-                            <div class="col-1 text-center fw-bold pt-2 text-muted">#1</div>
-                            <div class="col-5"><input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}"></div>
-                            <div class="col-5"><input type="time" name="times[]" class="form-control" required></div>
-                            <div class="col-1"></div>
+                            <div class="col-2 col-md-1 text-center fw-bold pt-2 text-muted">#1</div>
+                            <div class="col-5 col-md-5"><input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}"></div>
+                            <div class="col-5 col-md-5"><input type="time" name="times[]" class="form-control" required></div>
+                            <div class="col-md-1 d-none d-md-block"></div>
                         </div>
                     </div>
                     <div class="mt-3">
@@ -124,9 +140,9 @@
                         </button>
                     </div>
                 </div>
-                <div class="modal-footer bg-white">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary fw-bold">Lưu Tất Cả Lịch Hẹn</button>
+                <div class="modal-footer bg-white py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Lưu Lịch Hẹn</button>
                 </div>
             </div>
         </form>
@@ -134,10 +150,10 @@
 </div>
 
 <div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title fw-bold">Cập Nhật Trạng Thái</h5>
+            <div class="modal-header bg-info text-white py-2">
+                <h5 class="modal-title fw-bold fs-6">Chi Tiết Lịch Hẹn</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -145,32 +161,34 @@
                 <h5 class="text-primary fw-bold mb-1" id="statusCusName"></h5>
                 <p class="text-muted small mb-3"><i class="bi bi-clock"></i> <span id="statusTime"></span></p>
                 
-                <div class="alert alert-light border small">
-                    <div id="infoDoctor"></div>
-                    <div id="infoTech"></div>
+                <div class="alert alert-light border small p-2 mb-3">
+                    <div id="infoDoctor" class="mb-1 fw-bold text-dark"></div>
+                    <div id="infoTech" class="fw-bold text-dark"></div>
                 </div>
 
-                <label class="form-label fw-bold">Trạng thái hiện tại:</label>
-                <div class="d-flex gap-2 mb-3">
+                <label class="form-label fw-bold small text-muted">Cập nhật trạng thái:</label>
+                <div class="d-flex flex-wrap gap-2 mb-3">
                     <input type="radio" class="btn-check" name="appt_status" id="st_scheduled" value="SCHEDULED" onchange="toggleReschedule(false)">
-                    <label class="btn btn-outline-primary" for="st_scheduled">Chưa đến</label>
+                    <label class="btn btn-sm btn-outline-primary" for="st_scheduled">Chưa đến</label>
 
                     <input type="radio" class="btn-check" name="appt_status" id="st_arrived" value="ARRIVED" onchange="toggleReschedule(false)">
-                    <label class="btn btn-outline-success" for="st_arrived">Đã đến</label>
+                    <label class="btn btn-sm btn-outline-success" for="st_arrived">Đã đến</label>
+
+                    <input type="radio" class="btn-check" name="appt_status" id="st_completed" value="COMPLETED" onchange="toggleReschedule(false)">
+                    <label class="btn btn-sm btn-outline-secondary" for="st_completed">Hoàn thành</label>
 
                     <input type="radio" class="btn-check" name="appt_status" id="st_cancelled" value="CANCELLED" onchange="toggleReschedule(true)">
-                    <label class="btn btn-outline-danger" for="st_cancelled">Hủy lịch</label>
+                    <label class="btn btn-sm btn-outline-danger" for="st_cancelled">Hủy lịch</label>
                 </div>
 
                 <div id="rescheduleBlock" class="p-3 bg-light border rounded" style="display: none;">
-                    <label class="form-label fw-bold text-danger small">Chọn ngày hẹn lại (Tạo lịch mới):</label>
-                    <input type="datetime-local" id="rescheduleDate" class="form-control">
-                    <small class="text-muted fst-italic">Để trống nếu không muốn hẹn lại ngay.</small>
+                    <label class="form-label fw-bold text-danger small">Hẹn lại ngày khác (Tạo lịch mới):</label>
+                    <input type="datetime-local" id="rescheduleDate" class="form-control form-control-sm">
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                <button type="button" class="btn btn-info text-white fw-bold" onclick="saveStatusChange()">Lưu Thay Đổi</button>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-info text-white btn-sm fw-bold" onclick="saveStatusChange()">Lưu Thay Đổi</button>
             </div>
         </div>
     </div>
@@ -181,48 +199,68 @@
 {% block extra_js %}
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
 <script>
-    var calendar; // Khai báo global để dùng reload
+    var calendar; 
 
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
+        
+        // Nhận diện mobile để chỉnh view mặc định
+        var isMobile = window.innerWidth < 768;
+        
         calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
+            // Mobile dùng listWeek cho dễ nhìn, PC dùng dayGridMonth
+            initialView: isMobile ? 'listWeek' : 'dayGridMonth',
+            
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek,listWeek'
+                right: isMobile ? 'listWeek,timeGridDay' : 'dayGridMonth,timeGridWeek,listWeek'
             },
             locale: 'vi',
             buttonText: {
-                today: 'Hôm nay', month: 'Tháng', week: 'Tuần', day: 'Ngày', list: 'DS'
+                today: 'Hôm nay', month: 'Tháng', week: 'Tuần', day: 'Ngày', list: 'Danh sách'
             },
             height: '100%',
+            
+            // [QUAN TRỌNG] Lấy dữ liệu từ biến context truyền vào (Server-side rendering)
+            // Giúp bộ lọc hoạt động ngay lập tức mà không cần gọi API lại
             events: {{ events|safe }},
             
-            // [MỚI] SỰ KIỆN CLICK VÀO LỊCH
+            // Xử lý khi click vào lịch
             eventClick: function(info) {
                 var props = info.event.extendedProps;
                 
                 // Điền dữ liệu vào Modal
                 document.getElementById('statusApptId').value = info.event.id;
-                document.getElementById('statusCusName').innerText = info.event.title;
+                document.getElementById('statusCusName').innerText = info.event.title.split('\n')[0]; // Lấy tên khách
                 document.getElementById('statusTime').innerText = info.event.start.toLocaleString('vi-VN');
                 
                 // Hiển thị thông tin Bác sĩ/KTV
-                document.getElementById('infoDoctor').innerText = props.doctor ? props.doctor : 'Bác sĩ: --';
-                document.getElementById('infoTech').innerText = props.technician ? props.technician : 'KTV: --';
+                var docInfo = props.doctor ? props.doctor : 'Bác sĩ: (Chưa gán)';
+                var techInfo = props.technician ? props.technician : 'KTV: (Chưa gán)';
+                
+                if (techInfo.includes("Chưa gán")) {
+                    techInfo = `<span class="text-danger">${techInfo}</span>`;
+                }
 
-                // Set radio button đúng trạng thái hiện tại
-                var status = props.status_code; 
-                if(document.getElementById('st_' + status.toLowerCase())) {
-                    document.getElementById('st_' + status.toLowerCase()).checked = true;
+                document.getElementById('infoDoctor').innerHTML = docInfo;
+                document.getElementById('infoTech').innerHTML = techInfo;
+
+                // Reset radio
+                var radios = document.getElementsByName('appt_status');
+                for(var i=0; i<radios.length; i++) radios[i].checked = false;
+
+                // Check status hiện tại (nếu có mã code)
+                var currentStatus = props.status_code;
+                if (currentStatus) {
+                    var radio = document.getElementById('st_' + currentStatus.toLowerCase());
+                    if (radio) radio.checked = true;
                 } else {
-                    // Mặc định nếu trạng thái khác (Completed/NoShow) thì coi như Đã đến hoặc xử lý riêng
                     document.getElementById('st_arrived').checked = true; 
                 }
 
                 // Reset vùng hẹn lại
-                toggleReschedule(status === 'CANCELLED');
+                toggleReschedule(currentStatus === 'CANCELLED');
                 document.getElementById('rescheduleDate').value = "";
 
                 // Mở Modal
@@ -232,47 +270,50 @@
         calendar.render();
     });
 
-    // Hàm mở modal đặt lịch nhanh (Giữ nguyên)
+    // --- CÁC HÀM HỖ TRỢ ---
+
     function openBookingModal(id, name) {
         document.getElementById('modalCusId').value = id;
         document.getElementById('modalCusName').value = name;
-        // Reset container
-        document.getElementById('schedule-container').innerHTML = `...`; // (Code html dòng mẫu như cũ)
-        // Code HTML reset dòng mẫu dài dòng, tôi giữ nguyên logic cũ của bạn ở đây để ngắn gọn
         const container = document.getElementById('schedule-container');
         container.innerHTML = `
             <div class="row g-2 mb-2 schedule-row align-items-end">
-                <div class="col-1 text-center fw-bold pt-2 text-muted">#1</div>
-                <div class="col-5"><input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}"></div>
-                <div class="col-5"><input type="time" name="times[]" class="form-control" required></div>
-                <div class="col-1"></div>
+                <div class="col-2 col-md-1 text-center fw-bold pt-2 text-muted">#1</div>
+                <div class="col-5 col-md-5"><input type="date" name="dates[]" class="form-control" required value="{% now 'Y-m-d' %}"></div>
+                <div class="col-5 col-md-5"><input type="time" name="times[]" class="form-control" required></div>
+                <div class="col-md-1 d-none d-md-block"></div>
             </div>`;
         new bootstrap.Modal(document.getElementById('quickBookingModal')).show();
     }
 
     function addScheduleRow() {
-        // (Giữ nguyên hàm thêm dòng)
         const container = document.getElementById('schedule-container');
         const count = container.querySelectorAll('.schedule-row').length + 1;
         const div = document.createElement('div');
         div.className = 'row g-2 mb-2 schedule-row align-items-end fade-in';
         div.innerHTML = `
-            <div class="col-1 text-center fw-bold pt-2 text-muted">#${count}</div>
-            <div class="col-5"><input type="date" name="dates[]" class="form-control" required></div>
-            <div class="col-5"><input type="time" name="times[]" class="form-control" required></div>
-            <div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.row').remove()"><i class="bi bi-trash"></i></button></div>
+            <div class="col-2 col-md-1 text-center fw-bold pt-2 text-muted">#${count}</div>
+            <div class="col-5 col-md-5"><input type="date" name="dates[]" class="form-control" required></div>
+            <div class="col-5 col-md-5"><input type="time" name="times[]" class="form-control" required></div>
+            <div class="col-12 col-md-1 text-end mt-2 mt-md-0">
+                <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="this.closest('.row').remove()"><i class="bi bi-trash"></i></button>
+            </div>
         `;
         container.appendChild(div);
     }
 
-    // [MỚI] CÁC HÀM XỬ LÝ TRẠNG THÁI
     function toggleReschedule(show) {
         document.getElementById('rescheduleBlock').style.display = show ? 'block' : 'none';
     }
 
     function saveStatusChange() {
         const id = document.getElementById('statusApptId').value;
-        const status = document.querySelector('input[name="appt_status"]:checked').value;
+        const checkedRadio = document.querySelector('input[name="appt_status"]:checked');
+        if (!checkedRadio) {
+            alert("Vui lòng chọn trạng thái!");
+            return;
+        }
+        const status = checkedRadio.value;
         const rescheduleDate = document.getElementById('rescheduleDate').value;
 
         fetch("{% url 'service_calendar:update_status' %}", {
@@ -291,7 +332,7 @@
         .then(data => {
             if (data.success) {
                 alert(data.message);
-                location.reload(); // Load lại trang để cập nhật lịch
+                location.reload(); 
             } else {
                 alert("Lỗi: " + data.message);
             }
@@ -301,8 +342,22 @@
 </script>
 
 <style>
+    /* Custom Scrollbar cho list khách hàng */
+    .overflow-auto::-webkit-scrollbar { width: 6px; }
+    .overflow-auto::-webkit-scrollbar-track { background: #f1f1f1; }
+    .overflow-auto::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    .overflow-auto::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
     .dashed-border { border-style: dashed !important; }
     .fade-in { animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* FullCalendar Customization cho Mobile */
+    @media (max-width: 768px) {
+        .fc-toolbar { flex-direction: column; gap: 5px; }
+        .fc-toolbar-chunk { display: flex; justify-content: space-between; width: 100%; }
+        /* Ẩn bớt nút thừa trên mobile */
+        .fc-dayGridMonth-button, .fc-timeGridWeek-button { display: none !important; }
+    }
 </style>
 {% endblock %}
