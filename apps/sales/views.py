@@ -214,7 +214,7 @@ def revenue_dashboard(request):
     return render(request, 'sales/revenue_dashboard.html', context)
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'MANAGER', 'RECEPTIONIST', 'TELESALE'])
+@allowed_users(allowed_roles=['ADMIN', 'MANAGER', 'RECEPTIONIST', 'TELESALE', 'CONSULTANT'])
 def update_order_details(request):
     if request.method == "POST":
         try:
@@ -288,7 +288,7 @@ def update_order_details(request):
     return redirect(request.META.get('HTTP_REFERER', 'sales_report'))
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN', 'TELESALE'])
+@allowed_users(allowed_roles=['RECEPTIONIST', 'ADMIN', 'TELESALE', 'CONSULTANT'])
 def print_invoice(request, order_id):
     # Dùng Safe Load để tránh crash khi in hóa đơn lỗi
     qs = Order.objects.filter(id=order_id)
@@ -305,7 +305,7 @@ def print_invoice(request, order_id):
     })
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE'])
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'CONSULTANT'])
 def debt_manager(request):
     # 1. Load Safe
     qs = Order.objects.select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
