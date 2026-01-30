@@ -255,11 +255,13 @@ def telesale_dashboard(request):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['TELESALE', 'ADMIN', 'RECEPTIONIST', 'CONSULTANT'])
 def add_customer_manual(request):
+    """
+    Thêm khách thủ công từ Dashboard Telesale.
+    Logic: Nếu Team A nhập -> Auto Assign cho Team B (cân bằng tải).
+    """
     if request.method == "POST":
         phone = request.POST.get('phone', '').strip()
         name = request.POST.get('name')
-        
-        # [NEW LOGIC] Không lấy telesale_id từ form nữa
         
         if not phone or not name:
             messages.error(request, "Thiếu Tên hoặc SĐT!")
@@ -275,19 +277,17 @@ def add_customer_manual(request):
             return redirect(f'/telesale/?id={existing_customer.id}')
 
         try:
-            # === LOGIC CHIA SỐ TỰ ĐỘNG (Auto-Assign) ===
-            assigned_user_id = request.user.id # Mặc định là chính người nhập
+            assigned_user_id = request.user.id 
             auto_assign_msg = ""
 
-            # Logic: Nếu là Team A -> Random chia công bằng cho Team B
-            # Sử dụng getattr để tránh lỗi nếu user chưa có team
+            # LOGIC CHIA SỐ: Team A -> Random Team B
             if request.user.role == 'TELESALE' and getattr(request.user, 'team', None) == 'TEAM_A':
                 team_b_members = User.objects.filter(role='TELESALE', team='TEAM_B', is_active=True)
                 
                 if team_b_members.exists():
-                    # Tìm người ít khách nhất trong Team B
+                    # [ĐÃ SỬA] Dùng 'customer' thay vì 'customer_set'
                     target_telesale = team_b_members.annotate(
-                        load=Count('customer_set') # customer_set là related_name mặc định
+                        load=Count('customer') 
                     ).order_by('load', '?').first()
                     
                     if target_telesale:
@@ -310,11 +310,9 @@ def add_customer_manual(request):
             
             messages.success(request, f"Đã thêm khách mới!{auto_assign_msg}")
             
-            # Nếu khách thuộc về mình thì mở chi tiết
             if assigned_user_id == request.user.id:
                 return redirect(f'/telesale/?id={new_customer.id}')
             else:
-                # Nếu đã chuyển cho người khác, reload trang để nhập tiếp
                 return redirect('telesale_home')
 
         except Exception as e:
