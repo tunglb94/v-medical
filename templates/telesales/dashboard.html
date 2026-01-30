@@ -19,7 +19,7 @@
     .timeline-item.status-booked::before { background: #198754; }
     .timeline-item.status-no-answer::before { background: #ffc107; }
     .timeline-item.status-wrong-number::before { background: #dc3545; }
-    .timeline-item.status-follow-up::before { background: #0dcaf0; } /* Màu xanh cho Care/Follow up */
+    .timeline-item.status-follow-up::before { background: #0dcaf0; } 
 </style>
 {% endblock %}
 
@@ -146,7 +146,6 @@
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
                         <input type="text" name="q" class="form-control border-start-0" placeholder="Tìm tên, SĐT..." value="{{ search_query }}">
-                        {# Thêm toàn bộ filter hiện tại trừ 'q' và 'id' #}
                         {% for key, value in request.GET.items %}
                             {% if key != 'q' and key != 'id' %}
                                 <input type="hidden" name="{{ key }}" value="{{ value }}">
@@ -156,7 +155,6 @@
                 </form>
                 
                 <form method="GET" class="d-flex justify-content-between">
-                    {# Thêm các trường ẩn cho bộ lọc drill-down (status, date_start, fanpage,...) #}
                     {% for key, value in request.GET.items %}
                         {% if key != 'type' and key != 'q' and key != 'id' %}
                             <input type="hidden" name="{{ key }}" value="{{ value }}">
@@ -431,18 +429,6 @@
                       <select name="skin_condition" class="form-select">
                           <option value="OTHER">-- Khác --</option>
                           {% for code, label in skin_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
-                      </select>
-                  </div>
-
-                  <div class="col-12">
-                      <label class="form-label small fw-bold">Sale Phụ Trách</label>
-                      <select name="telesale_id" class="form-select">
-                          <option value="{{ request.user.id }}">-- {{ request.user.last_name }} (Tôi) --</option>
-                          {% for staff in telesales_list %}
-                            {% if staff.id != request.user.id %}
-                                <option value="{{ staff.id }}">{{ staff.last_name }} {{ staff.first_name }}</option>
-                            {% endif %}
-                          {% endfor %}
                       </select>
                   </div>
 

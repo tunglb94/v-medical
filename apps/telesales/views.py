@@ -258,7 +258,8 @@ def add_customer_manual(request):
     if request.method == "POST":
         phone = request.POST.get('phone', '').strip()
         name = request.POST.get('name')
-        telesale_id = request.POST.get('telesale_id')
+        
+        # [NEW LOGIC] Không lấy telesale_id từ form nữa
         
         if not phone or not name:
             messages.error(request, "Thiếu Tên hoặc SĐT!")
@@ -274,7 +275,25 @@ def add_customer_manual(request):
             return redirect(f'/telesale/?id={existing_customer.id}')
 
         try:
-            assigned_user_id = telesale_id if telesale_id else request.user.id
+            # === LOGIC CHIA SỐ TỰ ĐỘNG (Auto-Assign) ===
+            assigned_user_id = request.user.id # Mặc định là chính người nhập
+            auto_assign_msg = ""
+
+            # Logic: Nếu là Team A -> Random chia công bằng cho Team B
+            # Sử dụng getattr để tránh lỗi nếu user chưa có team
+            if request.user.role == 'TELESALE' and getattr(request.user, 'team', None) == 'TEAM_A':
+                team_b_members = User.objects.filter(role='TELESALE', team='TEAM_B', is_active=True)
+                
+                if team_b_members.exists():
+                    # Tìm người ít khách nhất trong Team B
+                    target_telesale = team_b_members.annotate(
+                        load=Count('customer_set') # customer_set là related_name mặc định
+                    ).order_by('load', '?').first()
+                    
+                    if target_telesale:
+                        assigned_user_id = target_telesale.id
+                        auto_assign_msg = f" (Đã auto chuyển cho: {target_telesale.last_name} {target_telesale.first_name})"
+
             new_customer = Customer.objects.create(
                 name=name, 
                 phone=phone,
@@ -286,10 +305,18 @@ def add_customer_manual(request):
                 fanpage=request.POST.get('fanpage'), 
                 skin_condition=request.POST.get('skin_condition'),
                 note_telesale=request.POST.get('note_telesale'),
-                assigned_telesale_id=assigned_user_id
+                assigned_telesale_id=assigned_user_id 
             )
-            messages.success(request, f"Đã thêm khách mới!")
-            return redirect(f'/telesale/?id={new_customer.id}')
+            
+            messages.success(request, f"Đã thêm khách mới!{auto_assign_msg}")
+            
+            # Nếu khách thuộc về mình thì mở chi tiết
+            if assigned_user_id == request.user.id:
+                return redirect(f'/telesale/?id={new_customer.id}')
+            else:
+                # Nếu đã chuyển cho người khác, reload trang để nhập tiếp
+                return redirect('telesale_home')
+
         except Exception as e:
             messages.error(request, f"Lỗi: {str(e)}")
             
