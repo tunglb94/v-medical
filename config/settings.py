@@ -27,6 +27,17 @@ if allowed_hosts_env:
 else:
     ALLOWED_HOSTS = ['*']
 
+# --- [FIX QUAN TRỌNG] CẤU HÌNH CSRF ĐỂ KHẮC PHỤC LỖI 403 ---
+CSRF_TRUSTED_ORIGINS = [
+    'https://www.vmedical.group',
+    'https://vmedical.group',
+    'https://tunglb941.pythonanywhere.com', 
+]
+# Tăng cường bảo mật cho HTTPS (giúp login mượt hơn trên domain chính thức)
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+# -----------------------------------------------------------
+
 INSTALLED_APPS = [
     'jazzmin',
     'django.contrib.admin',
