@@ -1,9 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
-from django.contrib.auth import get_user_model # <--- Thêm import này để lấy thông tin User/Team
+from django.contrib.auth import get_user_model 
 
 from .models import Customer
 from .forms import CustomerForm
@@ -12,8 +12,53 @@ from apps.bookings.models import Appointment
 from apps.sales.models import Order
 from apps.authentication.decorators import allowed_users
 
-User = get_user_model() # <--- Khởi tạo User model
+User = get_user_model() 
 
+# --- 1. HÀM THÊM KHÁCH HÀNG & CHIA SỐ TỰ ĐỘNG ---
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING'])
+def customer_add(request):
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            
+            # === LOGIC CHIA SỐ CÔNG BẰNG (LOAD BALANCING) ===
+            # Nếu người nhập là Telesale thuộc TEAM A
+            if request.user.role == 'TELESALE' and request.user.team == 'TEAM_A':
+                
+                # 1. Tìm các thành viên Team B đang hoạt động
+                team_b_members = User.objects.filter(
+                    role='TELESALE',
+                    team='TEAM_B',
+                    is_active=True
+                )
+                
+                if team_b_members.exists():
+                    # 2. Thuật toán: Chia cho người ít việc nhất, nếu bằng nhau thì random
+                    # Lưu ý: Do model không có related_name, Django mặc định là 'customer_set'
+                    target_telesale = team_b_members.annotate(
+                        load=Count('customer_set') 
+                    ).order_by('load', '?').first()
+                    
+                    # 3. Gán số
+                    if target_telesale:
+                        customer.assigned_telesale = target_telesale
+                        messages.info(request, f"🚀 Data đã được chuyển tự động cho: {target_telesale.last_name} {target_telesale.first_name} (Team B)")
+            
+            customer.save()
+            messages.success(request, "Thêm khách hàng thành công!")
+            return redirect('customer_list')
+    else:
+        form = CustomerForm()
+
+    context = {
+        'form': form,
+        'title': 'Thêm Khách Hàng Mới'
+    }
+    return render(request, 'customers/customer_form.html', context)
+
+# --- 2. DANH SÁCH KHÁCH HÀNG ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER', 'TECHNICIAN']) 
 def customer_list(request):
@@ -26,26 +71,19 @@ def customer_list(request):
 
     customers = Customer.objects.all().order_by('-created_at')
     
-    # =========================================================================
-    # --- [NEW LOGIC] PHÂN QUYỀN TEAM CHO DANH SÁCH TỔNG ---
-    # Logic: Telesale chỉ thấy khách của Team mình hoặc khách chưa gán
-    # =========================================================================
+    # --- PHÂN QUYỀN TEAM ---
     if request.user.role == 'TELESALE' and request.user.team:
-        # 1. Lấy danh sách ID các thành viên cùng Team
         teammate_ids = User.objects.filter(team=request.user.team).values_list('id', flat=True)
-        
-        # 2. Filter: (Assigned thuộc Team) HOẶC (Chưa Assigned)
         customers = customers.filter(
             Q(assigned_telesale_id__in=teammate_ids) | Q(assigned_telesale__isnull=True)
         )
-    # =========================================================================
 
-    # --- CẬP NHẬT: Thêm tìm kiếm theo Mã khách hàng (customer_code) ---
+    # --- TÌM KIẾM ---
     if query: 
         customers = customers.filter(
             Q(name__icontains=query) | 
             Q(phone__icontains=query) | 
-            Q(customer_code__icontains=query) # <-- Thêm dòng này
+            Q(customer_code__icontains=query)
         )
     
     if source_filter: customers = customers.filter(source=source_filter)
@@ -69,8 +107,9 @@ def customer_list(request):
     }
     return render(request, 'customers/customer_list.html', context)
 
+# --- 3. CHI TIẾT KHÁCH HÀNG ---
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
+@allowed_users(allowed_roles=['ADMIN', 'RECEPTIONIST', 'TELESALE', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER', 'TECHNICIAN'])
 def customer_detail(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     call_logs = CallLog.objects.filter(customer=customer).order_by('-call_time')
@@ -97,6 +136,7 @@ def customer_detail(request, pk):
     }
     return render(request, 'customers/customer_detail.html', context)
 
+# --- 4. XÓA KHÁCH HÀNG ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def customer_delete(request, pk):
