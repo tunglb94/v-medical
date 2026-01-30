@@ -256,8 +256,8 @@ def telesale_dashboard(request):
 @allowed_users(allowed_roles=['TELESALE', 'ADMIN', 'RECEPTIONIST', 'CONSULTANT'])
 def add_customer_manual(request):
     """
-    Thêm khách thủ công từ Dashboard Telesale.
-    Logic: Nếu Team A nhập -> Auto Assign cho Team B (cân bằng tải).
+    Hàm thêm nhanh khách hàng từ màn hình Telesale Dashboard.
+    Logic mới: Chia đều theo NGÀY (Daily Load Balancing) + Sửa lỗi customer_set.
     """
     if request.method == "POST":
         phone = request.POST.get('phone', '').strip()
@@ -280,20 +280,26 @@ def add_customer_manual(request):
             assigned_user_id = request.user.id 
             auto_assign_msg = ""
 
-            # LOGIC CHIA SỐ: Team A -> Random Team B
+            # === LOGIC CHIA SỐ CÔNG BẰNG (DAILY) ===
+            # Chỉ áp dụng nếu Team A nhập -> Chia cho Team B
             if request.user.role == 'TELESALE' and getattr(request.user, 'team', None) == 'TEAM_A':
+                
                 team_b_members = User.objects.filter(role='TELESALE', team='TEAM_B', is_active=True)
                 
                 if team_b_members.exists():
-                    # [ĐÃ SỬA] Dùng 'customer' thay vì 'customer_set'
+                    today = timezone.now().date()
+                    
+                    # 1. Dùng 'customer' (tên quan hệ đúng) thay vì 'customer_set'
+                    # 2. filter=Q(...) Chỉ đếm khách được tạo HÔM NAY (created_at__date=today)
                     target_telesale = team_b_members.annotate(
-                        load=Count('customer') 
-                    ).order_by('load', '?').first()
+                        today_load=Count('customer', filter=Q(customer__created_at__date=today))
+                    ).order_by('today_load', '?').first()
                     
                     if target_telesale:
                         assigned_user_id = target_telesale.id
                         auto_assign_msg = f" (Đã auto chuyển cho: {target_telesale.last_name} {target_telesale.first_name})"
 
+            # Tạo khách hàng
             new_customer = Customer.objects.create(
                 name=name, 
                 phone=phone,
