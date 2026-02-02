@@ -71,21 +71,33 @@ def revenue_dashboard(request):
     
     date_start = request.GET.get('date_start', str(start_of_month))
     date_end = request.GET.get('date_end', str(today))
+    
+    # Lấy các params lọc
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
+    telesale_id = request.GET.get('telesale_id') # [MỚI] Lọc Telesale
 
     # 1. Query Orders (Dùng safe mode)
     orders_qs = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale', 'service', 'assigned_consultant')
 
+    # --- ÁP DỤNG BỘ LỌC ---
     if doctor_id: 
         orders_qs = orders_qs.filter(appointment__assigned_doctor_id=doctor_id)
+        
     if consultant_id: 
         if consultant_id == 'none':
             orders_qs = orders_qs.filter(assigned_consultant__isnull=True)
         elif consultant_id.isdigit():
             orders_qs = orders_qs.filter(assigned_consultant_id=consultant_id)
+            
+    # [MỚI] Logic lọc Telesale
+    if telesale_id:
+        if telesale_id == 'none':
+            orders_qs = orders_qs.filter(customer__assigned_telesale__isnull=True)
+        elif telesale_id.isdigit():
+            orders_qs = orders_qs.filter(customer__assigned_telesale_id=telesale_id)
 
     # Load dữ liệu an toàn và làm sạch ngay lập tức
     orders = hydrate_orders(list(get_safe_orders(orders_qs)))
@@ -105,17 +117,26 @@ def revenue_dashboard(request):
     
     avg_order_value = int(total_sales / total_orders_success) if total_orders_success > 0 else 0
 
-    # 3. Lấy Ca thất bại
+    # 3. Lấy Ca thất bại (Khách đến nhưng không mua)
     failed_apps = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end],
         status='COMPLETED',
         order__isnull=True
     ).select_related('customer', 'assigned_consultant', 'customer__assigned_telesale')
 
+    # --- ÁP DỤNG BỘ LỌC CHO LIST FAIL ---
     if doctor_id: failed_apps = failed_apps.filter(assigned_doctor_id=doctor_id)
+    
     if consultant_id:
         if consultant_id == 'none': failed_apps = failed_apps.filter(assigned_consultant__isnull=True)
         elif consultant_id.isdigit(): failed_apps = failed_apps.filter(assigned_consultant_id=consultant_id)
+        
+    # [MỚI] Lọc Telesale cho list fail
+    if telesale_id:
+        if telesale_id == 'none':
+            failed_apps = failed_apps.filter(customer__assigned_telesale__isnull=True)
+        elif telesale_id.isdigit():
+            failed_apps = failed_apps.filter(customer__assigned_telesale_id=telesale_id)
 
     # 4. Gộp Log
     order_logs = []
@@ -154,17 +175,29 @@ def revenue_dashboard(request):
 
     # 6. Hiệu suất Sale
     consultants_list = User.objects.filter(role='CONSULTANT')
+    # Nếu đang lọc 1 Sale cụ thể thì bảng hiệu suất chỉ hiện người đó
     if consultant_id and consultant_id.isdigit():
         consultants_list = consultants_list.filter(id=consultant_id)
         
     sale_performance_data = []
     for cons in consultants_list:
+        # Lọc các appointment của Sale này trong khoảng thời gian
         apps = Appointment.objects.filter(assigned_consultant=cons, appointment_date__date__range=[date_start, date_end])
+        
+        # Nếu đang lọc theo telesale, thì thống kê Sale cũng phải theo telesale đó
+        if telesale_id:
+            if telesale_id == 'none':
+                apps = apps.filter(customer__assigned_telesale__isnull=True)
+            elif telesale_id.isdigit():
+                apps = apps.filter(customer__assigned_telesale_id=telesale_id)
+
         assigned_count = apps.count()
         checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
         
+        # Đếm từ list orders đã lọc ở trên (đã khớp telesale)
         my_orders = [o for o in orders if o.assigned_consultant_id == cons.id]
         
+        # Logic tính thành công/thất bại dựa trên appointment
         success_count = apps.filter(status='COMPLETED', order__total_amount__gt=0).count()
         failed_count = max(0, apps.filter(status='COMPLETED').count() - success_count)
         
@@ -181,7 +214,7 @@ def revenue_dashboard(request):
             })
     sale_performance_data.sort(key=lambda x: x['revenue'], reverse=True)
 
-    # 7. Telesale Stat
+    # 7. Telesale Stat (Thống kê theo Telesale)
     telesale_map = {}
     for o in orders:
         tele = o.customer.assigned_telesale
@@ -206,6 +239,7 @@ def revenue_dashboard(request):
         'date_start': date_start, 'date_end': date_end,
         'selected_doctor': int(doctor_id) if doctor_id else None,
         'selected_consultant': int(consultant_id) if consultant_id and consultant_id.isdigit() else consultant_id,
+        'selected_telesale': int(telesale_id) if telesale_id and telesale_id.isdigit() else telesale_id, # [MỚI]
         'doctors': doctors, 
         'consultants': consultants,
         'services': services, 

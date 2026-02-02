@@ -26,11 +26,21 @@
             </select>
 
             <select name="consultant_id" class="form-select form-select-sm">
-                <option value="">-- Tất cả Sale --</option>
+                <option value="">-- Sale Spa --</option>
                 <option value="none" {% if selected_consultant == 'none' %}selected{% endif %} class="text-danger fw-bold">[!] Đơn chưa gán Sale</option>
                 {% for sale in consultants %}
                 <option value="{{ sale.id }}" {% if selected_consultant == sale.id %}selected{% endif %}>
                     {{ sale.last_name }} {{ sale.first_name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="telesale_id" class="form-select form-select-sm">
+                <option value="">-- Telesale --</option>
+                <option value="none" {% if selected_telesale == 'none' %}selected{% endif %} class="text-danger fw-bold">[!] Đơn chưa gán Tele</option>
+                {% for tele in telesales_list %}
+                <option value="{{ tele.id }}" {% if selected_telesale == tele.id %}selected{% endif %}>
+                    {{ tele.last_name }} {{ tele.first_name }}
                 </option>
                 {% endfor %}
             </select>
