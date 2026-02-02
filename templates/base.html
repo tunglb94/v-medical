@@ -269,6 +269,11 @@
 
         {% if request.user|has_menu_access:"marketing" %}
         <li>
+            <a href="{% url 'marketing_report' %}" class="{% if 'marketing/report' in request.path %}active{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i> <span>Báo Cáo Hiệu Quả</span>
+            </a>
+        </li>
+        <li>
             <a href="{% url 'marketing_dashboard' %}" class="{% if request.resolver_match.url_name == 'marketing_dashboard' %}active{% endif %}">
                 <i class="bi bi-megaphone-fill"></i> <span>Báo Cáo Ads</span>
             </a>

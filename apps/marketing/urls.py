@@ -2,9 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Dashboard
+    # Dashboard (Nhập liệu hàng ngày)
     path('', views.marketing_dashboard, name='marketing_dashboard'),
     path('delete/<int:pk>/', views.delete_report, name='delete_marketing_report'),
+    
+    # [MỚI] Báo cáo hiệu quả ROI & Fanpage
+    path('report/', views.marketing_report, name='marketing_report'),
     
     # Workspace (Lịch)
     path('workspace/', views.marketing_workspace, name='marketing_workspace'),

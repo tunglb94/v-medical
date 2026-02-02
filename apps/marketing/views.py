@@ -1,19 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.http import JsonResponse
 import json
 
 from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
-from apps.sales.models import Service
+from apps.sales.models import Service, Order
+from apps.customers.models import Customer
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
 from apps.authentication.models import User 
 
-# --- 1. DASHBOARD MARKETING ---
+# --- 1. DASHBOARD MARKETING (NHẬP LIỆU & TỔNG QUAN) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'TELESALE', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def marketing_dashboard(request):
@@ -24,11 +25,9 @@ def marketing_dashboard(request):
     date_end = request.GET.get('date_end', str(today))
     marketer_query = request.GET.get('marketer', '')
     service_query = request.GET.get('service', '')
-    
-    # --- THÊM BIẾN LỌC THEO PLATFORM ---
     platform_query = request.GET.get('platform', '') 
     
-    # Xử lý Form thêm/sửa báo cáo
+    # Xử lý Form thêm/sửa báo cáo hàng ngày
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -48,22 +47,17 @@ def marketing_dashboard(request):
         stats = stats.filter(marketer__icontains=marketer_query)
     if service_query:
         stats = stats.filter(service__icontains=service_query)
-        
-    # --- ÁP DỤNG LỌC PLATFORM ---
     if platform_query:
         stats = stats.filter(platform=platform_query)
         
-    # Sắp xếp theo ngày và platform
     stats = stats.order_by('-report_date', 'platform', 'marketer')
     
-    # Tính tổng KPI (Cập nhật thêm fields mới)
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
         sum_appts=Sum('appointments'), 
         sum_comments=Sum('comments'), 
         sum_inboxes=Sum('inboxes'),
-        # --- Tổng mới ---
         sum_impressions=Sum('impressions'),
         sum_clicks=Sum('clicks'),
         sum_views=Sum('views')
@@ -78,13 +72,11 @@ def marketing_dashboard(request):
     total_clicks = totals['sum_clicks']
     total_impr = totals['sum_impressions']
     
-    # --- TÍNH CÁC CHỈ SỐ TRUNG BÌNH ---
     avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # Chart Data
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -100,18 +92,17 @@ def marketing_dashboard(request):
         chart_leads.append(d_leads)
         chart_cpl.append(float(d_cpl))
     
-    # Lấy danh sách Platform để hiển thị dropdown lọc
     platform_choices = DailyCampaignStat.Platform.choices
 
     context = {
         'stats': stats, 'form': form, 'totals': totals,
         'avg_cpl': avg_cpl, 'avg_cpa': avg_cpa,
-        'avg_cpc': avg_cpc, 'avg_ctr': avg_ctr, # Truyền thêm xuống template
+        'avg_cpc': avg_cpc, 'avg_ctr': avg_ctr, 
         'chart_dates': chart_dates, 'chart_cpl': chart_cpl, 'chart_leads': chart_leads,
         'date_start': date_start, 'date_end': date_end,
         'marketer_query': marketer_query, 'service_query': service_query,
-        'platform_query': platform_query, # Giữ trạng thái lọc
-        'platform_choices': platform_choices # Danh sách options lọc
+        'platform_query': platform_query,
+        'platform_choices': platform_choices
     }
     return render(request, 'marketing/dashboard.html', context)
 
@@ -122,11 +113,117 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# --- 2. QUẢN LÝ CONTENT ADS & LỊCH ---
+# --- 2. BÁO CÁO HIỆU QUẢ MARKETING (ROI & FANPAGE) ---
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'MANAGER'])
+def marketing_report(request):
+    """
+    Báo cáo tổng hợp: Chi phí - Doanh thu - Data theo Fanpage
+    """
+    today = timezone.now().date()
+    start_of_month = today.replace(day=1)
+
+    date_start_str = request.GET.get('date_start', str(start_of_month))
+    date_end_str = request.GET.get('date_end', str(today))
+
+    try:
+        date_start = datetime.strptime(date_start_str, '%Y-%m-%d').date()
+        date_end = datetime.strptime(date_end_str, '%Y-%m-%d').date()
+    except:
+        date_start, date_end = start_of_month, today
+
+    # 1. Tổng Chi phí Marketing (Từ bảng nhập liệu DailyCampaignStat)
+    campaign_stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
+    total_cost = campaign_stats.aggregate(Sum('spend_amount'))['spend_amount__sum'] or 0
+
+    # 2. Tổng Data Leads (Từ bảng Customer)
+    customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
+    total_leads = customers.count()
+    
+    # Group Leads theo Fanpage
+    leads_by_page = {}
+    cus_grouped = customers.values('fanpage').annotate(count=Count('id'))
+    for item in cus_grouped:
+        leads_by_page[item['fanpage']] = item['count']
+
+    # 3. Tổng Doanh thu (Từ bảng Order - Chỉ tính đơn đã thanh toán)
+    orders = Order.objects.filter(
+        order_date__range=[date_start, date_end],
+        is_paid=True
+    ).select_related('customer')
+    
+    total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+
+    # Group Doanh thu & Số đơn theo Fanpage
+    revenue_by_page = {}
+    orders_count_by_page = {}
+    
+    for order in orders:
+        if order.customer and order.customer.fanpage:
+            fp = order.customer.fanpage
+            revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.total_amount
+            orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
+
+    # 4. Tổng hợp bảng chi tiết Fanpage
+    report_data = []
+    # Lấy tất cả Fanpage xuất hiện trong Data hoặc Doanh thu
+    all_fanpages = set(list(leads_by_page.keys()) + list(revenue_by_page.keys()))
+    
+    fanpage_choices = dict(Customer.Fanpage.choices)
+
+    for fp_code in all_fanpages:
+        if not fp_code: continue
+        
+        leads = leads_by_page.get(fp_code, 0)
+        revenue = revenue_by_page.get(fp_code, 0)
+        orders_count = orders_count_by_page.get(fp_code, 0)
+        
+        # Tỷ lệ chuyển đổi: Số đơn / Số Data
+        conversion_rate = (orders_count / leads * 100) if leads > 0 else 0
+        
+        # Doanh thu trung bình mỗi Data (Revenue per Lead)
+        rpl = (revenue / leads) if leads > 0 else 0
+
+        # Đánh giá sơ bộ
+        quality_tag = "Bình thường"
+        if conversion_rate > 20: quality_tag = "🔥 Rất tốt"
+        elif conversion_rate > 10: quality_tag = "✅ Tốt"
+        elif conversion_rate < 5 and leads > 10: quality_tag = "⚠️ Cần tối ưu"
+
+        report_data.append({
+            'code': fp_code,
+            'name': fanpage_choices.get(fp_code, fp_code),
+            'leads': leads,
+            'orders': orders_count,
+            'revenue': revenue,
+            'conversion_rate': conversion_rate,
+            'rpl': rpl,
+            'quality': quality_tag
+        })
+
+    # Sắp xếp theo Doanh thu giảm dần
+    report_data.sort(key=lambda x: x['revenue'], reverse=True)
+
+    # 5. Chỉ số tổng quan toàn cục
+    global_percent_cost = (total_cost / total_revenue * 100) if total_revenue > 0 else 0
+    global_cpl = (total_cost / total_leads) if total_leads > 0 else 0
+
+    context = {
+        'date_start': date_start_str,
+        'date_end': date_end_str,
+        'total_cost': total_cost,
+        'total_revenue': total_revenue,
+        'total_leads': total_leads,
+        'global_percent_cost': global_percent_cost,
+        'global_cpl': global_cpl,
+        'report_data': report_data,
+    }
+    return render(request, 'marketing/report.html', context)
+
+# --- 3. QUẢN LÝ CONTENT ADS & LỊCH ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_list(request):
-    # Sửa lỗi: Bỏ filter(is_active=True) vì model Service không có trường này
     services = Service.objects.all()
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
     
@@ -192,7 +289,7 @@ def content_ads_list(request):
     }
     return render(request, 'marketing/content_ads.html', context)
 
-# --- 3. SỬA TASK & LƯU FEEDBACK ---
+# --- 4. SỬA TASK & LƯU FEEDBACK ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_edit(request, pk):
@@ -221,7 +318,6 @@ def content_ads_edit(request, pk):
         
         task.save()
 
-        # --- LƯU FEEDBACK ---
         new_feedback = request.POST.get('new_feedback')
         if new_feedback and new_feedback.strip():
             TaskFeedback.objects.create(
@@ -234,7 +330,7 @@ def content_ads_edit(request, pk):
         
     return redirect('content_ads_list')
 
-# --- 4. API LẤY LỊCH SỬ FEEDBACK ---
+# --- 5. API LẤY LỊCH SỬ FEEDBACK ---
 @login_required
 def get_task_feedback_api(request, task_id):
     feedbacks = TaskFeedback.objects.filter(task_id=task_id).select_related('user').order_by('-created_at')
