@@ -10,7 +10,7 @@ import json
 from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
 from apps.sales.models import Service, Order
 from apps.customers.models import Customer
-# Import Appointment để đếm số lịch hẹn
+# [THÊM MỚI] Import Appointment để đếm số lịch hẹn
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -148,7 +148,7 @@ def marketing_report(request):
     for item in cus_grouped:
         leads_by_page[item['fanpage']] = item['count']
 
-    # 3. Tổng Lịch Hẹn (Appointment)
+    # 3. [MỚI] Tổng Lịch Hẹn (Appointment)
     # Đếm số lịch hẹn được tạo ra trong khoảng thời gian này
     appointments = Appointment.objects.filter(
         created_at__date__range=[date_start, date_end]
@@ -245,7 +245,9 @@ def marketing_report(request):
 
     # 2. Doanh thu theo ngày
     daily_revenue = orders.values('order_date').annotate(total=Sum('total_amount')).order_by('order_date')
-    rev_map = {item['order_date'].strftime('%Y-%m-%d'): item['total'] for item in daily_revenue}
+    
+    # [FIX LỖI] Chuyển Decimal sang float tại đây để JSON serialize được
+    rev_map = {item['order_date'].strftime('%Y-%m-%d'): float(item['total'] or 0) for item in daily_revenue}
 
     # 3. Tạo danh sách ngày liên tục từ start đến end
     chart_labels = []
@@ -259,6 +261,7 @@ def marketing_report(request):
         
         chart_labels.append(d_label)
         chart_data_leads.append(leads_map.get(d_str, 0))
+        # Do rev_map đã chứa float nên get ra sẽ là float (hoặc 0)
         chart_data_revenue.append(rev_map.get(d_str, 0))
         
         current_date += timedelta(days=1)
@@ -275,7 +278,7 @@ def marketing_report(request):
         'report_data': report_data,
         'chart_labels': json.dumps(chart_labels),
         'chart_data_leads': json.dumps(chart_data_leads),
-        'chart_data_revenue': json.dumps(chart_data_revenue),
+        'chart_data_revenue': json.dumps(chart_data_revenue), # Giờ đã an toàn
     }
     return render(request, 'marketing/report.html', context)
 
