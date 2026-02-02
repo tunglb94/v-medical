@@ -10,7 +10,7 @@ import json
 from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
 from apps.sales.models import Service, Order
 from apps.customers.models import Customer
-# [THÊM MỚI] Import Appointment để đếm số lịch hẹn
+# Import Appointment để đếm số lịch hẹn
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -148,7 +148,7 @@ def marketing_report(request):
     for item in cus_grouped:
         leads_by_page[item['fanpage']] = item['count']
 
-    # 3. [MỚI] Tổng Lịch Hẹn (Appointment)
+    # 3. Tổng Lịch Hẹn (Appointment)
     # Đếm số lịch hẹn được tạo ra trong khoảng thời gian này
     appointments = Appointment.objects.filter(
         created_at__date__range=[date_start, date_end]
@@ -170,6 +170,7 @@ def marketing_report(request):
     
     total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
 
+    # Group Doanh thu & Số đơn theo Fanpage
     revenue_by_page = {}
     orders_count_by_page = {}
     
@@ -205,6 +206,9 @@ def marketing_report(request):
         # Doanh thu trung bình mỗi Data (Revenue per Lead)
         rpl = (revenue / leads) if leads > 0 else 0
 
+        # Trung bình đơn (AOV)
+        aov = (revenue / orders_count) if orders_count > 0 else 0
+
         # Đánh giá chất lượng sơ bộ dựa trên tỷ lệ hẹn
         quality_tag = "Bình thường"
         if rate_lead_to_appt > 30: quality_tag = "🔥 Data xịn"
@@ -218,6 +222,7 @@ def marketing_report(request):
             'appts': appts,
             'orders': orders_count,
             'revenue': revenue,
+            'aov': aov,
             'rate_lead_to_appt': rate_lead_to_appt,
             'rate_appt_to_order': rate_appt_to_order,
             'rpl': rpl,
@@ -233,6 +238,31 @@ def marketing_report(request):
     # Tỷ lệ chuyển đổi Data -> Hẹn toàn hệ thống
     global_conversion_appt = (total_appts / total_leads * 100) if total_leads > 0 else 0
 
+    # --- CHUẨN BỊ DỮ LIỆU BIỂU ĐỒ (Group theo ngày) ---
+    # 1. Data Leads theo ngày
+    daily_leads = customers.values('created_at__date').annotate(count=Count('id')).order_by('created_at__date')
+    leads_map = {item['created_at__date'].strftime('%Y-%m-%d'): item['count'] for item in daily_leads}
+
+    # 2. Doanh thu theo ngày
+    daily_revenue = orders.values('order_date').annotate(total=Sum('total_amount')).order_by('order_date')
+    rev_map = {item['order_date'].strftime('%Y-%m-%d'): item['total'] for item in daily_revenue}
+
+    # 3. Tạo danh sách ngày liên tục từ start đến end
+    chart_labels = []
+    chart_data_leads = []
+    chart_data_revenue = []
+    
+    current_date = date_start
+    while current_date <= date_end:
+        d_str = current_date.strftime('%Y-%m-%d')
+        d_label = current_date.strftime('%d/%m') # Nhãn hiển thị (VD: 01/01)
+        
+        chart_labels.append(d_label)
+        chart_data_leads.append(leads_map.get(d_str, 0))
+        chart_data_revenue.append(rev_map.get(d_str, 0))
+        
+        current_date += timedelta(days=1)
+
     context = {
         'date_start': date_start_str,
         'date_end': date_end_str,
@@ -243,6 +273,9 @@ def marketing_report(request):
         'global_percent_cost': global_percent_cost,
         'global_conversion_appt': global_conversion_appt,
         'report_data': report_data,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_data_leads': json.dumps(chart_data_leads),
+        'chart_data_revenue': json.dumps(chart_data_revenue),
     }
     return render(request, 'marketing/report.html', context)
 
