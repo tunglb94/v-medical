@@ -6,28 +6,43 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold text-primary"><i class="bi bi-pie-chart-fill me-2"></i>HIỆU QUẢ MARKETING</h4>
+        <div>
+            <h4 class="fw-bold text-primary mb-1"><i class="bi bi-pie-chart-fill me-2"></i>HIỆU QUẢ FANPAGE & DATA</h4>
+            <small class="text-muted">Phân tích phễu chuyển đổi từ Data -> Hẹn -> Đơn hàng</small>
+        </div>
         
-        <form method="get" class="d-flex gap-2 bg-white p-2 rounded shadow-sm">
+        <form method="get" class="d-flex gap-2 bg-white p-2 rounded shadow-sm border">
             <div class="input-group input-group-sm">
-                <span class="input-group-text">Từ</span>
+                <span class="input-group-text bg-light">Từ ngày</span>
                 <input type="date" name="date_start" class="form-control" value="{{ date_start }}">
             </div>
             <div class="input-group input-group-sm">
-                <span class="input-group-text">Đến</span>
+                <span class="input-group-text bg-light">Đến ngày</span>
                 <input type="date" name="date_end" class="form-control" value="{{ date_end }}">
             </div>
-            <button type="submit" class="btn btn-primary btn-sm fw-bold">Xem Báo Cáo</button>
+            <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">Xem Báo Cáo</button>
         </form>
     </div>
 
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-danger h-100">
+            <div class="card border-0 shadow-sm border-start border-4 border-primary h-100">
                 <div class="card-body">
-                    <div class="text-uppercase small fw-bold text-danger mb-1">Tổng Chi Phí MKT</div>
-                    <div class="h3 fw-bold text-gray-800">{{ total_cost|intcomma }} đ</div>
-                    <div class="small text-muted">CP cho {{ total_leads }} leads</div>
+                    <div class="text-uppercase small fw-bold text-primary mb-1">Tổng Data (Leads)</div>
+                    <div class="h3 fw-bold text-gray-800">{{ total_leads|intcomma }}</div>
+                    <div class="small text-muted">Khách hàng mới</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-info h-100">
+                <div class="card-body">
+                    <div class="text-uppercase small fw-bold text-info mb-1">Tổng Lịch Hẹn</div>
+                    <div class="h3 fw-bold text-gray-800">{{ total_appts|intcomma }}</div>
+                    <div class="small text-muted">
+                        Tỷ lệ đặt hẹn: <strong>{{ global_conversion_appt|floatformat:1 }}%</strong>
+                    </div>
                 </div>
             </div>
         </div>
@@ -43,80 +58,90 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-warning h-100">
+            <div class="card border-0 shadow-sm border-start border-4 border-danger h-100">
                 <div class="card-body">
-                    <div class="text-uppercase small fw-bold text-warning mb-1">% CP / Doanh thu</div>
-                    <div class="h3 fw-bold text-gray-800">{{ global_percent_cost|floatformat:1 }}%</div>
+                    <div class="text-uppercase small fw-bold text-danger mb-1">Chi Phí Ads</div>
+                    <div class="h3 fw-bold text-gray-800">{{ total_cost|intcomma }} đ</div>
                     <div class="small text-muted">
-                        {% if global_percent_cost > 30 %}
-                            <span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle"></i> Cao</span>
+                        {% if total_revenue > 0 %}
+                            Chiếm <strong>{{ global_percent_cost|floatformat:1 }}%</strong> doanh thu
                         {% else %}
-                            <span class="text-success fw-bold"><i class="bi bi-check-circle"></i> Ổn định</span>
+                            Chưa có doanh thu
                         {% endif %}
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-info h-100">
-                <div class="card-body">
-                    <div class="text-uppercase small fw-bold text-info mb-1">Giá / Số (CPL)</div>
-                    <div class="h3 fw-bold text-gray-800">{{ global_cpl|intcomma }} đ</div>
-                    <div class="small text-muted">Trung bình toàn hệ thống</div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3">
-            <h6 class="m-0 fw-bold text-primary"><i class="bi bi-list-columns-reverse me-2"></i>Chi Tiết Theo Fanpage</h6>
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-primary"><i class="bi bi-list-columns-reverse me-2"></i>CHI TIẾT HIỆU QUẢ THEO FANPAGE</h6>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead class="bg-light text-secondary small text-uppercase">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center">
+                    <thead class="bg-light text-secondary small text-uppercase fw-bold">
                         <tr>
-                            <th class="ps-3">Fanpage</th>
-                            <th class="text-end">Chi phí (Ads)</th>
-                            <th class="text-center">Data (Leads)</th>
-                            <th class="text-end">CPL (Giá/Số)</th>
-                            <th class="text-center">Đơn hàng</th>
-                            <th class="text-end">Doanh thu</th>
-                            <th class="text-center">Tỷ lệ chốt</th>
-                            <th class="text-center">% CP/DT</th>
-                            <th class="text-center">Đánh giá</th>
+                            <th class="text-start ps-3" style="min-width: 200px;">Fanpage</th>
+                            <th class="bg-primary bg-opacity-10 text-primary">Số Data</th>
+                            <th class="bg-info bg-opacity-10 text-info">Số Hẹn</th>
+                            <th class="bg-success bg-opacity-10 text-success">Số Đơn</th>
+                            
+                            <th class="text-start">Doanh Thu</th>
+                            
+                            <th>Tỷ lệ<br>Data ➡ Hẹn</th>
+                            <th>Tỷ lệ<br>Hẹn ➡ Đơn</th>
+                            <th>Đánh giá</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in report_data %}
                         <tr>
-                            <td class="ps-3 fw-bold text-dark">{{ row.name }}</td>
-                            <td class="text-end text-danger">{{ row.cost|intcomma }}</td>
-                            <td class="text-center fw-bold">{{ row.leads }}</td>
-                            <td class="text-end text-muted">{{ row.cpl|intcomma }}</td>
-                            <td class="text-center">{{ row.orders }}</td>
-                            <td class="text-end text-success fw-bold">{{ row.revenue|intcomma }}</td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark border">{{ row.conversion_rate|floatformat:1 }}%</span>
-                            </td>
-                            <td class="text-center fw-bold {% if row.percent_cost > 30 %}text-danger{% else %}text-success{% endif %}">
-                                {{ row.percent_cost|floatformat:1 }}%
-                            </td>
-                            <td class="text-center small">
-                                {% if "Rất tốt" in row.quality %}
-                                    <span class="badge bg-success">Rất tốt</span>
-                                {% elif "Lỗ" in row.quality %}
-                                    <span class="badge bg-danger">Cần tối ưu</span>
+                            <td class="text-start ps-3 fw-bold text-dark">{{ row.name }}</td>
+                            
+                            <td class="bg-primary bg-opacity-10 fw-bold">{{ row.leads }}</td>
+                            <td class="bg-info bg-opacity-10 fw-bold">{{ row.appts }}</td>
+                            <td class="bg-success bg-opacity-10 fw-bold">{{ row.orders }}</td>
+                            
+                            <td class="text-start fw-bold text-success">{{ row.revenue|intcomma }} đ</td>
+                            
+                            <td>
+                                {% if row.rate_lead_to_appt > 30 %}
+                                    <span class="badge bg-success">{{ row.rate_lead_to_appt|floatformat:1 }}%</span>
+                                {% elif row.rate_lead_to_appt > 15 %}
+                                    <span class="badge bg-primary">{{ row.rate_lead_to_appt|floatformat:1 }}%</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Bình thường</span>
+                                    <span class="text-muted">{{ row.rate_lead_to_appt|floatformat:1 }}%</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if row.rate_appt_to_order > 50 %}
+                                    <span class="badge bg-success">{{ row.rate_appt_to_order|floatformat:1 }}%</span>
+                                {% elif row.rate_appt_to_order > 20 %}
+                                    <span class="badge bg-info text-dark">{{ row.rate_appt_to_order|floatformat:1 }}%</span>
+                                {% else %}
+                                    <span class="text-muted">{{ row.rate_appt_to_order|floatformat:1 }}%</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="small">
+                                {% if "Rất tốt" in row.quality %}
+                                    <span class="text-success fw-bold"><i class="bi bi-fire"></i> {{ row.quality }}</span>
+                                {% elif "Cần tối ưu" in row.quality %}
+                                    <span class="text-danger fw-bold"><i class="bi bi-exclamation-circle"></i> {{ row.quality }}</span>
+                                {% else %}
+                                    <span class="text-muted">{{ row.quality }}</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center py-4 text-muted">Chưa có dữ liệu trong khoảng thời gian này.</td>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-1"></i><br>
+                                Chưa có dữ liệu trong khoảng thời gian này.
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

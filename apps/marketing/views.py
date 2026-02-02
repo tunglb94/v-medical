@@ -10,6 +10,8 @@ import json
 from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
 from apps.sales.models import Service, Order
 from apps.customers.models import Customer
+# [THÊM MỚI] Import Appointment để đếm số lịch hẹn
+from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
 from apps.authentication.models import User 
@@ -113,12 +115,12 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# --- 2. BÁO CÁO HIỆU QUẢ MARKETING (ROI & FANPAGE) ---
+# --- 2. BÁO CÁO HIỆU QUẢ MARKETING (ROI & PHỄU CHUYỂN ĐỔI) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'MANAGER'])
 def marketing_report(request):
     """
-    Báo cáo tổng hợp: Chi phí - Doanh thu - Data theo Fanpage
+    Báo cáo tổng hợp: Data -> Hẹn -> Đơn hàng (Phễu vận hành)
     """
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
@@ -132,11 +134,11 @@ def marketing_report(request):
     except:
         date_start, date_end = start_of_month, today
 
-    # 1. Tổng Chi phí Marketing (Từ bảng nhập liệu DailyCampaignStat)
+    # 1. Tổng Chi phí Marketing (Để hiển thị tổng quan nếu có)
     campaign_stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     total_cost = campaign_stats.aggregate(Sum('spend_amount'))['spend_amount__sum'] or 0
 
-    # 2. Tổng Data Leads (Từ bảng Customer)
+    # 2. Tổng Data Leads (Từ Customer)
     customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     total_leads = customers.count()
     
@@ -146,7 +148,21 @@ def marketing_report(request):
     for item in cus_grouped:
         leads_by_page[item['fanpage']] = item['count']
 
-    # 3. Tổng Doanh thu (Từ bảng Order - Chỉ tính đơn đã thanh toán)
+    # 3. [MỚI] Tổng Lịch Hẹn (Appointment)
+    # Đếm số lịch hẹn được tạo ra trong khoảng thời gian này
+    appointments = Appointment.objects.filter(
+        created_at__date__range=[date_start, date_end]
+    ).select_related('customer')
+
+    appts_by_page = {}
+    total_appts = 0
+    for appt in appointments:
+        if appt.customer and appt.customer.fanpage:
+            fp = appt.customer.fanpage
+            appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
+            total_appts += 1
+
+    # 4. Tổng Doanh thu & Đơn hàng (Order)
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end],
         is_paid=True
@@ -154,7 +170,6 @@ def marketing_report(request):
     
     total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
 
-    # Group Doanh thu & Số đơn theo Fanpage
     revenue_by_page = {}
     orders_count_by_page = {}
     
@@ -164,10 +179,10 @@ def marketing_report(request):
             revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.total_amount
             orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
 
-    # 4. Tổng hợp bảng chi tiết Fanpage
+    # 5. Tổng hợp bảng chi tiết Fanpage
     report_data = []
-    # Lấy tất cả Fanpage xuất hiện trong Data hoặc Doanh thu
-    all_fanpages = set(list(leads_by_page.keys()) + list(revenue_by_page.keys()))
+    # Lấy tất cả Fanpage xuất hiện trong Data, Hẹn hoặc Đơn
+    all_fanpages = set(list(leads_by_page.keys()) + list(appts_by_page.keys()) + list(orders_count_by_page.keys()))
     
     fanpage_choices = dict(Customer.Fanpage.choices)
 
@@ -175,38 +190,48 @@ def marketing_report(request):
         if not fp_code: continue
         
         leads = leads_by_page.get(fp_code, 0)
-        revenue = revenue_by_page.get(fp_code, 0)
+        appts = appts_by_page.get(fp_code, 0)
         orders_count = orders_count_by_page.get(fp_code, 0)
+        revenue = revenue_by_page.get(fp_code, 0)
         
-        # Tỷ lệ chuyển đổi: Số đơn / Số Data
-        conversion_rate = (orders_count / leads * 100) if leads > 0 else 0
+        # --- TÍNH TỶ LỆ CHUYỂN ĐỔI ---
         
+        # 1. Tỷ lệ Data -> Hẹn (Chất lượng Data + Telesale)
+        rate_lead_to_appt = (appts / leads * 100) if leads > 0 else 0
+        
+        # 2. Tỷ lệ Hẹn -> Đơn (Tỷ lệ đến khám + Chốt Sale tại phòng)
+        rate_appt_to_order = (orders_count / appts * 100) if appts > 0 else 0
+
         # Doanh thu trung bình mỗi Data (Revenue per Lead)
         rpl = (revenue / leads) if leads > 0 else 0
 
-        # Đánh giá sơ bộ
+        # Đánh giá chất lượng sơ bộ dựa trên tỷ lệ hẹn
         quality_tag = "Bình thường"
-        if conversion_rate > 20: quality_tag = "🔥 Rất tốt"
-        elif conversion_rate > 10: quality_tag = "✅ Tốt"
-        elif conversion_rate < 5 and leads > 10: quality_tag = "⚠️ Cần tối ưu"
+        if rate_lead_to_appt > 30: quality_tag = "🔥 Data xịn"
+        elif rate_lead_to_appt > 15: quality_tag = "✅ Ổn định"
+        elif rate_lead_to_appt < 5 and leads > 10: quality_tag = "⚠️ Rác nhiều"
 
         report_data.append({
             'code': fp_code,
             'name': fanpage_choices.get(fp_code, fp_code),
             'leads': leads,
+            'appts': appts,
             'orders': orders_count,
             'revenue': revenue,
-            'conversion_rate': conversion_rate,
+            'rate_lead_to_appt': rate_lead_to_appt,
+            'rate_appt_to_order': rate_appt_to_order,
             'rpl': rpl,
             'quality': quality_tag
         })
 
-    # Sắp xếp theo Doanh thu giảm dần
-    report_data.sort(key=lambda x: x['revenue'], reverse=True)
+    # Sắp xếp theo số lượng Data giảm dần
+    report_data.sort(key=lambda x: x['leads'], reverse=True)
 
-    # 5. Chỉ số tổng quan toàn cục
+    # 6. Chỉ số tổng quan toàn cục
     global_percent_cost = (total_cost / total_revenue * 100) if total_revenue > 0 else 0
-    global_cpl = (total_cost / total_leads) if total_leads > 0 else 0
+    
+    # Tỷ lệ chuyển đổi Data -> Hẹn toàn hệ thống
+    global_conversion_appt = (total_appts / total_leads * 100) if total_leads > 0 else 0
 
     context = {
         'date_start': date_start_str,
@@ -214,8 +239,9 @@ def marketing_report(request):
         'total_cost': total_cost,
         'total_revenue': total_revenue,
         'total_leads': total_leads,
+        'total_appts': total_appts,
         'global_percent_cost': global_percent_cost,
-        'global_cpl': global_cpl,
+        'global_conversion_appt': global_conversion_appt,
         'report_data': report_data,
     }
     return render(request, 'marketing/report.html', context)
