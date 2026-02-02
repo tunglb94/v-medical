@@ -42,6 +42,8 @@ class Order(models.Model):
     )
     
     appointment = models.OneToOneField(Appointment, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lịch hẹn liên quan")
+    
+    # [QUAN TRỌNG] Dùng default=date.today để có thể ghi đè ngày quá khứ
     order_date = models.DateField(default=date.today, verbose_name="Ngày chốt đơn")
     
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.TRANSFER, verbose_name="Hình thức thanh toán")
@@ -53,8 +55,7 @@ class Order(models.Model):
         if not self.pk and self.service:
             self.original_price = self.service.base_price
         
-        # 2. Logic điền tự động Tổng tiền nếu để trống
-        # Nếu nhập Thực thu mà quên nhập Tổng tiền -> Coi như Tổng tiền = Thực thu (để không bị nợ âm)
+        # 2. Logic điền tự động Tổng tiền
         if (not self.total_amount or self.total_amount == 0) and self.actual_revenue > 0:
              self.total_amount = self.actual_revenue
 
@@ -82,8 +83,3 @@ class Order(models.Model):
         verbose_name = "Đơn hàng"
         verbose_name_plural = "Đơn hàng và Hợp đồng"
         ordering = ['-order_date']
-
-@receiver([post_save, post_delete], sender=Order)
-def update_customer_ranking(sender, instance, **kwargs):
-    if instance.customer:
-        instance.customer.update_ranking()
