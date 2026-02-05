@@ -75,7 +75,7 @@ def revenue_dashboard(request):
     # Lấy các params lọc
     doctor_id = request.GET.get('doctor_id')
     consultant_id = request.GET.get('consultant_id')
-    telesale_id = request.GET.get('telesale_id') # [MỚI] Lọc Telesale
+    telesale_id = request.GET.get('telesale_id') # Lọc Telesale
 
     # 1. Query Orders (Dùng safe mode)
     orders_qs = Order.objects.filter(
@@ -92,7 +92,7 @@ def revenue_dashboard(request):
         elif consultant_id.isdigit():
             orders_qs = orders_qs.filter(assigned_consultant_id=consultant_id)
             
-    # [MỚI] Logic lọc Telesale
+    # Logic lọc Telesale
     if telesale_id:
         if telesale_id == 'none':
             orders_qs = orders_qs.filter(customer__assigned_telesale__isnull=True)
@@ -108,20 +108,29 @@ def revenue_dashboard(request):
     total_debt = 0
     total_orders_success = 0
     
+    # [QUAN TRỌNG] Lấy danh sách ID lịch hẹn đã có trong danh sách đơn hàng
+    booked_appointment_ids = []
+
     for o in orders:
         total_sales += o.total_amount
         total_revenue += o.actual_revenue
         total_debt += o.debt_amount
         if o.total_amount > 0:
             total_orders_success += 1
+        
+        if o.appointment_id:
+            booked_appointment_ids.append(o.appointment_id)
     
     avg_order_value = int(total_sales / total_orders_success) if total_orders_success > 0 else 0
 
-    # 3. Lấy Ca thất bại (Khách đến nhưng không mua)
+    # 3. [SỬA LOGIC] Lấy Ca thất bại (Khách đến nhưng không mua HOẶC đơn lỗi)
+    # Logic cũ: order__isnull=True -> Sẽ bỏ qua các đơn 0đ hoặc đơn lỗi
+    # Logic mới: Lấy tất cả COMPLETED trừ đi các lịch đã hiển thị ở trên
     failed_apps = Appointment.objects.filter(
         appointment_date__date__range=[date_start, date_end],
-        status='COMPLETED',
-        order__isnull=True
+        status='COMPLETED'
+    ).exclude(
+        id__in=booked_appointment_ids # <--- LOẠI TRỪ CÁC LỊCH ĐÃ CÓ ĐƠN (Để tránh trùng)
     ).select_related('customer', 'assigned_consultant', 'customer__assigned_telesale')
 
     # --- ÁP DỤNG BỘ LỌC CHO LIST FAIL ---
@@ -131,7 +140,7 @@ def revenue_dashboard(request):
         if consultant_id == 'none': failed_apps = failed_apps.filter(assigned_consultant__isnull=True)
         elif consultant_id.isdigit(): failed_apps = failed_apps.filter(assigned_consultant_id=consultant_id)
         
-    # [MỚI] Lọc Telesale cho list fail
+    # Lọc Telesale cho list fail
     if telesale_id:
         if telesale_id == 'none':
             failed_apps = failed_apps.filter(customer__assigned_telesale__isnull=True)
@@ -152,11 +161,21 @@ def revenue_dashboard(request):
         })
         
     for app in failed_apps:
+        # Check xem lý do fail là gì (Chưa có đơn hay Đơn 0đ)
+        hidden_order = getattr(app, 'order', None)
+        fail_reason = "Không phát sinh dịch vụ (Fail)"
+        
+        if hidden_order:
+            if hidden_order.total_amount == 0:
+                fail_reason = "Đơn hàng 0đ (Hủy/Lỗi)"
+            else:
+                fail_reason = f"Đơn hàng lệch ngày/Lọc ẩn ({hidden_order.order_date})"
+
         order_logs.append({
             'is_fail': True, 'id': app.id, 'item_id': app.id, 'type': 'appointment', 
             'date': app.appointment_date.date(),
             'customer_name': app.customer.name, 'customer_phone': app.customer.phone,
-            'service_name': "Không phát sinh dịch vụ (Fail)", 'service_id': "",
+            'service_name': fail_reason, 'service_id': "",
             'consultant': app.assigned_consultant, 'telesale': app.customer.assigned_telesale,
             'total_amount': 0
         })
@@ -175,7 +194,6 @@ def revenue_dashboard(request):
 
     # 6. Hiệu suất Sale
     consultants_list = User.objects.filter(role='CONSULTANT')
-    # Nếu đang lọc 1 Sale cụ thể thì bảng hiệu suất chỉ hiện người đó
     if consultant_id and consultant_id.isdigit():
         consultants_list = consultants_list.filter(id=consultant_id)
         
@@ -199,6 +217,7 @@ def revenue_dashboard(request):
         
         # Logic tính thành công/thất bại dựa trên appointment
         success_count = apps.filter(status='COMPLETED', order__total_amount__gt=0).count()
+        # [QUAN TRỌNG] Công thức tính fail ở bảng: Tổng hoàn thành - Thành công
         failed_count = max(0, apps.filter(status='COMPLETED').count() - success_count)
         
         rev_val = sum(o.actual_revenue for o in my_orders)
@@ -239,7 +258,7 @@ def revenue_dashboard(request):
         'date_start': date_start, 'date_end': date_end,
         'selected_doctor': int(doctor_id) if doctor_id else None,
         'selected_consultant': int(consultant_id) if consultant_id and consultant_id.isdigit() else consultant_id,
-        'selected_telesale': int(telesale_id) if telesale_id and telesale_id.isdigit() else telesale_id, # [MỚI]
+        'selected_telesale': int(telesale_id) if telesale_id and telesale_id.isdigit() else telesale_id, 
         'doctors': doctors, 
         'consultants': consultants,
         'services': services, 
