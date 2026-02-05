@@ -23,10 +23,14 @@ class Appointment(models.Model):
     # --- ĐIỀU PHỐI NHÂN SỰ ---
     assigned_doctor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='doctor_appointments', limit_choices_to={'role': 'DOCTOR'}, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bác sĩ phụ trách")
     
-    # Kỹ thuật viên (Mới thêm)
+    # Kỹ thuật viên
     assigned_technician = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='technician_appointments', limit_choices_to={'role': 'TECHNICIAN'}, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Kỹ thuật viên")
     
     assigned_consultant = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='consultant_appointments', limit_choices_to={'role': 'CONSULTANT'}, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Sale tư vấn")
+
+    # [MỚI] Thêm trường Dịch vụ và Ghi chú (Fix lỗi select_related)
+    service = models.ForeignKey('sales.Service', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Dịch vụ / Tour")
+    note = models.TextField(blank=True, verbose_name="Ghi chú")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
