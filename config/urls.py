@@ -10,7 +10,6 @@ from apps.authentication.views import root_view, global_search
 from apps.telesales.views import telesale_dashboard 
 
 # Import views từ Bookings
-# [CẬP NHẬT] Thêm 'delete_appointment_reception' và 'noshow_appointment'
 from apps.bookings.views import (
     reception_dashboard, checkin_appointment, create_appointment_reception,
     finish_appointment, add_walkin_appointment, get_appointments_api,
@@ -18,10 +17,8 @@ from apps.bookings.views import (
 )
 
 # Import views từ Sales
-from apps.sales.views import (
-    revenue_dashboard, print_invoice, admin_dashboard, debt_manager,
-    update_order_details
-)
+# [LƯU Ý] Chỉ giữ lại admin_dashboard vì các view khác đã chuyển vào include('apps.sales.urls')
+from apps.sales.views import admin_dashboard
 
 urlpatterns = [
     # --- 0. TRANG CHỦ ĐIỀU HƯỚNG ---
@@ -34,7 +31,7 @@ urlpatterns = [
     # --- 2. AUTHENTICATION ---
     path('auth/', include('apps.authentication.urls')), 
 
-    # --- 3. DASHBOARD ---
+    # --- 3. DASHBOARD TỔNG QUAN ---
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
 
     # --- 4. TELESALE ---
@@ -49,15 +46,14 @@ urlpatterns = [
     path('reception/walk-in/', add_walkin_appointment, name='add_walkin_appointment'),
     path('api/calendar/appointments/', get_appointments_api, name='get_appointments_api'),
 
-    # [MỚI] URL Xóa Lịch và Báo Khách Không Đến
+    # URL Xóa Lịch và Báo Khách Không Đến
     path('reception/delete/<int:appointment_id>/', delete_appointment_reception, name='delete_appointment_reception'),
     path('reception/noshow/<int:appointment_id>/', noshow_appointment, name='noshow_appointment'),
 
-    # --- 6. SALES & BÁO CÁO ---
-    path('sales/report/', revenue_dashboard, name='sales_report'),
-    path('sales/invoice/<int:order_id>/', print_invoice, name='print_invoice'),
-    path('sales/update-details/', update_order_details, name='update_order_details'),
-    path('sales/debt/', debt_manager, name='debt_manager'),
+    # --- 6. SALES & BÁO CÁO (ĐÃ CẬP NHẬT) ---
+    # Thay vì liệt kê từng cái, ta include toàn bộ file urls của app Sales
+    # Bao gồm: Báo cáo, In hóa đơn, Công nợ, và Cấu hình hoa hồng
+    path('sales/', include('apps.sales.urls')),
 
     # --- 7. MODULES KHÁC ---
     path('customers/', include('apps.customers.urls')), 
