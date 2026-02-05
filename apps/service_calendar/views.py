@@ -10,6 +10,7 @@ import json
 
 from apps.bookings.models import Appointment
 from apps.customers.models import Customer
+from apps.sales.models import Service # [MỚI] Import Service
 from .models import ReminderLog
 
 User = get_user_model()
@@ -37,18 +38,12 @@ def calendar_dashboard(request):
         customers.append(cus)
 
     # --- 2. LẤY DỮ LIỆU LỊCH (CỘT PHẢI) ---
-    
-    # [FIX LOGIC QUAN TRỌNG]
-    # Điều kiện 1: Phải có KTV (assigned_technician) HOẶC do KTV tạo
-    # Điều kiện 2 (BẮT BUỘC): KHÔNG PHẢI do Telesale tạo (exclude)
-    # Điều kiện 3 (BẮT BUỘC): KHÔNG PHẢI do Sale Tư vấn tạo (nếu cần thiết)
-    
     appointments = Appointment.objects.filter(
         Q(assigned_technician__isnull=False) | 
         Q(created_by__role='TECHNICIAN')
     ).exclude(
-        created_by__role='TELESALE'  # <--- CHẶN ĐỨNG LỊCH TELESALE TẠI ĐÂY
-    ).select_related('customer', 'reminder_log', 'assigned_doctor', 'assigned_technician')
+        created_by__role='TELESALE'
+    ).select_related('customer', 'reminder_log', 'assigned_doctor', 'assigned_technician', 'service') # [MỚI] select_related service
 
     # --- BỘ LỌC TÌM KIẾM ---
     filter_code = request.GET.get('filter_code')
@@ -64,26 +59,19 @@ def calendar_dashboard(request):
     
     events_list = []
     for appt in appointments:
-        # Mặc định: Màu xám (Lịch của người khác)
         color = '#6c757d' 
-        
-        # 1. Chưa gán KTV -> Vàng
         if not appt.assigned_technician:
             color = '#ffc107' 
-            
-        # 2. Lịch CỦA MÌNH -> Xanh lá
         if appt.assigned_technician_id == user.id:
             color = '#28a745' 
-            
-        # 3. Đã hủy -> Đỏ
         if appt.status == 'CANCELLED':
             color = '#e74a3b'
 
-        title = f"{appt.customer.name}"
+        # [MỚI] Hiển thị tên dịch vụ trong tiêu đề lịch
+        service_name = appt.service.name if appt.service else "Chưa chọn dịch vụ"
+        title = f"{appt.customer.name}\n({service_name})"
         
         doc_name = f"BS. {appt.assigned_doctor.last_name} {appt.assigned_doctor.first_name}" if appt.assigned_doctor else ""
-        
-        # Logic hiển thị tên KTV
         tech_name = "Chưa gán KTV"
         if appt.assigned_technician:
             tech_name = f"KTV. {appt.assigned_technician.last_name} {appt.assigned_technician.first_name}"
@@ -99,10 +87,11 @@ def calendar_dashboard(request):
                 'status_code': appt.status,
                 'doctor': doc_name,
                 'technician': tech_name,
+                'service': service_name # [MỚI] Thêm info service
             }
         })
 
-    # --- 3. NHẮC HẸN (Cũng phải chặn Telesale) ---
+    # --- 3. NHẮC HẸN ---
     reminders_needed = []
     tomorrow_appts = Appointment.objects.filter(
         appointment_date__date=tomorrow, 
@@ -110,7 +99,7 @@ def calendar_dashboard(request):
     ).filter(
         Q(assigned_technician__isnull=False) | Q(created_by__role='TECHNICIAN')
     ).exclude(
-        created_by__role='TELESALE' # <--- CHẶN CẢ Ở NHẮC HẸN
+        created_by__role='TELESALE'
     )
 
     for appt in tomorrow_appts:
@@ -119,6 +108,9 @@ def calendar_dashboard(request):
 
     doctors_list = User.objects.filter(role='DOCTOR', is_active=True)
     techs_list = User.objects.filter(role='TECHNICIAN', is_active=True)
+    
+    # [MỚI] Lấy danh sách dịch vụ
+    services_list = Service.objects.all().order_by('name')
 
     context = {
         'customers': customers,
@@ -126,14 +118,13 @@ def calendar_dashboard(request):
         'reminders_needed': reminders_needed,
         'doctors': doctors_list,
         'technicians': techs_list,
+        'services': services_list, # [MỚI] Truyền xuống template
         'search_query': q,
         'filter_code': filter_code,
         'filter_doctor': filter_doctor,
         'filter_tech': filter_tech,
     }
     return render(request, 'service_calendar/dashboard.html', context)
-
-# --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
 
 @login_required
 def get_service_events(request):
@@ -144,6 +135,8 @@ def quick_add_appointment(request):
     if request.method == 'POST':
         customer_id = request.POST.get('customer_id')
         doctor_id = request.POST.get('doctor_id')
+        service_id = request.POST.get('service_id') # [MỚI] Lấy ID dịch vụ
+        note = request.POST.get('note') # [MỚI] Lấy ghi chú
         dates = request.POST.getlist('dates[]')
         times = request.POST.getlist('times[]')
         
@@ -155,11 +148,14 @@ def quick_add_appointment(request):
         count = 0
         for d, t in zip(dates, times):
             if d and t:
+                # [MỚI] Tạo lịch kèm dịch vụ và ghi chú
                 Appointment.objects.create(
                     customer=customer,
                     appointment_date=f"{d} {t}",
                     assigned_doctor_id=doctor_id if doctor_id else None,
-                    assigned_technician=request.user, # KTV tự tạo thì gán cho chính mình luôn
+                    service_id=service_id if service_id else None, # Lưu dịch vụ
+                    note=note if note else "", # Lưu ghi chú
+                    assigned_technician=request.user,
                     created_by=request.user,
                     status='SCHEDULED'
                 )
@@ -194,11 +190,14 @@ def update_appointment_status(request):
             message = "Đã cập nhật trạng thái."
 
             if new_status == 'CANCELLED' and reschedule_date:
+                # [MỚI] Khi dời lịch, copy cả dịch vụ sang lịch mới
                 Appointment.objects.create(
                     customer=appt.customer,
                     appointment_date=reschedule_date,
                     assigned_doctor=appt.assigned_doctor,
                     assigned_technician=appt.assigned_technician,
+                    service=appt.service, # Copy service
+                    note=appt.note,       # Copy note
                     created_by=request.user,
                     status='SCHEDULED'
                 )

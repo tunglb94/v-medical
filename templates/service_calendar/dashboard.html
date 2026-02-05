@@ -123,6 +123,21 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold small text-primary">Dịch vụ / Tour *</label>
+                            <select name="service_id" class="form-select border-primary" required>
+                                <option value="">-- Chọn dịch vụ làm --</option>
+                                {% for s in services %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold small text-muted">Ghi chú thêm</label>
+                            <input type="text" name="note" class="form-control" placeholder="VD: Khách làm nhẹ tay...">
+                        </div>
                     </div>
                     <hr>
                     <label class="form-label fw-bold text-primary mb-2 small">CHỌN THỜI GIAN:</label>
@@ -159,6 +174,9 @@
             <div class="modal-body">
                 <input type="hidden" id="statusApptId">
                 <h5 class="text-primary fw-bold mb-1" id="statusCusName"></h5>
+                
+                <div class="fw-bold text-danger mb-2" id="statusService"></div>
+
                 <p class="text-muted small mb-3"><i class="bi bi-clock"></i> <span id="statusTime"></span></p>
                 
                 <div class="alert alert-light border small p-2 mb-3">
@@ -204,11 +222,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
         
-        // Nhận diện mobile để chỉnh view mặc định
         var isMobile = window.innerWidth < 768;
         
         calendar = new FullCalendar.Calendar(calendarEl, {
-            // Mobile dùng listWeek cho dễ nhìn, PC dùng dayGridMonth
             initialView: isMobile ? 'listWeek' : 'dayGridMonth',
             
             headerToolbar: {
@@ -222,20 +238,19 @@
             },
             height: '100%',
             
-            // [QUAN TRỌNG] Lấy dữ liệu từ biến context truyền vào (Server-side rendering)
-            // Giúp bộ lọc hoạt động ngay lập tức mà không cần gọi API lại
             events: {{ events|safe }},
             
-            // Xử lý khi click vào lịch
             eventClick: function(info) {
                 var props = info.event.extendedProps;
                 
-                // Điền dữ liệu vào Modal
                 document.getElementById('statusApptId').value = info.event.id;
-                document.getElementById('statusCusName').innerText = info.event.title.split('\n')[0]; // Lấy tên khách
+                document.getElementById('statusCusName').innerText = info.event.title.split('\n')[0]; 
                 document.getElementById('statusTime').innerText = info.event.start.toLocaleString('vi-VN');
                 
-                // Hiển thị thông tin Bác sĩ/KTV
+                // [MỚI] Hiển thị dịch vụ
+                var serviceName = props.service ? props.service : 'Chưa chọn dịch vụ';
+                document.getElementById('statusService').innerHTML = `<i class="bi bi-stars"></i> ${serviceName}`;
+
                 var docInfo = props.doctor ? props.doctor : 'Bác sĩ: (Chưa gán)';
                 var techInfo = props.technician ? props.technician : 'KTV: (Chưa gán)';
                 
@@ -246,11 +261,9 @@
                 document.getElementById('infoDoctor').innerHTML = docInfo;
                 document.getElementById('infoTech').innerHTML = techInfo;
 
-                // Reset radio
                 var radios = document.getElementsByName('appt_status');
                 for(var i=0; i<radios.length; i++) radios[i].checked = false;
 
-                // Check status hiện tại (nếu có mã code)
                 var currentStatus = props.status_code;
                 if (currentStatus) {
                     var radio = document.getElementById('st_' + currentStatus.toLowerCase());
@@ -259,18 +272,14 @@
                     document.getElementById('st_arrived').checked = true; 
                 }
 
-                // Reset vùng hẹn lại
                 toggleReschedule(currentStatus === 'CANCELLED');
                 document.getElementById('rescheduleDate').value = "";
 
-                // Mở Modal
                 new bootstrap.Modal(document.getElementById('statusModal')).show();
             }
         });
         calendar.render();
     });
-
-    // --- CÁC HÀM HỖ TRỢ ---
 
     function openBookingModal(id, name) {
         document.getElementById('modalCusId').value = id;
@@ -342,7 +351,6 @@
 </script>
 
 <style>
-    /* Custom Scrollbar cho list khách hàng */
     .overflow-auto::-webkit-scrollbar { width: 6px; }
     .overflow-auto::-webkit-scrollbar-track { background: #f1f1f1; }
     .overflow-auto::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
@@ -352,11 +360,9 @@
     .fade-in { animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     
-    /* FullCalendar Customization cho Mobile */
     @media (max-width: 768px) {
         .fc-toolbar { flex-direction: column; gap: 5px; }
         .fc-toolbar-chunk { display: flex; justify-content: space-between; width: 100%; }
-        /* Ẩn bớt nút thừa trên mobile */
         .fc-dayGridMonth-button, .fc-timeGridWeek-button { display: none !important; }
     }
 </style>
