@@ -154,11 +154,10 @@ def global_search(request):
     
     if query:
         # 1. Tìm Khách hàng (Tên hoặc SĐT)
-        # Chỉ Marketing/Admin/Telesale/Receptionist mới được tìm khách
-        if request.user.role in ['ADMIN', 'TELESALE', 'RECEPTIONIST', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']:
-            results['customers'] = Customer.objects.filter(
-                Q(name__icontains=query) | Q(phone__icontains=query)
-            )[:10] # Lấy tối đa 10 kết quả
+        # [MỞ RỘNG] Cho phép tất cả user đã đăng nhập được tìm khách (để tiện tra cứu)
+        results['customers'] = Customer.objects.filter(
+            Q(name__icontains=query) | Q(phone__icontains=query)
+        )[:10] 
 
         # 2. Tìm Nhân viên (Tên hoặc Username)
         results['staffs'] = User.objects.filter(
@@ -167,11 +166,11 @@ def global_search(request):
             Q(first_name__icontains=query)
         ).exclude(is_active=False)[:5]
 
-        # 3. Tìm Lịch hẹn (Theo mã hoặc tên khách) - Chỉ Admin/Lễ tân/BS
-        if request.user.role in ['ADMIN', 'RECEPTIONIST', 'DOCTOR']:
-            results['appointments'] = Appointment.objects.filter(
-                Q(customer__name__icontains=query) |
-                Q(customer__phone__icontains=query)
-            ).select_related('customer')[:10]
+        # 3. Tìm Lịch hẹn (Theo mã hoặc tên khách)
+        # [FIX] Bỏ kiểm tra role để ai cũng xem được lịch sử hẹn khi tìm kiếm
+        results['appointments'] = Appointment.objects.filter(
+            Q(customer__name__icontains=query) |
+            Q(customer__phone__icontains=query)
+        ).select_related('customer')[:10]
 
     return render(request, 'search_results.html', {'query': query, 'results': results})
