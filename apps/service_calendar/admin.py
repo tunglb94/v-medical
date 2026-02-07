@@ -1,12 +1,18 @@
 from django.contrib import admin
-from .models import ReminderLog
+from .models import TreatmentSession, ReminderLog
+
+@admin.register(TreatmentSession)
+class TreatmentSessionAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'service', 'technician', 'doctor', 'session_date', 'created_by')
+    list_filter = ('session_date', 'technician', 'service')
+    search_fields = ('customer__name', 'customer__phone', 'note')
+    date_hierarchy = 'session_date'
+    autocomplete_fields = ['customer', 'order']
 
 @admin.register(ReminderLog)
 class ReminderLogAdmin(admin.ModelAdmin):
-    list_display = ('get_customer', 'appointment', 'is_reminded', 'reminded_by', 'created_at')
-    list_filter = ('is_reminded', 'created_at')
-    search_fields = ('appointment__customer__name', 'appointment__customer__phone', 'note')
-    
-    def get_customer(self, obj):
-        return obj.appointment.customer.name
-    get_customer.short_description = 'Khách hàng'
+    # Cập nhật các trường hiển thị cho khớp với Model mới
+    list_display = ('customer', 'reminder_time', 'status', 'assigned_staff', 'created_at')
+    list_filter = ('status', 'reminder_time')
+    search_fields = ('customer__name', 'content')
+    date_hierarchy = 'reminder_time'
