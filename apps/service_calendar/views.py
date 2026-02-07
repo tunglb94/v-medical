@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q, Sum, Max
 from django.contrib.auth import get_user_model
 from django.contrib import messages
-from django.utils import timezone # [THÊM] Import timezone
+from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.sales.models import Order, Service
@@ -21,22 +21,22 @@ def technician_workspace(request):
     doctors = User.objects.filter(role='DOCTOR', is_active=True)
     technicians = User.objects.filter(role='TECHNICIAN', is_active=True)
     
-    # 1. Lấy lịch sử làm việc TOÀN BỘ hôm nay (để mọi người cùng thấy tiến độ chung)
+    # 1. Lấy lịch sử làm việc TOÀN BỘ hôm nay
     today_sessions = TreatmentSession.objects.select_related('customer', 'service', 'technician').order_by('-session_date')[:20]
 
     # 2. Lấy danh sách khách hàng CÓ LIỆU TRÌNH
+    # [SỬA LẠI]: Thay is_paid=True thành total_amount__gt=0 (Có đơn hàng giá trị > 0 là hiện)
     active_customers = Customer.objects.filter(
-        order__is_paid=True
+        order__total_amount__gt=0  # <--- SỬA TẠI ĐÂY
     ).annotate(
         last_order_date=Max('order__order_date')
     ).order_by('-last_order_date').distinct()[:50]
 
-    # --- [MỚI] TÍNH HOA HỒNG CÁ NHÂN (Của người đang login) ---
+    # 3. Tính hoa hồng cá nhân
     today = timezone.now()
     current_month = today.month
     current_year = today.year
 
-    # Lọc các buổi tour do CHÍNH USER NÀY làm trong tháng này
     my_sessions_qs = TreatmentSession.objects.filter(
         technician=request.user,
         session_date__month=current_month,
@@ -47,13 +47,8 @@ def technician_workspace(request):
     total_commission_month = 0
 
     for session in my_sessions_qs:
-        # Giá tính: Lấy từ Đơn hàng thực tế (nếu có), nếu không lấy giá gốc dịch vụ
         price_base = session.order.total_amount if session.order else session.service.base_price
-        
-        # % Hoa hồng: Lấy từ cấu hình dịch vụ
-        rate = session.service.commission_rate # VD: 0.5, 1, 5
-        
-        # Tiền nhận: Giá * (% / 100)
+        rate = session.service.commission_rate
         money = float(price_base) * (float(rate) / 100)
         
         my_commissions.append({
@@ -71,18 +66,15 @@ def technician_workspace(request):
         'technicians': technicians,
         'history': today_sessions,
         'active_customers': active_customers,
-        
-        # [MỚI] Truyền dữ liệu hoa hồng xuống template
         'my_commissions': my_commissions,
         'total_commission_month': total_commission_month,
         'current_month': current_month
     }
     return render(request, 'service_calendar/dashboard.html', context)
 
-# ... (Các hàm api_search_customer_services và create_treatment_session giữ nguyên) ...
 @login_required
 def api_search_customer_services(request):
-    # (Giữ nguyên code cũ)
+    """API tìm khách và load dịch vụ đã mua"""
     query = request.GET.get('q', '').strip()
     if not query:
         customer_id = request.GET.get('id')
@@ -97,16 +89,25 @@ def api_search_customer_services(request):
         return JsonResponse({'success': False, 'message': 'Không tìm thấy khách hàng này.'})
     
     customer = customers.first()
-    paid_orders = Order.objects.filter(customer=customer, is_paid=True).select_related('service').order_by('-order_date')
+    
+    # [SỬA LẠI]: Lấy tất cả đơn có tiền (bao gồm cả nợ), không bắt buộc is_paid=True
+    paid_orders = Order.objects.filter(
+        customer=customer, 
+        total_amount__gt=0 # <--- SỬA TẠI ĐÂY
+    ).select_related('service').order_by('-order_date')
     
     services_data = []
     total_spent = 0
+    
     for order in paid_orders:
         if order.service:
+            # Tính trạng thái thanh toán để hiển thị cho KTV biết
+            status_text = "Đủ" if order.is_paid else "Nợ"
+            
             services_data.append({
                 'order_id': order.id,
                 'service_id': order.service.id,
-                'service_name': order.service.name,
+                'service_name': f"{order.service.name} ({status_text})", # Thêm chữ (Nợ) nếu chưa trả hết
                 'price': order.total_amount,
                 'date': order.order_date.strftime('%d/%m/%Y')
             })
@@ -115,15 +116,18 @@ def api_search_customer_services(request):
     return JsonResponse({
         'success': True,
         'customer': {
-            'id': customer.id, 'name': customer.name, 'phone': customer.phone,
-            'code': customer.customer_code, 'total_spent': total_spent
+            'id': customer.id,
+            'name': customer.name,
+            'phone': customer.phone,
+            'code': customer.customer_code,
+            'total_spent': total_spent
         },
         'services': services_data
     })
 
 @login_required
 def create_treatment_session(request):
-    # (Giữ nguyên code cũ)
+    """Lưu buổi làm dịch vụ"""
     if request.method == 'POST':
         try:
             customer_id = request.POST.get('customer_id')
@@ -137,12 +141,19 @@ def create_treatment_session(request):
                 return redirect('service_calendar:dashboard')
 
             order = Order.objects.get(id=order_id)
+            
             TreatmentSession.objects.create(
-                customer_id=customer_id, order=order, service=order.service,
+                customer_id=customer_id,
+                order=order,
+                service=order.service,
                 doctor_id=doctor_id if doctor_id else None,
-                technician_id=technician_id, note=note, created_by=request.user
+                technician_id=technician_id,
+                note=note,
+                created_by=request.user
             )
             messages.success(request, f"Đã lưu buổi làm thành công!")
+            
         except Exception as e:
             messages.error(request, f"Lỗi: {e}")
+
     return redirect('service_calendar:dashboard')
