@@ -138,20 +138,19 @@
             .mobile-nav-toggle { display: block; }
             .top-header { padding-right: 60px; }
             
-            /* [FIX] Điều chỉnh search bar trên mobile */
             .global-search { 
                 width: auto; 
-                flex: 1; /* Tự động giãn nở */
-                max-width: 220px; /* Giới hạn chiều rộng tối đa */
+                flex: 1; 
+                max-width: 220px; 
                 margin-right: 10px;
             }
             .global-search input {
-                font-size: 0.9rem; /* Giảm cỡ chữ chút cho gọn */
+                font-size: 0.9rem; 
             }
         }
         
         @media (max-width: 400px) {
-            .global-search { max-width: 160px; } /* Màn hình siêu nhỏ */
+            .global-search { max-width: 160px; } 
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -405,6 +404,8 @@
         }
     })();
 
+    // [TẠM TẮT] Tính năng Chat chưa dùng, ẩn đi để tránh lỗi 404
+    /*
     function checkUnreadMessages() {
         fetch('/chat/api/unread/')
             .then(response => { if(response.ok) return response.json(); })
@@ -426,6 +427,7 @@
         checkUnreadMessages();
         setInterval(checkUnreadMessages, 10000); 
     });
+    */
 </script>
 
 {% block extra_js %}{% endblock %}
