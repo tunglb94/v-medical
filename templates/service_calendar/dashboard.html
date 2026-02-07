@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load humanize l10n %} 
+{% load humanize l10n %}
 
 {% block title %}Bàn Làm Việc Kỹ Thuật Viên{% endblock %}
 
@@ -50,7 +50,7 @@
                                     <span class="input-group-text bg-white">Buổi</span>
                                 </div>
                                 <div class="form-text small fst-italic mt-1">
-                                    * Ví dụ gói 10 buổi thì nhập 10. Hệ thống sẽ chia đều hoa hồng.
+                                    * Nhập tổng số buổi khách mua (VD: 10). Hệ thống sẽ chia đều hoa hồng cho các buổi.
                                 </div>
                             </div>
 
@@ -114,10 +114,48 @@
         </div>
 
         <div class="col-md-7">
+            
+            <div class="card shadow-sm border-0 mb-3 bg-light">
+                <div class="card-body py-2">
+                    <form method="GET" class="row g-2 align-items-center">
+                        <div class="col-auto">
+                            <span class="fw-bold text-secondary small"><i class="bi bi-filter-circle"></i> Bộ lọc:</span>
+                        </div>
+                        <div class="col-auto">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white">Từ</span>
+                                <input type="date" name="date_start" class="form-control" value="{{ date_start }}">
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white">Đến</span>
+                                <input type="date" name="date_end" class="form-control" value="{{ date_end }}">
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <select name="filter_tech_id" class="form-select form-select-sm" style="min-width: 150px;">
+                                <option value="all">-- Tất cả KTV --</option>
+                                {% for tech in technicians %}
+                                <option value="{{ tech.id }}" {% if filter_tech_id == tech.id %}selected{% endif %}>
+                                    {{ tech.last_name }} {{ tech.first_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary btn-sm fw-bold">
+                                Xem báo cáo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold text-dark m-0"><i class="bi bi-clock-history"></i> Lịch Sử Tour Vừa Làm (Chung)</h5>
-                    <span class="badge bg-light text-dark border">Hôm nay</span>
+                    <h5 class="fw-bold text-dark m-0"><i class="bi bi-clock-history"></i> Lịch Sử Tour Vừa Làm</h5>
+                    <span class="badge bg-light text-dark border">{{ history|length }} Ca</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -129,12 +167,16 @@
                                     <th>Dịch vụ</th>
                                     <th>KTV / BS</th>
                                     <th>Ghi chú</th>
-                                    <th class="text-center" style="width: 100px;">Thao tác</th> </tr>
+                                    <th class="text-center" style="width: 100px;">Thao tác</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 {% for item in history %}
                                 <tr>
-                                    <td class="ps-3 small text-muted">{{ item.session_date|date:"H:i" }}</td>
+                                    <td class="ps-3 small text-muted">
+                                        {{ item.session_date|date:"H:i" }} <br>
+                                        <small>{{ item.session_date|date:"d/m" }}</small>
+                                    </td>
                                     <td>
                                         <div class="fw-bold">{{ item.customer.name }}</div>
                                         <div class="small text-muted">{{ item.customer.phone }}</div>
@@ -177,7 +219,7 @@
                                 {% empty %}
                                 <tr>
                                     <td colspan="6" class="text-center py-5 text-muted">
-                                        <i class="bi bi-inbox fs-1"></i><br>Chưa có buổi làm nào hôm nay.
+                                        <i class="bi bi-inbox fs-1"></i><br>Không có dữ liệu trong khoảng thời gian này.
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -190,43 +232,52 @@
             <div class="card shadow-sm border-0 border-start border-4 border-warning">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold text-warning m-0">
-                        <i class="bi bi-piggy-bank-fill me-2"></i> Hoa Hồng Của Bạn (Tháng {{ current_month }})
+                        <i class="bi bi-trophy-fill me-2"></i> Bảng Tổng Hợp ({{ date_start|date:"d/m" }} - {{ date_end|date:"d/m" }})
                     </h5>
-                    <div class="h5 fw-bold text-danger m-0">
-                        Tổng: {{ total_commission_month|floatformat:0|intcomma }} đ
-                    </div>
+                    <span class="badge bg-warning text-dark">Top Performance</span>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-striped align-middle mb-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0 text-center">
                             <thead class="bg-warning bg-opacity-10 text-dark small text-uppercase">
                                 <tr>
-                                    <th class="ps-3">Ngày làm</th>
-                                    <th>Khách hàng</th>
-                                    <th>Dịch vụ</th>
-                                    <th class="text-end">Giá trị</th>
-                                    <th class="text-center">%</th>
-                                    <th class="text-end pe-3">Hoa hồng</th>
+                                    <th style="width: 50px;">Top</th>
+                                    <th class="text-start ps-3">Kỹ Thuật Viên</th>
+                                    <th>Số Ca Làm</th>
+                                    <th class="text-end pe-4">Tổng Hoa Hồng (Ước tính)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in my_commissions %}
-                                <tr>
-                                    <td class="ps-3 small">{{ item.date|date:"d/m/Y" }}</td>
-                                    <td class="fw-bold small">{{ item.customer }}</td>
-                                    <td class="small">{{ item.service }}</td>
-                                    <td class="text-end small text-muted">{{ item.price|intcomma }}</td>
-                                    <td class="text-center small">
-                                        <span class="badge bg-light text-dark border">{{ item.rate }}%</span>
+                                {% for item in leaderboard %}
+                                <tr class="{% if request.user.username == item.username %}table-primary fw-bold{% endif %}">
+                                    <td>
+                                        {% if forloop.counter == 1 %}
+                                            <span class="badge bg-danger rounded-pill">1</span>
+                                        {% elif forloop.counter == 2 %}
+                                            <span class="badge bg-success rounded-pill">2</span>
+                                        {% elif forloop.counter == 3 %}
+                                            <span class="badge bg-info rounded-pill">3</span>
+                                        {% else %}
+                                            <span class="text-muted small">#{{ forloop.counter }}</span>
+                                        {% endif %}
                                     </td>
-                                    <td class="text-end pe-3 fw-bold text-success">
-                                        +{{ item.money|floatformat:0|intcomma }}
+                                    <td class="text-start ps-3">
+                                        {{ item.name }}
+                                        {% if request.user.username == item.username %}
+                                            <span class="badge bg-primary ms-1" style="font-size: 0.6rem;">Bạn</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-white text-dark border">{{ item.count }}</span>
+                                    </td>
+                                    <td class="text-end pe-4 fw-bold text-success">
+                                        {{ item.total_money|floatformat:0|intcomma }} đ
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted small">
-                                        Bạn chưa làm dịch vụ nào trong tháng này.
+                                    <td colspan="4" class="text-center py-4 text-muted small">
+                                        Chưa có dữ liệu tính lương trong khoảng này.
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -235,6 +286,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 </div>
@@ -366,7 +418,6 @@
             });
     }
 
-    // [MỚI] Cập nhật ô input khi chọn dịch vụ
     function updateSessionsInput(radio) {
         const sessions = radio.getAttribute('data-sessions');
         if (sessions && sessions > 0) {

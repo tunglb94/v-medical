@@ -6,6 +6,7 @@ from django.db.models import Q, Sum, Max
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.utils import timezone
+from datetime import datetime, timedelta # [THÊM] Import datetime
 
 from apps.customers.models import Customer
 from apps.sales.models import Order, Service
@@ -17,73 +18,106 @@ User = get_user_model()
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'TECHNICIAN', 'DOCTOR', 'RECEPTIONIST'])
 def technician_workspace(request):
-    """Giao diện làm việc chính của KTV & Xem Hoa hồng cá nhân"""
+    """Giao diện làm việc chính của KTV & Bảng Xếp Hạng"""
+    
+    # --- 1. XỬ LÝ BỘ LỌC NGÀY THÁNG & KTV ---
+    today = timezone.now().date()
+    
+    # Lấy tham số từ URL (nếu không có thì mặc định là đầu tháng -> hôm nay)
+    date_start_str = request.GET.get('date_start')
+    date_end_str = request.GET.get('date_end')
+    filter_tech_id = request.GET.get('filter_tech_id')
+
+    if date_start_str:
+        date_start = datetime.strptime(date_start_str, '%Y-%m-%d').date()
+    else:
+        date_start = today.replace(day=1) # Mặc định ngày mùng 1
+
+    if date_end_str:
+        date_end = datetime.strptime(date_end_str, '%Y-%m-%d').date()
+    else:
+        date_end = today # Mặc định hôm nay
+
+    # --- 2. LẤY DỮ LIỆU CƠ BẢN ---
     doctors = User.objects.filter(role='DOCTOR', is_active=True)
     technicians = User.objects.filter(role='TECHNICIAN', is_active=True)
     
-    # 1. Lấy lịch sử làm việc TOÀN BỘ hôm nay
-    today_sessions = TreatmentSession.objects.select_related('customer', 'service', 'technician').order_by('-session_date')[:20]
-
-    # 2. Lấy danh sách khách hàng CÓ LIỆU TRÌNH
+    # Khách hàng active (để hiển thị bên trái)
     active_customers = Customer.objects.filter(
         order__total_amount__gt=0
     ).annotate(
         last_order_date=Max('order__order_date')
     ).order_by('-last_order_date').distinct()[:50]
 
-    # 3. TÍNH HOA HỒNG CÁ NHÂN
-    today = timezone.now()
-    current_month = today.month
-    current_year = today.year
+    # --- 3. TRUY VẤN LỊCH SỬ & LEADERBOARD THEO BỘ LỌC ---
+    
+    # Query cơ bản: Lọc theo ngày
+    # Lưu ý: __date__range lọc theo ngày (bỏ qua giờ phút)
+    base_qs = TreatmentSession.objects.filter(
+        session_date__date__range=(date_start, date_end)
+    ).select_related('customer', 'service', 'technician', 'order', 'doctor')
 
-    my_sessions_qs = TreatmentSession.objects.filter(
-        technician=request.user,
-        session_date__month=current_month,
-        session_date__year=current_year
-    ).select_related('order', 'service', 'customer').order_by('-session_date')
+    # A. BẢNG LỊCH SỬ (HISTORY)
+    # Nếu có chọn KTV cụ thể thì lọc thêm, nếu không thì hiện hết
+    history_qs = base_qs.order_by('-session_date')
+    if filter_tech_id and filter_tech_id != 'all':
+        history_qs = history_qs.filter(technician_id=filter_tech_id)
+    
+    # B. BẢNG XẾP HẠNG (LEADERBOARD)
+    # Bảng xếp hạng luôn tính TOÀN BỘ KTV trong khoảng thời gian đó để so sánh
+    # (Không bị ảnh hưởng bởi filter_tech_id để đảm bảo tính công bằng)
+    tech_stats = {}
 
-    my_commissions = []
-    total_commission_month = 0
+    for session in base_qs:
+        if not session.technician:
+            continue
+            
+        tech = session.technician
+        tech_id = tech.id
+        
+        if tech_id not in tech_stats:
+            tech_stats[tech_id] = {
+                'name': f"{tech.last_name} {tech.first_name}",
+                'username': tech.username,
+                'count': 0,
+                'total_money': 0
+            }
 
-    for session in my_sessions_qs:
-        # Lấy giá trị và số buổi từ Order
+        # Tính tiền
         if session.order:
             price_base = session.order.total_amount
-            # [MỚI] Lấy số buổi từ đơn hàng
             total_sessions = session.order.total_sessions if session.order.total_sessions > 0 else 1
         else:
             price_base = session.service.base_price
             total_sessions = 1
         
         rate = session.service.commission_rate
-        
-        # [CÔNG THỨC MỚI] (Giá * % / 100) / Tổng số buổi
         full_commission = float(price_base) * (float(rate) / 100)
         money_per_session = full_commission / total_sessions
-        
-        my_commissions.append({
-            'id': session.id,
-            'date': session.session_date,
-            'customer': session.customer.name,
-            'service': f"{session.service.name} (Gói {total_sessions}b)", # Hiển thị số buổi
-            'price': price_base,
-            'rate': rate,
-            'money': money_per_session
-        })
-        total_commission_month += money_per_session
+
+        tech_stats[tech_id]['count'] += 1
+        tech_stats[tech_id]['total_money'] += money_per_session
+
+    leaderboard = list(tech_stats.values())
+    leaderboard.sort(key=lambda x: x['total_money'], reverse=True)
 
     context = {
         'doctors': doctors,
         'technicians': technicians,
-        'history': today_sessions,
         'active_customers': active_customers,
-        'my_commissions': my_commissions,
-        'total_commission_month': total_commission_month,
-        'current_month': current_month
+        
+        # Dữ liệu hiển thị
+        'history': history_qs,
+        'leaderboard': leaderboard,
+        
+        # Giá trị bộ lọc để điền lại vào form
+        'date_start': date_start.strftime('%Y-%m-%d'),
+        'date_end': date_end.strftime('%Y-%m-%d'),
+        'filter_tech_id': int(filter_tech_id) if filter_tech_id and filter_tech_id != 'all' else None
     }
     return render(request, 'service_calendar/dashboard.html', context)
 
-
+# ... (Giữ nguyên các hàm api_search..., create..., edit..., delete...) ...
 @login_required
 def api_search_customer_services(request):
     """API tìm khách và load dịch vụ đã mua"""
@@ -119,7 +153,6 @@ def api_search_customer_services(request):
                 'service_name': f"{order.service.name} ({status_text})",
                 'price': order.total_amount,
                 'date': order.order_date.strftime('%d/%m/%Y'),
-                # [MỚI] Trả về số buổi hiện tại của đơn hàng
                 'total_sessions': order.total_sessions
             })
             total_spent += order.total_amount
@@ -147,8 +180,6 @@ def create_treatment_session(request):
             doctor_id = request.POST.get('doctor_id')
             technician_id = request.POST.get('technician_id')
             note = request.POST.get('note')
-            
-            # [MỚI] Lấy số buổi từ form gửi lên
             total_sessions_input = request.POST.get('total_sessions')
 
             if not customer_id or not order_id or not technician_id:
@@ -157,7 +188,6 @@ def create_treatment_session(request):
 
             order = Order.objects.get(id=order_id)
             
-            # [MỚI] Cập nhật số buổi vào Order nếu có thay đổi
             if total_sessions_input:
                 try:
                     ts = int(total_sessions_input)
