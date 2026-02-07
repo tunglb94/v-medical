@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
-{% load humanize l10n %} {% block title %}Bàn Làm Việc Kỹ Thuật Viên{% endblock %}
+{% load humanize l10n %} 
+
+{% block title %}Bàn Làm Việc Kỹ Thuật Viên{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -114,7 +116,7 @@
                                     <th>Dịch vụ</th>
                                     <th>KTV / BS</th>
                                     <th>Ghi chú</th>
-                                </tr>
+                                    <th class="text-center" style="width: 100px;">Thao tác</th> </tr>
                             </thead>
                             <tbody>
                                 {% for item in history %}
@@ -136,10 +138,32 @@
                                     <td class="small text-muted fst-italic text-truncate" style="max-width: 150px;">
                                         {{ item.note }}
                                     </td>
+                                    
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary border-0" 
+                                                title="Sửa"
+                                                onclick="openEditSessionModal(
+                                                    '{{ item.id }}', 
+                                                    '{{ item.customer.name }}', 
+                                                    '{{ item.service.name }}',
+                                                    '{{ item.technician.id }}',
+                                                    '{{ item.doctor.id|default:'' }}',
+                                                    '{{ item.note|escapejs }}'
+                                                )">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        
+                                        <a href="{% url 'service_calendar:delete_session' item.id %}" 
+                                           class="btn btn-sm btn-outline-danger border-0"
+                                           title="Xóa"
+                                           onclick="return confirm('Bạn có chắc chắn muốn xóa buổi làm này không?');">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted">
+                                    <td colspan="6" class="text-center py-5 text-muted">
                                         <i class="bi bi-inbox fs-1"></i><br>Chưa có buổi làm nào hôm nay.
                                     </td>
                                 </tr>
@@ -198,6 +222,56 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editSessionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title fw-bold">Chỉnh Sửa Buổi Làm</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'service_calendar:edit_session' %}" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="session_id" id="editSessionId">
+                
+                <div class="modal-body">
+                    <div class="alert alert-light border mb-3">
+                        <div class="fw-bold text-primary" id="editCusName"></div>
+                        <div class="small text-muted" id="editServiceName"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">KTV thực hiện</label>
+                        <select name="technician_id" id="editTechId" class="form-select">
+                            {% for tech in technicians %}
+                            <option value="{{ tech.id }}">{{ tech.last_name }} {{ tech.first_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Bác sĩ</label>
+                        <select name="doctor_id" id="editDocId" class="form-select">
+                            <option value="">-- Không có --</option>
+                            {% for doc in doctors %}
+                            <option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Ghi chú</label>
+                        <textarea name="note" id="editNote" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer py-1">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Lưu Thay Đổi</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -268,6 +342,19 @@
                 errorDiv.innerText = 'Lỗi kết nối server.';
                 console.error(err);
             });
+    }
+
+    // [MỚI] Hàm mở Modal Sửa
+    function openEditSessionModal(id, cusName, serviceName, techId, docId, note) {
+        document.getElementById('editSessionId').value = id;
+        document.getElementById('editCusName').innerText = cusName;
+        document.getElementById('editServiceName').innerText = serviceName;
+        
+        document.getElementById('editTechId').value = techId;
+        document.getElementById('editDocId').value = docId;
+        document.getElementById('editNote').value = note;
+
+        new bootstrap.Modal(document.getElementById('editSessionModal')).show();
     }
 </script>
 
