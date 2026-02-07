@@ -19,13 +19,13 @@
                     <div id="searchError" class="text-danger small fw-bold mb-2"></div>
 
                     <div id="customerInfoArea" style="display: none;">
-                        <div class="alert alert-info border-0 shadow-sm">
-                            <h5 class="fw-bold mb-1" id="cusName"></h5>
-                            <div class="d-flex justify-content-between small">
+                        <div class="alert alert-info border-0 shadow-sm mb-3">
+                            <h5 class="fw-bold mb-1 text-primary" id="cusName"></h5>
+                            <div class="d-flex justify-content-between small text-dark">
                                 <span><i class="bi bi-telephone"></i> <span id="cusPhone"></span></span>
                                 <span><i class="bi bi-upc-scan"></i> <span id="cusCode"></span></span>
                             </div>
-                            <div class="mt-2 pt-2 border-top border-info">
+                            <div class="mt-2 pt-2 border-top border-info text-dark">
                                 <small>Tổng chi tiêu:</small> 
                                 <span class="fw-bold text-danger fs-6" id="cusTotal"></span>
                             </div>
@@ -36,16 +36,15 @@
                             <input type="hidden" name="customer_id" id="hiddenCusId">
                             
                             <div class="mb-3">
-                                <label class="form-label fw-bold small text-muted">1. Chọn Dịch vụ khách làm hôm nay:</label>
-                                <div id="servicesList" class="list-group">
-                                    </div>
+                                <label class="form-label fw-bold small text-muted">1. Chọn Dịch vụ làm hôm nay:</label>
+                                <div id="servicesList" class="list-group" style="max-height: 200px; overflow-y: auto;"></div>
                                 <div id="noServiceMsg" class="text-danger small fst-italic mt-1" style="display:none;">Khách chưa mua dịch vụ nào hoặc chưa thanh toán.</div>
                             </div>
 
                             <div class="row">
                                 <div class="col-6 mb-3">
                                     <label class="form-label fw-bold small text-muted">2. KTV thực hiện *</label>
-                                    <select name="technician_id" class="form-select">
+                                    <select name="technician_id" class="form-select form-select-sm">
                                         {% for tech in technicians %}
                                         <option value="{{ tech.id }}" {% if request.user.id == tech.id %}selected{% endif %}>
                                             {{ tech.last_name }} {{ tech.first_name }}
@@ -55,7 +54,7 @@
                                 </div>
                                 <div class="col-6 mb-3">
                                     <label class="form-label fw-bold small text-muted">3. Bác sĩ (Nếu có)</label>
-                                    <select name="doctor_id" class="form-select">
+                                    <select name="doctor_id" class="form-select form-select-sm">
                                         <option value="">-- Không có --</option>
                                         {% for doc in doctors %}
                                         <option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>
@@ -65,22 +64,46 @@
                             </div>
 
                             <div class="mb-3">
-                                <textarea name="note" class="form-control" rows="2" placeholder="Ghi chú buổi làm (tình trạng da, số shot bắn...)"></textarea>
+                                <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Ghi chú (tình trạng da, số shot bắn...)"></textarea>
                             </div>
 
                             <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm">
-                                <i class="bi bi-check-circle-fill"></i> XÁC NHẬN HOÀN THÀNH TOUR
+                                <i class="bi bi-check-circle-fill"></i> XÁC NHẬN HOÀN THÀNH
                             </button>
                         </form>
                     </div>
                 </div>
             </div>
+
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-2">
+                    <h6 class="fw-bold text-dark m-0"><i class="bi bi-list-task"></i> Khách Đã Mua Liệu Trình</h6>
+                    <small class="text-muted" style="font-size: 0.75rem;">(Click vào tên để chọn nhanh)</small>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                    {% for cus in active_customers %}
+                    <button type="button" class="list-group-item list-group-item-action py-2" onclick="selectCustomer('{{ cus.id }}')">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 fw-bold text-primary" style="font-size: 0.9rem;">{{ cus.name }}</h6>
+                                <small class="text-muted"><i class="bi bi-telephone"></i> {{ cus.phone }}</small>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted" style="font-size: 0.8rem;"></i>
+                        </div>
+                    </button>
+                    {% empty %}
+                    <div class="text-center py-4 text-muted small">
+                        Chưa có khách nào mua liệu trình.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
 
         <div class="col-md-7">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold text-dark m-0"><i class="bi bi-clock-history"></i> Lịch Sử Tour Vừa Làm</h5>
+                    <h5 class="fw-bold text-dark m-0"><i class="bi bi-clock-history"></i> Lịch Sử Tour Vừa Làm (Chung)</h5>
                     <span class="badge bg-light text-dark border">Hôm nay</span>
                 </div>
                 <div class="card-body p-0">
@@ -128,7 +151,56 @@
                     </div>
                 </div>
             </div>
-        </div>
+
+            <div class="card shadow-sm border-0 border-start border-4 border-warning">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold text-warning m-0">
+                        <i class="bi bi-piggy-bank-fill me-2"></i> Hoa Hồng Của Bạn (Tháng {{ current_month }})
+                    </h5>
+                    <div class="h5 fw-bold text-danger m-0">
+                        Tổng: {{ total_commission_month|floatformat:0|intcomma }} đ
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead class="bg-warning bg-opacity-10 text-dark small text-uppercase">
+                                <tr>
+                                    <th class="ps-3">Ngày làm</th>
+                                    <th>Khách hàng</th>
+                                    <th>Dịch vụ</th>
+                                    <th class="text-end">Giá trị</th>
+                                    <th class="text-center">%</th>
+                                    <th class="text-end pe-3">Hoa hồng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in my_commissions %}
+                                <tr>
+                                    <td class="ps-3 small">{{ item.date|date:"d/m/Y" }}</td>
+                                    <td class="fw-bold small">{{ item.customer }}</td>
+                                    <td class="small">{{ item.service }}</td>
+                                    <td class="text-end small text-muted">{{ item.price|intcomma }}</td>
+                                    <td class="text-center small">
+                                        <span class="badge bg-light text-dark border">{{ item.rate }}%</span>
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold text-success">
+                                        +{{ item.money|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted small">
+                                        Bạn chưa làm dịch vụ nào trong tháng này.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            </div>
     </div>
 </div>
 
@@ -137,28 +209,32 @@
         if(e.key === 'Enter') searchCustomer();
     }
 
+    function selectCustomer(customerId) {
+        fetchCustomerInfo(`id=${customerId}`);
+    }
+
     function searchCustomer() {
         const query = document.getElementById('searchInput').value;
+        if(!query) {
+            document.getElementById('searchError').innerText = 'Vui lòng nhập thông tin tìm kiếm!';
+            return;
+        }
+        fetchCustomerInfo(`q=${query}`);
+    }
+
+    function fetchCustomerInfo(paramString) {
         const errorDiv = document.getElementById('searchError');
         const infoArea = document.getElementById('customerInfoArea');
         const servicesList = document.getElementById('servicesList');
         
-        // Reset
         errorDiv.innerText = '';
         infoArea.style.display = 'none';
         servicesList.innerHTML = '';
 
-        if(!query) {
-            errorDiv.innerText = 'Vui lòng nhập thông tin tìm kiếm!';
-            return;
-        }
-
-        // Gọi API
-        fetch(`{% url 'service_calendar:api_search_customer' %}?q=${query}`)
+        fetch(`{% url 'service_calendar:api_search_customer' %}?${paramString}`)
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
-                    // Hiển thị thông tin khách
                     infoArea.style.display = 'block';
                     document.getElementById('cusName').innerText = data.customer.name;
                     document.getElementById('cusPhone').innerText = data.customer.phone;
@@ -166,17 +242,16 @@
                     document.getElementById('cusTotal').innerText = Number(data.customer.total_spent).toLocaleString('vi-VN') + ' đ';
                     document.getElementById('hiddenCusId').value = data.customer.id;
 
-                    // Hiển thị danh sách dịch vụ
                     if(data.services.length > 0) {
                         document.getElementById('noServiceMsg').style.display = 'none';
                         data.services.forEach(svc => {
                             const item = `
-                                <label class="list-group-item d-flex gap-2 align-items-center">
+                                <label class="list-group-item d-flex gap-2 align-items-center" style="cursor: pointer;">
                                     <input class="form-check-input flex-shrink-0" type="radio" name="order_id" value="${svc.order_id}" required>
                                     <div class="w-100">
                                         <div class="d-flex justify-content-between">
                                             <strong class="text-primary">${svc.service_name}</strong>
-                                            <span class="badge bg-light text-dark border">${svc.price.toLocaleString('vi-VN')}đ</span>
+                                            <span class="badge bg-light text-dark border">${Number(svc.price).toLocaleString('vi-VN')}đ</span>
                                         </div>
                                         <small class="text-muted">Mua ngày: ${svc.date}</small>
                                     </div>
@@ -186,9 +261,7 @@
                         });
                     } else {
                         document.getElementById('noServiceMsg').style.display = 'block';
-                        servicesList.innerHTML = '<div class="p-3 text-center text-muted border rounded bg-light small">Khách này chưa có đơn hàng nào đã thanh toán.</div>';
                     }
-
                 } else {
                     errorDiv.innerText = data.message;
                 }
@@ -199,4 +272,11 @@
             });
     }
 </script>
+
+<style>
+    .list-group::-webkit-scrollbar { width: 6px; }
+    .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
+    .list-group::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    .list-group::-webkit-scrollbar-thumb:hover { background: #bbb; }
+</style>
 {% endblock %}
