@@ -10,7 +10,7 @@ class Service(models.Model):
     name = models.CharField(max_length=200, unique=True, verbose_name="Tên dịch vụ")
     base_price = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Giá cố định (VND)")
     
-    # [THÊM MỚI] Trường % Hoa hồng cho KTV
+    # Trường % Hoa hồng cho KTV
     commission_rate = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
@@ -57,6 +57,13 @@ class Order(models.Model):
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.TRANSFER, verbose_name="Hình thức thanh toán")
     note = models.TextField(blank=True, verbose_name="Ghi chú đơn hàng")
     is_paid = models.BooleanField(default=False, verbose_name="Đã thanh toán (Hoàn thành)")
+
+    # [THÊM MỚI] Tổng số buổi của liệu trình này (Lưu theo đơn hàng)
+    total_sessions = models.PositiveIntegerField(
+        default=1, 
+        verbose_name="Tổng số buổi liệu trình",
+        help_text="Số buổi khách mua thực tế (VD: 10 buổi)"
+    )
 
     def save(self, *args, **kwargs):
         if not self.pk and self.service:

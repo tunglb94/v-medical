@@ -41,6 +41,19 @@
                                 <div id="noServiceMsg" class="text-danger small fst-italic mt-1" style="display:none;">Khách chưa mua dịch vụ nào hoặc chưa thanh toán.</div>
                             </div>
 
+                            <div class="mb-3 bg-warning bg-opacity-10 p-2 rounded border border-warning">
+                                <label class="form-label fw-bold small text-dark mb-1">
+                                    <i class="bi bi-layers-fill"></i> Tổng số buổi của gói này:
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" name="total_sessions" id="inputTotalSessions" class="form-control fw-bold text-center text-primary" value="1" min="1">
+                                    <span class="input-group-text bg-white">Buổi</span>
+                                </div>
+                                <div class="form-text small fst-italic mt-1">
+                                    * Ví dụ gói 10 buổi thì nhập 10. Hệ thống sẽ chia đều hoa hồng.
+                                </div>
+                            </div>
+
                             <div class="row">
                                 <div class="col-6 mb-3">
                                     <label class="form-label fw-bold small text-muted">2. KTV thực hiện *</label>
@@ -319,7 +332,13 @@
                         data.services.forEach(svc => {
                             const item = `
                                 <label class="list-group-item d-flex gap-2 align-items-center" style="cursor: pointer;">
-                                    <input class="form-check-input flex-shrink-0" type="radio" name="order_id" value="${svc.order_id}" required>
+                                    <input class="form-check-input flex-shrink-0" 
+                                           type="radio" 
+                                           name="order_id" 
+                                           value="${svc.order_id}" 
+                                           data-sessions="${svc.total_sessions}"
+                                           onchange="updateSessionsInput(this)"
+                                           required>
                                     <div class="w-100">
                                         <div class="d-flex justify-content-between">
                                             <strong class="text-primary">${svc.service_name}</strong>
@@ -331,6 +350,9 @@
                             `;
                             servicesList.insertAdjacentHTML('beforeend', item);
                         });
+                        
+                        document.getElementById('inputTotalSessions').value = 1;
+
                     } else {
                         document.getElementById('noServiceMsg').style.display = 'block';
                     }
@@ -344,7 +366,16 @@
             });
     }
 
-    // [MỚI] Hàm mở Modal Sửa
+    // [MỚI] Cập nhật ô input khi chọn dịch vụ
+    function updateSessionsInput(radio) {
+        const sessions = radio.getAttribute('data-sessions');
+        if (sessions && sessions > 0) {
+            document.getElementById('inputTotalSessions').value = sessions;
+        } else {
+            document.getElementById('inputTotalSessions').value = 1;
+        }
+    }
+
     function openEditSessionModal(id, cusName, serviceName, techId, docId, note) {
         document.getElementById('editSessionId').value = id;
         document.getElementById('editCusName').innerText = cusName;

@@ -21,23 +21,21 @@ def technician_workspace(request):
     doctors = User.objects.filter(role='DOCTOR', is_active=True)
     technicians = User.objects.filter(role='TECHNICIAN', is_active=True)
     
-    # 1. Lấy lịch sử làm việc TOÀN BỘ hôm nay (để mọi người cùng thấy tiến độ chung)
+    # 1. Lấy lịch sử làm việc TOÀN BỘ hôm nay
     today_sessions = TreatmentSession.objects.select_related('customer', 'service', 'technician').order_by('-session_date')[:20]
 
-    # 2. Lấy danh sách khách hàng CÓ LIỆU TRÌNH (Có đơn hàng giá trị > 0)
-    # Sắp xếp theo ngày đơn hàng gần nhất
+    # 2. Lấy danh sách khách hàng CÓ LIỆU TRÌNH
     active_customers = Customer.objects.filter(
         order__total_amount__gt=0
     ).annotate(
         last_order_date=Max('order__order_date')
     ).order_by('-last_order_date').distinct()[:50]
 
-    # 3. TÍNH HOA HỒNG CÁ NHÂN (Của người đang login) TRONG THÁNG NÀY
+    # 3. TÍNH HOA HỒNG CÁ NHÂN
     today = timezone.now()
     current_month = today.month
     current_year = today.year
 
-    # Lọc các buổi tour do CHÍNH USER NÀY làm trong tháng này
     my_sessions_qs = TreatmentSession.objects.filter(
         technician=request.user,
         session_date__month=current_month,
@@ -48,33 +46,37 @@ def technician_workspace(request):
     total_commission_month = 0
 
     for session in my_sessions_qs:
-        # Giá tính: Lấy từ Đơn hàng thực tế (nếu có), nếu không lấy giá gốc dịch vụ
-        price_base = session.order.total_amount if session.order else session.service.base_price
+        # Lấy giá trị và số buổi từ Order
+        if session.order:
+            price_base = session.order.total_amount
+            # [MỚI] Lấy số buổi từ đơn hàng
+            total_sessions = session.order.total_sessions if session.order.total_sessions > 0 else 1
+        else:
+            price_base = session.service.base_price
+            total_sessions = 1
         
-        # % Hoa hồng: Lấy từ cấu hình dịch vụ
-        rate = session.service.commission_rate # VD: 0.5, 1, 5
+        rate = session.service.commission_rate
         
-        # Tiền nhận: Giá * (% / 100)
-        money = float(price_base) * (float(rate) / 100)
+        # [CÔNG THỨC MỚI] (Giá * % / 100) / Tổng số buổi
+        full_commission = float(price_base) * (float(rate) / 100)
+        money_per_session = full_commission / total_sessions
         
         my_commissions.append({
-            'id': session.id, # Thêm ID để link tới chi tiết nếu cần
+            'id': session.id,
             'date': session.session_date,
             'customer': session.customer.name,
-            'service': session.service.name,
+            'service': f"{session.service.name} (Gói {total_sessions}b)", # Hiển thị số buổi
             'price': price_base,
             'rate': rate,
-            'money': money
+            'money': money_per_session
         })
-        total_commission_month += money
+        total_commission_month += money_per_session
 
     context = {
         'doctors': doctors,
         'technicians': technicians,
         'history': today_sessions,
         'active_customers': active_customers,
-        
-        # Truyền dữ liệu hoa hồng
         'my_commissions': my_commissions,
         'total_commission_month': total_commission_month,
         'current_month': current_month
@@ -87,14 +89,12 @@ def api_search_customer_services(request):
     """API tìm khách và load dịch vụ đã mua"""
     query = request.GET.get('q', '').strip()
     if not query:
-        # Hỗ trợ tìm bằng ID trực tiếp (khi click từ list)
         customer_id = request.GET.get('id')
         if customer_id:
             customers = Customer.objects.filter(id=customer_id)
         else:
             return JsonResponse({'success': False, 'message': 'Vui lòng nhập thông tin'})
     else:
-        # Tìm khách hàng bằng SĐT hoặc Mã
         customers = Customer.objects.filter(Q(phone=query) | Q(customer_code=query))
     
     if not customers.exists():
@@ -102,7 +102,6 @@ def api_search_customer_services(request):
     
     customer = customers.first()
     
-    # Lấy các đơn hàng CÓ GIÁ TRỊ (>0) của khách (Bao gồm cả nợ và đã trả)
     paid_orders = Order.objects.filter(
         customer=customer, 
         total_amount__gt=0
@@ -113,15 +112,15 @@ def api_search_customer_services(request):
     
     for order in paid_orders:
         if order.service:
-            # Hiển thị trạng thái thanh toán
             status_text = "Đủ" if order.is_paid else "Nợ"
-            
             services_data.append({
                 'order_id': order.id,
                 'service_id': order.service.id,
                 'service_name': f"{order.service.name} ({status_text})",
                 'price': order.total_amount,
-                'date': order.order_date.strftime('%d/%m/%Y')
+                'date': order.order_date.strftime('%d/%m/%Y'),
+                # [MỚI] Trả về số buổi hiện tại của đơn hàng
+                'total_sessions': order.total_sessions
             })
             total_spent += order.total_amount
 
@@ -140,7 +139,7 @@ def api_search_customer_services(request):
 
 @login_required
 def create_treatment_session(request):
-    """Lưu buổi làm dịch vụ"""
+    """Lưu buổi làm dịch vụ & Cập nhật số buổi"""
     if request.method == 'POST':
         try:
             customer_id = request.POST.get('customer_id')
@@ -148,6 +147,9 @@ def create_treatment_session(request):
             doctor_id = request.POST.get('doctor_id')
             technician_id = request.POST.get('technician_id')
             note = request.POST.get('note')
+            
+            # [MỚI] Lấy số buổi từ form gửi lên
+            total_sessions_input = request.POST.get('total_sessions')
 
             if not customer_id or not order_id or not technician_id:
                 messages.error(request, "Thiếu thông tin bắt buộc (Khách, Dịch vụ, KTV).")
@@ -155,6 +157,16 @@ def create_treatment_session(request):
 
             order = Order.objects.get(id=order_id)
             
+            # [MỚI] Cập nhật số buổi vào Order nếu có thay đổi
+            if total_sessions_input:
+                try:
+                    ts = int(total_sessions_input)
+                    if ts > 0:
+                        order.total_sessions = ts
+                        order.save()
+                except ValueError:
+                    pass 
+
             TreatmentSession.objects.create(
                 customer_id=customer_id,
                 order=order,
@@ -164,7 +176,7 @@ def create_treatment_session(request):
                 note=note,
                 created_by=request.user
             )
-            messages.success(request, f"Đã lưu buổi làm: {order.service.name} cho khách {order.customer.name}")
+            messages.success(request, f"Đã lưu buổi làm & cập nhật liệu trình {order.total_sessions} buổi.")
             
         except Exception as e:
             messages.error(request, f"Lỗi: {e}")
@@ -174,7 +186,7 @@ def create_treatment_session(request):
 
 @login_required
 def edit_treatment_session(request):
-    """Sửa thông tin buổi làm việc (KTV, BS, Ghi chú)"""
+    """Sửa thông tin buổi làm việc"""
     if request.method == 'POST':
         try:
             session_id = request.POST.get('session_id')
@@ -184,14 +196,13 @@ def edit_treatment_session(request):
 
             session = TreatmentSession.objects.get(id=session_id)
             
-            # Cập nhật thông tin
             if technician_id:
                 session.technician_id = technician_id
             
             if doctor_id:
                 session.doctor_id = doctor_id
             else:
-                session.doctor = None # Cho phép bỏ chọn bác sĩ
+                session.doctor = None 
 
             session.note = note
             session.save()
