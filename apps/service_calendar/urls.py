@@ -4,10 +4,12 @@ from . import views
 app_name = 'service_calendar'
 
 urlpatterns = [
-    path('', views.calendar_dashboard, name='dashboard'),
-    path('add/', views.quick_add_appointment, name='quick_add'),
-    path('remind/<int:appt_id>/', views.confirm_reminder, name='confirm_reminder'),
+    # Giao diện chính cho KTV
+    path('', views.technician_workspace, name='dashboard'),
     
-    # [MỚI] API cập nhật trạng thái
-    path('update-status/', views.update_appointment_status, name='update_status'),
+    # API tìm khách hàng và lấy dịch vụ đã mua
+    path('api/search-customer/', views.api_search_customer_services, name='api_search_customer'),
+    
+    # Lưu buổi làm việc
+    path('create-session/', views.create_treatment_session, name='create_session'),
 ]
