@@ -1,199 +1,299 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load humanize %}
 
-{% block title %}Bàn Làm Việc Kỹ Thuật Viên{% endblock %}
+{% block title %}Marketing Dashboard - V-Medical{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-md-5">
-            <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary">
-                <div class="card-header bg-white py-3">
-                    <h5 class="fw-bold text-primary m-0"><i class="bi bi-search"></i> Tìm Khách & Làm Tour</h5>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <h4 class="fw-bold text-dark mb-0">MARKETING CENTER</h4>
+    
+    <div class="d-flex gap-2 flex-wrap justify-content-end">
+        <form method="GET" class="d-flex gap-2 bg-white p-1 rounded border shadow-sm flex-wrap align-items-center">
+            <input type="date" name="date_start" class="form-control border-0 form-control-sm" style="width: 110px;" value="{{ date_start }}">
+            <span class="align-self-center text-muted">-</span>
+            <input type="date" name="date_end" class="form-control border-0 form-control-sm" style="width: 110px;" value="{{ date_end }}">
+            
+            <select name="platform" class="form-select border-start form-select-sm" style="width: 130px;">
+                <option value="">-- Nguồn --</option>
+                {% for code, label in platform_choices %}
+                <option value="{{ code }}" {% if platform_query == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <input type="text" name="marketer" class="form-control border-start form-control-sm" placeholder="Tìm người chạy..." value="{{ marketer_query }}" style="width: 120px;">
+            <input type="text" name="service" class="form-control border-start form-control-sm" placeholder="Tìm dịch vụ..." value="{{ service_query }}" style="width: 120px;">
+            
+            <button class="btn btn-sm btn-dark"><i class="bi bi-filter"></i></button>
+        </form>
+        
+        <button class="btn btn-primary btn-sm fw-bold shadow-sm" type="button" onclick="openForm()">
+            <i class="bi bi-plus-lg me-1"></i> NHẬP SỐ LIỆU
+        </button>
+    </div>
+</div>
+
+<div class="collapse mb-4" id="inputForm">
+    <div class="card border-0 shadow-sm border-top border-primary border-4">
+        <div class="card-body bg-light">
+            <h6 class="fw-bold text-primary mb-3" id="formTitle">NHẬP BÁO CÁO MỚI</h6>
+            <form method="POST" class="row g-3" id="marketingForm">
+                {% csrf_token %}
+                <input type="hidden" name="stat_id" id="statId">
+                
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Ngày báo cáo</label>
+                    {{ form.report_date }}
                 </div>
-                <div class="card-body">
-                    <div class="input-group mb-3">
-                        <input type="text" id="searchInput" class="form-control" placeholder="Nhập SĐT hoặc Mã KH..." onkeypress="handleEnter(event)">
-                        <button class="btn btn-primary" onclick="searchCustomer()"><i class="bi bi-search"></i> Tìm</button>
-                    </div>
-                    <div id="searchError" class="text-danger small fw-bold mb-2"></div>
-
-                    <div id="customerInfoArea" style="display: none;">
-                        <div class="alert alert-info border-0 shadow-sm">
-                            <h5 class="fw-bold mb-1" id="cusName"></h5>
-                            <div class="d-flex justify-content-between small">
-                                <span><i class="bi bi-telephone"></i> <span id="cusPhone"></span></span>
-                                <span><i class="bi bi-upc-scan"></i> <span id="cusCode"></span></span>
-                            </div>
-                            <div class="mt-2 pt-2 border-top border-info">
-                                <small>Tổng chi tiêu:</small> 
-                                <span class="fw-bold text-danger fs-6" id="cusTotal"></span>
-                            </div>
-                        </div>
-
-                        <form action="{% url 'service_calendar:create_session' %}" method="POST">
-                            {% csrf_token %}
-                            <input type="hidden" name="customer_id" id="hiddenCusId">
-                            
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-muted">1. Chọn Dịch vụ khách làm hôm nay:</label>
-                                <div id="servicesList" class="list-group">
-                                    </div>
-                                <div id="noServiceMsg" class="text-danger small fst-italic mt-1" style="display:none;">Khách chưa mua dịch vụ nào.</div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-6 mb-3">
-                                    <label class="form-label fw-bold small text-muted">2. KTV thực hiện *</label>
-                                    <select name="technician_id" class="form-select">
-                                        {% for tech in technicians %}
-                                        <option value="{{ tech.id }}" {% if request.user.id == tech.id %}selected{% endif %}>
-                                            {{ tech.last_name }} {{ tech.first_name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-6 mb-3">
-                                    <label class="form-label fw-bold small text-muted">3. Bác sĩ (Nếu có)</label>
-                                    <select name="doctor_id" class="form-select">
-                                        <option value="">-- Không có --</option>
-                                        {% for doc in doctors %}
-                                        <option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <textarea name="note" class="form-control" rows="2" placeholder="Ghi chú buổi làm (tình trạng da, số shot bắn...)"></textarea>
-                            </div>
-
-                            <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm">
-                                <i class="bi bi-check-circle-fill"></i> XÁC NHẬN HOÀN THÀNH TOUR
-                            </button>
-                        </form>
-                    </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-primary">Nền tảng (Source)</label>
+                    {{ form.platform }} </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Người chạy Ads</label>
+                    {{ form.marketer }}
                 </div>
-            </div>
-        </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted">Dịch vụ / Campaign</label>
+                    {{ form.service }}
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold text-danger">Ngân sách (VNĐ)</label>
+                    {{ form.spend_amount }}
+                </div>
+                
+                <div class="col-12"><hr class="my-1 text-muted opacity-25"></div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Hiển thị (Impr)</label>
+                    {{ form.impressions }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Lượt Click</label>
+                    {{ form.clicks }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Xem Video (View)</label>
+                    {{ form.views }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Bình luận</label>
+                    {{ form.comments }}
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted">Tin nhắn (Inbox)</label>
+                    {{ form.inboxes }}
+                </div>
 
-        <div class="col-md-7">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold text-dark m-0"><i class="bi bi-clock-history"></i> Lịch Sử Tour Vừa Làm</h5>
-                    <span class="badge bg-light text-dark border">Hôm nay</span>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-primary">Leads (SĐT)</label>
+                    {{ form.leads }}
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light text-secondary small text-uppercase">
-                                <tr>
-                                    <th class="ps-3">Thời gian</th>
-                                    <th>Khách hàng</th>
-                                    <th>Dịch vụ</th>
-                                    <th>KTV / BS</th>
-                                    <th>Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in history %}
-                                <tr>
-                                    <td class="ps-3 small text-muted">{{ item.session_date|date:"H:i" }}</td>
-                                    <td>
-                                        <div class="fw-bold">{{ item.customer.name }}</div>
-                                        <div class="small text-muted">{{ item.customer.phone }}</div>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info text-dark">{{ item.service.name }}</span>
-                                    </td>
-                                    <td class="small">
-                                        <div><i class="bi bi-person"></i> {{ item.technician.last_name }} {{ item.technician.first_name }}</div>
-                                        {% if item.doctor %}
-                                        <div class="text-primary"><i class="bi bi-heart-pulse"></i> BS. {{ item.doctor.first_name }}</div>
-                                        {% endif %}
-                                    </td>
-                                    <td class="small text-muted fst-italic text-truncate" style="max-width: 150px;">
-                                        {{ item.note }}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted">
-                                        <i class="bi bi-inbox fs-1"></i><br>Chưa có buổi làm nào hôm nay.
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-success">Lịch hẹn</label>
+                    {{ form.appointments }}
                 </div>
-            </div>
+                
+                <div class="col-md-8 d-flex align-items-end justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" data-bs-toggle="collapse" data-bs-target="#inputForm">Đóng</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4" id="btnSave">LƯU BÁO CÁO</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
+<div class="row g-2 mb-4">
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-primary p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">CHI TIÊU</div>
+            <h5 class="fw-bold text-primary mb-0">{{ totals.sum_spend|intcomma }} <span class="fs-6 text-muted">đ</span></h5>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-warning p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">TỔNG LEADS</div>
+            <h5 class="fw-bold text-dark mb-0">{{ totals.sum_leads|intcomma }}</h5>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-danger p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">GIÁ SỐ (CPL)</div>
+            <h5 class="fw-bold text-danger mb-0">{{ avg_cpl|floatformat:0|intcomma }}</h5>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-info p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">GIÁ CLICK (CPC)</div>
+            <h5 class="fw-bold text-info mb-0">{{ avg_cpc|floatformat:0|intcomma }}</h5>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-secondary p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">CTR TB</div>
+            <h5 class="fw-bold text-secondary mb-0">{{ avg_ctr|floatformat:2 }}%</h5>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-box h-100 border-start border-4 border-success p-2 ps-3">
+            <div class="text-muted small fw-bold mb-1">LỊCH HẸN</div>
+            <h5 class="fw-bold text-success mb-0">{{ totals.sum_appts }}</h5>
+        </div>
+    </div>
+</div>
+
+<div class="card card-box mb-4">
+    <div class="card-body">
+        <div style="height: 300px;"><canvas id="marketingChart"></canvas></div>
+    </div>
+</div>
+
+<div class="card card-box shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small text-center table-bordered border-light">
+            <thead class="bg-light text-secondary">
+                <tr>
+                    <th class="py-3 text-start ps-3">Ngày</th>
+                    <th class="text-start">Nguồn</th> <th class="text-start" style="min-width: 150px;">Chiến dịch / Dịch vụ</th>
+                    <th class="text-end">Ngân sách</th>
+                    
+                    <th class="bg-light-info">Hiển thị</th>
+                    <th class="bg-light-info">Click</th>
+                    <th class="bg-light-info">CTR</th>
+                    <th class="bg-light-info text-end">CPC</th>
+                    
+                    <th>Leads</th>
+                    <th class="text-end text-danger">CPL</th>
+                    <th>Hẹn</th>
+                    <th>#</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in stats %}
+                <tr>
+                    <td class="text-start ps-3 fw-bold text-nowrap">{{ stat.report_date|date:"d/m" }}</td>
+                    
+                    <td class="text-start">
+                        {% if stat.platform == 'FACEBOOK' %}<span class="badge bg-primary">FB Ads</span>
+                        {% elif stat.platform == 'GOOGLE' %}<span class="badge bg-danger">Google</span>
+                        {% elif stat.platform == 'TIKTOK' %}<span class="badge bg-dark">Tiktok</span>
+                        {% elif stat.platform == 'ZALO' %}<span class="badge bg-info text-dark">Zalo</span>
+                        {% else %}<span class="badge bg-secondary">{{ stat.get_platform_display }}</span>{% endif %}
+                        <div class="text-muted fst-italic" style="font-size: 0.75rem;">{{ stat.marketer }}</div>
+                    </td>
+
+                    <td class="text-start text-muted">{{ stat.service|default:"--" }}</td>
+                    <td class="text-end fw-bold">{{ stat.spend_amount|intcomma }}</td>
+                    
+                    <td class="text-muted">{{ stat.impressions|intcomma }}</td>
+                    <td class="text-muted">{{ stat.clicks|intcomma }}</td>
+                    <td class="fw-bold text-primary">{{ stat.ctr|floatformat:2 }}%</td>
+                    <td class="text-end text-muted">{{ stat.cpc|floatformat:0|intcomma }}</td>
+
+                    <td class="fw-bold fs-6">{{ stat.leads }}</td>
+                    <td class="text-end text-danger fw-bold">{{ stat.cost_per_lead|floatformat:0|intcomma }}</td>
+                    <td class="fw-bold text-success">{{ stat.appointments }}</td>
+                    
+                    <td>
+                        <button class="btn btn-sm btn-light text-warning border" 
+                                onclick="editReport(this)"
+                                data-id="{{ stat.id }}"
+                                data-date="{{ stat.report_date|date:'Y-m-d' }}"
+                                data-platform="{{ stat.platform }}" 
+                                data-marketer="{{ stat.marketer|default:'' }}"
+                                data-service="{{ stat.service|default:'' }}"
+                                data-spend="{{ stat.spend_amount|stringformat:'d' }}"
+                                
+                                data-impr="{{ stat.impressions }}"
+                                data-clicks="{{ stat.clicks }}"
+                                data-views="{{ stat.views }}"
+                                
+                                data-comments="{{ stat.comments }}" 
+                                data-inboxes="{{ stat.inboxes }}"
+                                data-leads="{{ stat.leads }}" 
+                                data-appointments="{{ stat.appointments }}">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        
+                        <form action="{% url 'delete_marketing_report' stat.id %}" method="POST" class="d-inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa dòng này?');">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-light text-danger border"><i class="bi bi-trash-fill"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="12" class="py-5 text-muted">Chưa có dữ liệu báo cáo nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ chart_dates|json_script:"j-dates" }}
+{{ chart_cpl|json_script:"j-cpl" }}
+{{ chart_leads|json_script:"j-leads" }}
+
 <script>
-    function handleEnter(e) {
-        if(e.key === 'Enter') searchCustomer();
+    document.addEventListener('DOMContentLoaded', function() {
+        if(document.getElementById('j-dates')) {
+            function getData(id) { return JSON.parse(document.getElementById(id).textContent); }
+            new Chart(document.getElementById('marketingChart'), {
+                type: 'bar',
+                data: {
+                    labels: getData('j-dates'),
+                    datasets: [
+                        { label: 'Leads', data: getData('j-leads'), type: 'bar', backgroundColor: '#3498db', borderRadius: 4, order: 2 },
+                        { label: 'CPL (VNĐ)', data: getData('j-cpl'), type: 'line', borderColor: '#e74c3c', borderWidth: 2, tension: 0.3, order: 1, yAxisID: 'y1' }
+                    ]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { 
+                        y: { beginAtZero: true, title: {display: true, text: 'Số Leads'} },
+                        y1: { position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Chi phí CPL'} }
+                    } 
+                }
+            });
+        }
+    });
+
+    function openForm() {
+        document.getElementById('marketingForm').reset();
+        document.getElementById('statId').value = ''; 
+        document.getElementById('formTitle').innerText = "NHẬP SỐ LIỆU MỚI";
+        document.getElementById('btnSave').innerText = "LƯU BÁO CÁO";
+        document.getElementById('btnSave').className = "btn btn-success fw-bold px-4";
+        
+        new bootstrap.Collapse(document.getElementById('inputForm'), { show: true });
+        document.getElementById('inputForm').scrollIntoView({ behavior: 'smooth' });
     }
 
-    function searchCustomer() {
-        const query = document.getElementById('searchInput').value;
-        const errorDiv = document.getElementById('searchError');
-        const infoArea = document.getElementById('customerInfoArea');
-        const servicesList = document.getElementById('servicesList');
+    function editReport(button) {
+        // Điền dữ liệu cũ vào form
+        document.getElementById('statId').value = button.getAttribute('data-id');
+        document.querySelector('[name="report_date"]').value = button.getAttribute('data-date');
         
-        // Reset
-        errorDiv.innerText = '';
-        infoArea.style.display = 'none';
-        servicesList.innerHTML = '';
+        // Load thêm Platform & Metrics mới
+        document.querySelector('[name="platform"]').value = button.getAttribute('data-platform');
+        document.querySelector('[name="impressions"]').value = button.getAttribute('data-impr');
+        document.querySelector('[name="clicks"]').value = button.getAttribute('data-clicks');
+        document.querySelector('[name="views"]').value = button.getAttribute('data-views');
 
-        if(!query) {
-            errorDiv.innerText = 'Vui lòng nhập thông tin tìm kiếm!';
-            return;
-        }
+        document.querySelector('[name="marketer"]').value = button.getAttribute('data-marketer');
+        document.querySelector('[name="service"]').value = button.getAttribute('data-service');
+        document.querySelector('[name="spend_amount"]').value = button.getAttribute('data-spend');
+        document.querySelector('[name="comments"]').value = button.getAttribute('data-comments');
+        document.querySelector('[name="inboxes"]').value = button.getAttribute('data-inboxes');
+        document.querySelector('[name="leads"]').value = button.getAttribute('data-leads');
+        document.querySelector('[name="appointments"]').value = button.getAttribute('data-appointments');
 
-        // Gọi API
-        fetch(`{% url 'service_calendar:api_search_customer' %}?q=${query}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    // Hiển thị thông tin khách
-                    infoArea.style.display = 'block';
-                    document.getElementById('cusName').innerText = data.customer.name;
-                    document.getElementById('cusPhone').innerText = data.customer.phone;
-                    document.getElementById('cusCode').innerText = data.customer.code || '---';
-                    document.getElementById('cusTotal').innerText = Number(data.customer.total_spent).toLocaleString('vi-VN') + ' đ';
-                    document.getElementById('hiddenCusId').value = data.customer.id;
+        // Đổi trạng thái form
+        document.getElementById('formTitle').innerText = "CẬP NHẬT SỐ LIỆU";
+        var btn = document.getElementById('btnSave');
+        btn.innerText = "CẬP NHẬT";
+        btn.className = "btn btn-warning fw-bold px-4";
 
-                    // Hiển thị danh sách dịch vụ
-                    if(data.services.length > 0) {
-                        document.getElementById('noServiceMsg').style.display = 'none';
-                        data.services.forEach(svc => {
-                            const item = `
-                                <label class="list-group-item d-flex gap-2">
-                                    <input class="form-check-input flex-shrink-0" type="radio" name="order_id" value="${svc.order_id}" required>
-                                    <span>
-                                        <strong class="text-primary">${svc.service_name}</strong>
-                                        <br><small class="text-muted">Mua ngày: ${svc.date}</small>
-                                    </span>
-                                </label>
-                            `;
-                            servicesList.insertAdjacentHTML('beforeend', item);
-                        });
-                    } else {
-                        document.getElementById('noServiceMsg').style.display = 'block';
-                        servicesList.innerHTML = '<div class="p-2 text-center text-muted border rounded bg-light">Khách này chưa mua dịch vụ nào.</div>';
-                    }
-
-                } else {
-                    errorDiv.innerText = data.message;
-                }
-            })
-            .catch(err => {
-                errorDiv.innerText = 'Lỗi kết nối server.';
-                console.error(err);
-            });
+        new bootstrap.Collapse(document.getElementById('inputForm'), { show: true });
+        document.getElementById('inputForm').scrollIntoView({ behavior: 'smooth' });
     }
 </script>
 {% endblock %}
