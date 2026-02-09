@@ -4,21 +4,20 @@ from django.contrib.auth.forms import PasswordChangeForm
 
 User = get_user_model()
 
-# Danh sách các Menu trong hệ thống (Key phải khớp với base.html)
+# Danh sách các Menu trong hệ thống (Key phải khớp với base.html và permission map)
 MENU_CHOICES = [
-    ('dashboard', 'Dashboard Tổng quan (Admin)'),
-    ('telesale', 'Telesale Center'),
-    ('reception', 'Lễ tân & Lịch hẹn'),
-    ('service_calendar', 'Lịch CS & Nhắc hẹn'),
-    ('inventory', 'Kho & Vật tư'),
-    ('debt', 'Sổ Theo Dõi Nợ'),
-    ('customers', 'Hồ sơ Khách hàng'),
-    ('sales_report', 'Báo cáo Doanh thu'),
-    ('marketing', 'Marketing & Ads'),
-    ('resources', 'Tài liệu & Đào tạo'),
-    ('hr', 'Nhân sự (Hợp đồng/Lương)'),
-    ('attendance', 'Bảng công'),
-    ('chat', 'Chat Nội bộ'),
+    ('telesale', '☎️ Telesale Center'),
+    ('reception', '🏥 Lễ tân & Lịch hẹn'),
+    ('customers', '📂 Hồ sơ Khách hàng'),
+    ('marketing', '📢 Marketing & Ads'),
+    ('sales_report', '💰 Báo cáo Doanh thu'),
+    ('debt', '📒 Sổ Theo Dõi Nợ'),
+    ('inventory', '📦 Kho & Vật tư'),
+    ('service_calendar', '📅 Lịch CS & Nhắc hẹn'),
+    ('hr', 'busts_in_silhouette: Nhân sự (Hợp đồng/Lương)'),
+    ('attendance', '⏰ Bảng công'),
+    ('resources', '📚 Tài liệu & Đào tạo'),
+    ('chat', '💬 Chat Nội bộ'),
 ]
 
 # --- 1. FORM QUẢN LÝ NHÂN SỰ (DÀNH CHO ADMIN) ---
@@ -29,12 +28,12 @@ class StaffForm(forms.ModelForm):
         label="Mật khẩu (Để trống nếu không đổi)"
     )
     
-    # [MỚI] Checkbox chọn Menu
+    # [QUAN TRỌNG] Checkbox chọn Menu (Multiple Choice)
     allowed_menus = forms.MultipleChoiceField(
         choices=MENU_CHOICES,
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input-custom'}), # CSS class tùy chỉnh nếu cần
         required=False,
-        label="Phân quyền Menu (Chọn các mục được phép xem)"
+        label="Phân quyền Chi tiết (Tích để cấp quyền)"
     )
     
     class Meta:
@@ -53,20 +52,20 @@ class StaffForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Nếu đang sửa user cũ, lấy dữ liệu JSON đưa vào Checkbox
+        # Nếu đang sửa user cũ, lấy dữ liệu từ JSONField đưa vào Checkbox để hiển thị
         if self.instance and self.instance.pk:
             self.fields['allowed_menus'].initial = self.instance.allowed_menus
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        
+        # Xử lý mật khẩu
         password = self.cleaned_data.get('password')
         if password:
             user.set_password(password)
             
-        # Lưu allowed_menus (Django ModelForm tự xử lý field không có trong model nếu không cẩn thận,
-        # nhưng ở đây ta cần gán thủ công hoặc đảm bảo field có trong cleaned_data)
-        # Note: Vì allowed_menus là JSONField trong model, Django 3.1+ xử lý khá tốt, 
-        # nhưng với MultipleChoiceField ta cần đảm bảo nó lưu dưới dạng list.
+        # [QUAN TRỌNG] Lưu danh sách các menu đã chọn vào JSONField
+        # cleaned_data['allowed_menus'] sẽ trả về list ['telesale', 'marketing', ...]
         user.allowed_menus = self.cleaned_data.get('allowed_menus', [])
         
         if commit:
