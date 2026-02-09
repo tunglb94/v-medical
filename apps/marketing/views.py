@@ -28,6 +28,7 @@ def marketing_dashboard(request):
     service_query = request.GET.get('service', '')
     platform_query = request.GET.get('platform', '') 
     
+    # Xử lý Form thêm/sửa báo cáo hàng ngày
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -41,7 +42,7 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
-    # Lọc dữ liệu Báo cáo
+    # 1. Lấy số liệu Báo cáo (Chi phí, Leads...)
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     if marketer_query:
         stats = stats.filter(marketer__icontains=marketer_query)
@@ -52,6 +53,7 @@ def marketing_dashboard(request):
         
     stats = stats.order_by('-report_date', 'platform', 'marketer')
     
+    # Tính tổng quan Dashboard
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
@@ -77,12 +79,11 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- [CẬP NHẬT] TÍNH DOANH THU & ĐƠN RỚT ---
+    # --- TÍNH TOÁN DOANH THU THEO QUY TẮC CỨNG (DASHBOARD) ---
     revenue_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     failed_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     
-    # [QUAN TRỌNG] Lấy TẤT CẢ đơn hàng trong khoảng thời gian này
-    # Không dùng is_paid=True để tránh sót đơn nợ
+    # Lấy TẤT CẢ đơn hàng (Không lọc is_paid để tính cả đơn nợ)
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer')
@@ -95,7 +96,6 @@ def marketing_dashboard(request):
         
         target_key = None
 
-        # --- QUY TẮC GÁN NHÂN SỰ ---
         if 'Google' in source_val or 'Google' in fp_name:
             target_key = 'Long'
         elif fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
@@ -106,15 +106,14 @@ def marketing_dashboard(request):
             target_key = 'Hưng'
             
         if target_key:
-            # [SỬA LỖI] Cộng doanh thu THỰC THU (actual_revenue) thay vì total_amount
-            # Dù đơn chưa xong (nợ), nếu đã đóng tiền thì vẫn tính
+            # Cộng doanh thu THỰC THU (Kể cả đơn nợ)
             revenue_map[target_key] += order.actual_revenue
-
-            # Đếm đơn rớt: Chỉ đếm nếu KHÔNG thu được đồng nào (Thực thu = 0)
+            
+            # Đếm đơn rớt (Nếu chưa đóng đồng nào)
             if order.actual_revenue == 0:
                 failed_map[target_key] += 1
 
-    # Thống kê Marketer
+    # 3. Thống kê Hiệu quả theo Marketer
     marketer_stats_qs = stats.values('marketer').annotate(
         total_spend=Sum('spend_amount'),
         total_leads=Sum('leads'),
@@ -146,8 +145,6 @@ def marketing_dashboard(request):
         
         cpl = (sp / ld) if ld > 0 else 0
         cpa = (sp / ap) if ap > 0 else 0
-        
-        # Tính ROAS (Chi phí / Doanh thu) %
         roas = (sp / rev * 100) if rev > 0 else 0
         
         report_marketers.append({
@@ -162,7 +159,6 @@ def marketing_dashboard(request):
             'roas': roas
         })
 
-    # Biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -239,12 +235,15 @@ def marketing_report(request):
             appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
             total_appts += 1
 
+    # [CẬP NHẬT QUAN TRỌNG] Lấy tất cả đơn hàng (Bỏ filter is_paid=True)
+    # Nhưng chỉ lấy đơn có thực thu > 0 (để tránh đếm đơn rớt hoàn toàn nếu muốn, hoặc lấy hết)
+    # Ở đây lấy hết để tính số đơn
     orders = Order.objects.filter(
-        order_date__range=[date_start, date_end],
-        is_paid=True
+        order_date__range=[date_start, date_end]
     ).select_related('customer')
     
-    total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    # Tính tổng doanh thu dựa trên ACTUAL_REVENUE (Thực thu)
+    total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
 
     revenue_by_page = {}
     orders_count_by_page = {}
@@ -252,7 +251,11 @@ def marketing_report(request):
     for order in orders:
         if order.customer and order.customer.fanpage:
             fp = order.customer.fanpage
-            revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.total_amount
+            # [CẬP NHẬT] Cộng Actual Revenue thay vì Total Amount
+            revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.actual_revenue
+            
+            # Chỉ đếm số đơn nếu có thực thu > 0 (Hoặc tùy định nghĩa của bạn về "Số đơn")
+            # Ở đây đếm tất cả đơn đã lên
             orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
 
     report_data = []
@@ -300,7 +303,8 @@ def marketing_report(request):
     daily_leads = customers.values('created_at__date').annotate(count=Count('id')).order_by('created_at__date')
     leads_map = {item['created_at__date'].strftime('%Y-%m-%d'): item['count'] for item in daily_leads}
 
-    daily_revenue = orders.values('order_date').annotate(total=Sum('total_amount')).order_by('order_date')
+    # [CẬP NHẬT] Biểu đồ doanh thu cũng dùng Actual Revenue
+    daily_revenue = orders.values('order_date').annotate(total=Sum('actual_revenue')).order_by('order_date')
     rev_map = {item['order_date'].strftime('%Y-%m-%d'): float(item['total'] or 0) for item in daily_revenue}
 
     chart_labels = []
@@ -326,9 +330,9 @@ def marketing_report(request):
     if filter_fanpage:
         selected_fanpage_name = fanpage_choices.get(filter_fanpage, filter_fanpage)
         
+        # [CẬP NHẬT] Lấy cả đơn nợ
         detailed_orders = Order.objects.filter(
             order_date__range=[date_start, date_end],
-            # [LƯU Ý] Không lọc is_paid để hiện cả đơn rớt
             customer__fanpage=filter_fanpage
         ).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
 
