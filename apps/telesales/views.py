@@ -15,7 +15,8 @@ from apps.authentication.decorators import allowed_users
 User = get_user_model()
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['TELESALE', 'ADMIN', 'RECEPTIONIST', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['TELESALE', 'ADMIN', 'RECEPTIONIST', 'CONSULTANT', 'MARKETING', 'MANAGER', 'DIRECTOR'])
 def telesale_dashboard(request):
     today = timezone.now().date()
     
@@ -25,6 +26,7 @@ def telesale_dashboard(request):
 
     customers = Customer.objects.select_related('assigned_telesale').all()
 
+    # Nếu là Telesale thường thì chỉ thấy khách của team mình hoặc chưa gán
     if request.user.role == 'TELESALE' and getattr(request.user, 'team', None):
         teammate_ids = User.objects.filter(team=request.user.team).values_list('id', flat=True)
         customers = customers.filter(
@@ -253,11 +255,12 @@ def telesale_dashboard(request):
 
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['TELESALE', 'ADMIN', 'RECEPTIONIST', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['TELESALE', 'ADMIN', 'RECEPTIONIST', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def add_customer_manual(request):
     """
     Hàm thêm nhanh khách hàng từ màn hình Telesale Dashboard.
-    Logic mới: Chia đều theo NGÀY (Daily Load Balancing) + Sửa lỗi customer_set.
+    Logic mới: Chia đều theo NGÀY (Daily Load Balancing).
     """
     if request.method == "POST":
         phone = request.POST.get('phone', '').strip()
@@ -289,8 +292,6 @@ def add_customer_manual(request):
                 if team_b_members.exists():
                     today = timezone.now().date()
                     
-                    # 1. Dùng 'customer' (tên quan hệ đúng) thay vì 'customer_set'
-                    # 2. filter=Q(...) Chỉ đếm khách được tạo HÔM NAY (created_at__date=today)
                     target_telesale = team_b_members.annotate(
                         today_load=Count('customer', filter=Q(customer__created_at__date=today))
                     ).order_by('today_load', '?').first()
@@ -328,7 +329,8 @@ def add_customer_manual(request):
 
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['ADMIN', 'TELESALE', 'RECEPTIONIST', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['ADMIN', 'TELESALE', 'RECEPTIONIST', 'CONSULTANT', 'MARKETING', 'MANAGER', 'DIRECTOR'])
 def telesale_report(request):
     today = timezone.now().date()
     start_of_month = today.replace(day=1)

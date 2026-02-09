@@ -16,7 +16,8 @@ from apps.authentication.decorators import allowed_users
 User = get_user_model()
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT']) 
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER', 'DIRECTOR']) 
 def reception_dashboard(request):
     today = timezone.now().date()
     
@@ -97,7 +98,8 @@ def get_appointments_api(request):
     return JsonResponse(events, safe=False)
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def checkin_appointment(request, appointment_id):
     app = get_object_or_404(Appointment.objects.select_related('customer'), pk=appointment_id)
 
@@ -126,7 +128,8 @@ def checkin_appointment(request, appointment_id):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def create_appointment_reception(request):
     if request.method == "POST":
         customer_id = request.POST.get('customer_id')
@@ -144,7 +147,8 @@ def create_appointment_reception(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def add_walkin_appointment(request):
     if request.method == "POST":
         name = request.POST.get('name')
@@ -178,7 +182,8 @@ def add_walkin_appointment(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def finish_appointment(request):
     if request.method == "POST":
         appt_id = request.POST.get('appointment_id')
@@ -260,7 +265,8 @@ def finish_appointment(request):
     return redirect('reception_home')
 
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def edit_appointment(request, appointment_id):
     app = get_object_or_404(Appointment, pk=appointment_id)
 
@@ -283,14 +289,13 @@ def edit_appointment(request, appointment_id):
             
     return redirect('reception_home')
 
-# [MỚI] 1. HÀM XÓA LỊCH (CHO TRƯỜNG HỢP ĐẶT NHẦM)
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def delete_appointment_reception(request, appointment_id):
     try:
         appt = get_object_or_404(Appointment, id=appointment_id)
         
-        # Chỉ cho phép xóa khi chưa có đơn hàng (để an toàn dữ liệu)
         if hasattr(appt, 'order') and appt.order:
             messages.error(request, "Không thể xóa lịch đã có đơn hàng! Hãy hủy đơn hàng bên Sales trước.")
         else:
@@ -302,13 +307,12 @@ def delete_appointment_reception(request, appointment_id):
         
     return redirect('reception_home')
 
-# [MỚI] 2. HÀM BÁO KHÁCH KHÔNG ĐẾN (NO-SHOW)
 @login_required(login_url='/auth/login/')
-@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT'])
+# [CẬP NHẬT] Thêm quyền MARKETING
+@allowed_users(allowed_roles=['RECEPTIONIST', 'TELESALE', 'ADMIN', 'CONSULTANT', 'MARKETING', 'MANAGER'])
 def noshow_appointment(request, appointment_id):
     try:
         appt = get_object_or_404(Appointment, id=appointment_id)
-        # Đổi trạng thái sang NO_SHOW (Khách vắng mặt)
         appt.status = 'NO_SHOW' 
         appt.save()
         messages.warning(request, f"Đã đánh dấu khách {appt.customer.name} KHÔNG ĐẾN.")
