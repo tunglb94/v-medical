@@ -79,54 +79,43 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- [MỚI] TÍNH TOÁN DOANH THU THEO QUY TẮC CỨNG (HARDCODED RULES) ---
-    # Khởi tạo map doanh thu cho các nhân sự chủ chốt
-    revenue_map = {
-        'Vũ': 0,
-        'Huy': 0,
-        'Hưng': 0,
-        'Long': 0
-    }
+    # --- TÍNH TOÁN DOANH THU & ĐƠN RỚT THEO QUY TẮC CỨNG ---
+    revenue_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
+    failed_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     
-    # Lấy các đơn hàng đã thanh toán trong khoảng thời gian này
-    paid_orders = Order.objects.filter(
-        order_date__range=[date_start, date_end],
-        is_paid=True
+    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này (Không lọc is_paid)
+    all_orders = Order.objects.filter(
+        order_date__range=[date_start, date_end]
     ).select_related('customer')
 
-    for order in paid_orders:
+    for order in all_orders:
         cus = order.customer
-        # Lấy tên hiển thị của Fanpage (để so sánh chuỗi chính xác)
         fp_name = cus.get_fanpage_display() if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage)
         if not fp_name: fp_name = ""
-        
-        # Lấy nguồn (Source)
         source_val = str(cus.source) if hasattr(cus, 'source') and cus.source else ""
         
-        amount = order.total_amount
+        target_key = None
 
-        # QUY TẮC 1: Long -> Nguồn Google (Hoặc tên Fanpage có chữ Google nếu lưu vào đó)
+        # --- QUY TẮC GÁN NHÂN SỰ ---
+        # 1. Long: Google
         if 'Google' in source_val or 'Google' in fp_name:
-            revenue_map['Long'] += amount
-            continue # Đã gán xong, qua đơn tiếp theo
-
-        # QUY TẮC 2: Vũ -> Page "Bác Sĩ Hoàng Vũ - CK I Da Liễu"
-        if fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
-            revenue_map['Vũ'] += amount
-            continue
-
-        # QUY TẮC 3: Huy -> 2 Page "Ultherapy Prime..." và "Cao Trần Quân..."
-        if fp_name in [
-            "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", 
-            "Cao Trần Quân - Viện Da Liễu V Medical"
-        ]:
-            revenue_map['Huy'] += amount
-            continue
-
-        # QUY TẮC 4: Hưng -> Page "V - Medical Clinic"
-        if fp_name == "V - Medical Clinic":
-            revenue_map['Hưng'] += amount
-            continue
+            target_key = 'Long'
+        # 2. Vũ: Page Bác Sĩ Hoàng Vũ...
+        elif fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
+            target_key = 'Vũ'
+        # 3. Huy: Ultherapy Prime... & Cao Trần Quân...
+        elif fp_name in ["Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", "Cao Trần Quân - Viện Da Liễu V Medical"]:
+            target_key = 'Huy'
+        # 4. Hưng: V - Medical Clinic
+        elif fp_name == "V - Medical Clinic":
+            target_key = 'Hưng'
+            
+        # Cộng dồn số liệu
+        if target_key:
+            if order.is_paid:
+                revenue_map[target_key] += order.total_amount
+            else:
+                failed_map[target_key] += 1
 
     # 3. Thống kê Hiệu quả theo Marketer (Gộp Chi phí + Doanh thu)
     marketer_stats_qs = stats.values('marketer').annotate(
@@ -137,25 +126,27 @@ def marketing_dashboard(request):
 
     report_marketers = []
     for item in marketer_stats_qs:
-        m_name = item['marketer'] # Tên nhập trong báo cáo (VD: "Vũ Ads", "Huy Marketing", "Thế Hưng"...)
+        m_name = item['marketer'] # Tên nhập trong báo cáo
         if not m_name: continue
         
         sp = item['total_spend'] or 0
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
-        # Map doanh thu dựa trên tên (So sánh tương đối để bắt đúng các biến thể tên nhập)
+        # Map dữ liệu doanh thu & đơn rớt theo tên
         rev = 0
+        failed = 0
         m_name_lower = m_name.lower()
         
-        if "vũ" in m_name_lower:
-            rev = revenue_map['Vũ']
-        elif "huy" in m_name_lower:
-            rev = revenue_map['Huy']
-        elif "hưng" in m_name_lower:
-            rev = revenue_map['Hưng']
-        elif "long" in m_name_lower:
-            rev = revenue_map['Long']
+        target_key = None
+        if "vũ" in m_name_lower: target_key = 'Vũ'
+        elif "huy" in m_name_lower: target_key = 'Huy'
+        elif "hưng" in m_name_lower: target_key = 'Hưng'
+        elif "long" in m_name_lower: target_key = 'Long'
+        
+        if target_key:
+            rev = revenue_map[target_key]
+            failed = failed_map[target_key]
         
         cpl = (sp / ld) if ld > 0 else 0
         cpa = (sp / ap) if ap > 0 else 0
@@ -171,6 +162,7 @@ def marketing_dashboard(request):
             'cpl': cpl,
             'cpa': cpa,
             'revenue': rev,
+            'failed_orders': failed,
             'roas': roas
         })
 
@@ -330,7 +322,8 @@ def marketing_report(request):
         
         current_date += timedelta(days=1)
 
-    # TRUY VẤN CHI TIẾT ĐƠN HÀNG KHI LỌC FANPAGE
+    # [MỚI] TRUY VẤN CHI TIẾT ĐƠN HÀNG KHI LỌC FANPAGE
+    # Lấy cả đơn rớt (is_paid=False) để check chéo
     detailed_orders = None
     selected_fanpage_name = None
     filter_fanpage = request.GET.get('filter_fanpage')
@@ -340,8 +333,7 @@ def marketing_report(request):
         
         detailed_orders = Order.objects.filter(
             order_date__range=[date_start, date_end],
-            is_paid=True,
-            customer__fanpage=filter_fanpage
+            customer__fanpage=filter_fanpage # KHÔNG lọc is_paid để hiện tất cả
         ).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
 
     context = {

@@ -165,7 +165,10 @@
                 <i class="bi bi-receipt-cutoff me-2"></i> 
                 CHI TIẾT ĐƠN HÀNG: {{ selected_fanpage_name }}
             </h5>
-            <span class="badge bg-success">{{ detailed_orders|length }} Đơn hàng</span>
+            <div>
+                <span class="badge bg-success me-2">Đã thanh toán</span>
+                <span class="badge bg-danger">Chưa thanh toán (Rớt)</span>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -177,13 +180,12 @@
                             <th>SĐT</th>
                             <th>Dịch vụ</th>
                             <th>Tư vấn viên</th>
-                            <th class="text-end pe-3">Doanh thu</th>
+                            <th class="text-center">Trạng thái</th> <th class="text-end pe-3">Giá trị đơn</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for order in detailed_orders %}
-                        <tr>
-                            <td class="ps-3 text-muted small">{{ order.order_date|date:"d/m/Y" }}</td>
+                        <tr class="{% if not order.is_paid %}table-danger{% endif %}"> <td class="ps-3 text-muted small">{{ order.order_date|date:"d/m/Y" }}</td>
                             <td class="fw-bold text-primary">
                                 <a href="{% url 'customer_detail' order.customer.id %}" target="_blank" class="text-decoration-none">
                                     {{ order.customer.name }} <i class="bi bi-box-arrow-up-right small ms-1"></i>
@@ -200,7 +202,16 @@
                                     <span class="text-muted">--</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end pe-3 fw-bold text-success">
+                            
+                            <td class="text-center">
+                                {% if order.is_paid %}
+                                    <span class="badge bg-success">Thành công</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Chưa TT / Nợ</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-end pe-3 fw-bold {% if order.is_paid %}text-success{% else %}text-danger{% endif %}">
                                 {{ order.total_amount|intcomma }} đ
                             </td>
                         </tr>
