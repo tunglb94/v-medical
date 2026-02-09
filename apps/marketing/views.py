@@ -28,7 +28,6 @@ def marketing_dashboard(request):
     service_query = request.GET.get('service', '')
     platform_query = request.GET.get('platform', '') 
     
-    # Xử lý Form thêm/sửa báo cáo hàng ngày
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -42,7 +41,7 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
-    # 1. Lấy số liệu Báo cáo (Chi phí, Leads...)
+    # Lọc dữ liệu Báo cáo
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     if marketer_query:
         stats = stats.filter(marketer__icontains=marketer_query)
@@ -53,7 +52,6 @@ def marketing_dashboard(request):
         
     stats = stats.order_by('-report_date', 'platform', 'marketer')
     
-    # Tính tổng quan Dashboard
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
@@ -79,11 +77,12 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- TÍNH TOÁN DOANH THU & ĐƠN RỚT THEO QUY TẮC CỨNG ---
+    # --- [CẬP NHẬT] TÍNH DOANH THU & ĐƠN RỚT ---
     revenue_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     failed_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     
-    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này (Không lọc is_paid)
+    # [QUAN TRỌNG] Lấy TẤT CẢ đơn hàng trong khoảng thời gian này
+    # Không dùng is_paid=True để tránh sót đơn nợ
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer')
@@ -97,27 +96,25 @@ def marketing_dashboard(request):
         target_key = None
 
         # --- QUY TẮC GÁN NHÂN SỰ ---
-        # 1. Long: Google
         if 'Google' in source_val or 'Google' in fp_name:
             target_key = 'Long'
-        # 2. Vũ: Page Bác Sĩ Hoàng Vũ...
         elif fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
             target_key = 'Vũ'
-        # 3. Huy: Ultherapy Prime... & Cao Trần Quân...
         elif fp_name in ["Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", "Cao Trần Quân - Viện Da Liễu V Medical"]:
             target_key = 'Huy'
-        # 4. Hưng: V - Medical Clinic
         elif fp_name == "V - Medical Clinic":
             target_key = 'Hưng'
             
-        # Cộng dồn số liệu
         if target_key:
-            if order.is_paid:
-                revenue_map[target_key] += order.total_amount
-            else:
+            # [SỬA LỖI] Cộng doanh thu THỰC THU (actual_revenue) thay vì total_amount
+            # Dù đơn chưa xong (nợ), nếu đã đóng tiền thì vẫn tính
+            revenue_map[target_key] += order.actual_revenue
+
+            # Đếm đơn rớt: Chỉ đếm nếu KHÔNG thu được đồng nào (Thực thu = 0)
+            if order.actual_revenue == 0:
                 failed_map[target_key] += 1
 
-    # 3. Thống kê Hiệu quả theo Marketer (Gộp Chi phí + Doanh thu)
+    # Thống kê Marketer
     marketer_stats_qs = stats.values('marketer').annotate(
         total_spend=Sum('spend_amount'),
         total_leads=Sum('leads'),
@@ -126,14 +123,13 @@ def marketing_dashboard(request):
 
     report_marketers = []
     for item in marketer_stats_qs:
-        m_name = item['marketer'] # Tên nhập trong báo cáo
+        m_name = item['marketer']
         if not m_name: continue
         
         sp = item['total_spend'] or 0
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
-        # Map dữ liệu doanh thu & đơn rớt theo tên
         rev = 0
         failed = 0
         m_name_lower = m_name.lower()
@@ -166,7 +162,7 @@ def marketing_dashboard(request):
             'roas': roas
         })
 
-    # Dữ liệu biểu đồ
+    # Biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -322,8 +318,7 @@ def marketing_report(request):
         
         current_date += timedelta(days=1)
 
-    # [MỚI] TRUY VẤN CHI TIẾT ĐƠN HÀNG KHI LỌC FANPAGE
-    # Lấy cả đơn rớt (is_paid=False) để check chéo
+    # TRUY VẤN CHI TIẾT ĐƠN HÀNG KHI LỌC FANPAGE
     detailed_orders = None
     selected_fanpage_name = None
     filter_fanpage = request.GET.get('filter_fanpage')
@@ -333,7 +328,8 @@ def marketing_report(request):
         
         detailed_orders = Order.objects.filter(
             order_date__range=[date_start, date_end],
-            customer__fanpage=filter_fanpage # KHÔNG lọc is_paid để hiện tất cả
+            # [LƯU Ý] Không lọc is_paid để hiện cả đơn rớt
+            customer__fanpage=filter_fanpage
         ).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
 
     context = {
