@@ -68,9 +68,6 @@ def marketing_dashboard(request):
     for key in totals:
         if totals[key] is None: totals[key] = 0
 
-    # Lưu ý: Tổng quan ở trên cùng vẫn hiển thị số nhập vào (chưa VAT) để đối chiếu hóa đơn
-    # Nếu muốn tổng quan cũng VAT thì nhân 1.1 ở đây. 
-    # Nhưng theo yêu cầu của bạn, tôi chỉ sửa phần "HIỆU QUẢ THEO NHÂN SỰ".
     total_spend = totals['sum_spend']
     total_leads = totals['sum_leads']
     total_appts = totals['sum_appts']
@@ -86,7 +83,7 @@ def marketing_dashboard(request):
     revenue_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     failed_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     
-    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này (Không lọc is_paid)
+    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer')
@@ -100,25 +97,18 @@ def marketing_dashboard(request):
         target_key = None
 
         # --- QUY TẮC GÁN NHÂN SỰ ---
-        # 1. Long: Google
         if 'Google' in source_val or 'Google' in fp_name:
             target_key = 'Long'
-        # 2. Vũ: Page Bác Sĩ Hoàng Vũ...
         elif fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
             target_key = 'Vũ'
-        # 3. Huy: Ultherapy Prime... & Cao Trần Quân...
         elif fp_name in ["Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", "Cao Trần Quân - Viện Da Liễu V Medical"]:
             target_key = 'Huy'
-        # 4. Hưng: V - Medical Clinic
         elif fp_name == "V - Medical Clinic":
             target_key = 'Hưng'
             
         # Cộng dồn số liệu
         if target_key:
-            # Cộng thực thu (Doanh thu thực tế)
             revenue_map[target_key] += order.actual_revenue
-            
-            # Đếm đơn rớt (Nếu chưa đóng đồng nào)
             if order.actual_revenue == 0:
                 failed_map[target_key] += 1
 
@@ -131,12 +121,14 @@ def marketing_dashboard(request):
 
     report_marketers = []
     for item in marketer_stats_qs:
-        m_name = item['marketer'] # Tên nhập trong báo cáo
+        m_name = item['marketer']
         if not m_name: continue
         
-        # [CẬP NHẬT] TÍNH CHI TIÊU CÓ VAT (10%)
+        # [CẬP NHẬT] TÍNH CHI TIÊU CÓ VAT (10%) & LÀM TRÒN
         raw_spend = item['total_spend'] or 0
-        sp = float(raw_spend) * 1.1 # Cộng 10% VAT vào chi tiêu để tính các chỉ số
+        
+        # Nhân 1.1 rồi dùng round() để bỏ phần thập phân thừa
+        sp = round(float(raw_spend) * 1.1) 
         
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
@@ -156,16 +148,16 @@ def marketing_dashboard(request):
             rev = revenue_map[target_key]
             failed = failed_map[target_key]
         
-        # Tính lại các chỉ số dựa trên Chi tiêu đã có VAT (sp)
+        # Tính lại các chỉ số
         cpl = (sp / ld) if ld > 0 else 0
         cpa = (sp / ap) if ap > 0 else 0
         
-        # Tính ROAS (Chi phí có VAT / Doanh thu) %
+        # Tính ROAS (Chi phí / Doanh thu) %
         roas = (sp / float(rev) * 100) if rev > 0 else 0
         
         report_marketers.append({
             'name': m_name,
-            'spend': sp, # Hiển thị số tiền đã có VAT
+            'spend': sp, # Số đã làm tròn
             'leads': ld,
             'appts': ap,
             'cpl': cpl,
@@ -187,13 +179,13 @@ def marketing_dashboard(request):
         d_leads = item['daily_leads'] or 0
         d_spend = item['daily_spend'] or 0
         
-        # Biểu đồ CPL cũng nên tính theo VAT cho khớp
-        d_spend_vat = float(d_spend) * 1.1
+        # Làm tròn số liệu biểu đồ cho đẹp
+        d_spend_vat = round(float(d_spend) * 1.1)
         
         d_cpl = (d_spend_vat / d_leads) if d_leads > 0 else 0
         chart_dates.append(item['report_date'].strftime('%d/%m'))
         chart_leads.append(d_leads)
-        chart_cpl.append(float(d_cpl))
+        chart_cpl.append(round(d_cpl)) # Làm tròn CPL biểu đồ
     
     platform_choices = DailyCampaignStat.Platform.choices
 
@@ -235,8 +227,6 @@ def marketing_report(request):
 
     campaign_stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     total_cost = campaign_stats.aggregate(Sum('spend_amount'))['spend_amount__sum'] or 0
-    # Nếu muốn tổng chi phí ở trang Report cũng có VAT thì mở comment dòng dưới:
-    # total_cost = float(total_cost) * 1.1
 
     customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     total_leads = customers.count()
@@ -259,13 +249,11 @@ def marketing_report(request):
             total_appts += 1
 
     # [CẬP NHẬT] Lấy tất cả đơn hàng (Bỏ filter is_paid=True)
-    # Nhưng chỉ lấy đơn có thực thu > 0 (để tránh đếm đơn rớt hoàn toàn nếu muốn, hoặc lấy hết)
-    # Ở đây lấy hết để tính số đơn
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer')
     
-    # Tính tổng doanh thu dựa trên ACTUAL_REVENUE (Thực thu)
+    # Tính tổng doanh thu dựa trên ACTUAL_REVENUE
     total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
 
     revenue_by_page = {}
@@ -274,11 +262,7 @@ def marketing_report(request):
     for order in orders:
         if order.customer and order.customer.fanpage:
             fp = order.customer.fanpage
-            # [CẬP NHẬT] Cộng Actual Revenue thay vì Total Amount
             revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.actual_revenue
-            
-            # Chỉ đếm số đơn nếu có thực thu > 0 (Hoặc tùy định nghĩa của bạn về "Số đơn")
-            # Ở đây đếm tất cả đơn đã lên
             orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
 
     report_data = []
