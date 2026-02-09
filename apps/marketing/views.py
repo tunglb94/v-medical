@@ -10,7 +10,6 @@ import json
 from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
 from apps.sales.models import Service, Order
 from apps.customers.models import Customer
-# [THÊM MỚI] Import Appointment để đếm số lịch hẹn
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -43,7 +42,7 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
-    # Lọc dữ liệu
+    # Lọc dữ liệu Báo cáo (Chi phí, Leads...)
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     if marketer_query:
         stats = stats.filter(marketer__icontains=marketer_query)
@@ -54,6 +53,7 @@ def marketing_dashboard(request):
         
     stats = stats.order_by('-report_date', 'platform', 'marketer')
     
+    # Tính tổng quan Dashboard
     totals = stats.aggregate(
         sum_spend=Sum('spend_amount'), 
         sum_leads=Sum('leads'),
@@ -79,6 +79,66 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
+    # [MỚI] TÍNH TOÁN DOANH THU ĐỂ TÍNH ROAS
+    # Lấy các đơn hàng đã thanh toán trong khoảng thời gian này
+    revenue_map = {}
+    paid_orders = Order.objects.filter(
+        order_date__range=[date_start, date_end],
+        is_paid=True
+    ).select_related('customer')
+
+    for order in paid_orders:
+        # Tìm nhân viên marketing gắn với khách hàng này (nếu có)
+        # Giả định Customer có trường 'marketing_staff' hoặc 'marketer'
+        marketer_obj = getattr(order.customer, 'marketing_staff', None) or getattr(order.customer, 'marketer', None)
+        
+        if marketer_obj:
+            # Dùng username hoặc tên để map với trường 'marketer' trong bảng DailyCampaignStat
+            # (Lưu ý: Tên nhập trong báo cáo Ads cần khớp với Username/Tên trong hệ thống)
+            m_key = str(marketer_obj) # Hoặc marketer_obj.username
+            revenue_map[m_key] = revenue_map.get(m_key, 0) + order.total_amount
+            
+            # Fallback: Map thêm theo username nếu stat lưu username
+            if hasattr(marketer_obj, 'username'):
+                revenue_map[marketer_obj.username] = revenue_map.get(marketer_obj.username, 0) + order.total_amount
+
+    # [MỚI] THỐNG KÊ HIỆU QUẢ THEO NHÂN SỰ (MARKETER)
+    marketer_stats_qs = stats.values('marketer').annotate(
+        total_spend=Sum('spend_amount'),
+        total_leads=Sum('leads'),
+        total_appts=Sum('appointments')
+    ).order_by('-total_spend')
+
+    report_marketers = []
+    for item in marketer_stats_qs:
+        m_name = item['marketer']
+        if not m_name: continue 
+        
+        sp = item['total_spend'] or 0
+        ld = item['total_leads'] or 0
+        ap = item['total_appts'] or 0
+        
+        # Lấy doanh thu từ map
+        rev = revenue_map.get(m_name, 0)
+        
+        cpl = (sp / ld) if ld > 0 else 0
+        cpa = (sp / ap) if ap > 0 else 0
+        
+        # Tính ROAS (Chi phí / Doanh thu) %
+        roas = (sp / rev * 100) if rev > 0 else 0
+        
+        report_marketers.append({
+            'name': m_name,
+            'spend': sp,
+            'leads': ld,
+            'appts': ap,
+            'cpl': cpl,
+            'cpa': cpa,
+            'revenue': rev,
+            'roas': roas
+        })
+
+    # Dữ liệu biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -104,7 +164,8 @@ def marketing_dashboard(request):
         'date_start': date_start, 'date_end': date_end,
         'marketer_query': marketer_query, 'service_query': service_query,
         'platform_query': platform_query,
-        'platform_choices': platform_choices
+        'platform_choices': platform_choices,
+        'report_marketers': report_marketers 
     }
     return render(request, 'marketing/dashboard.html', context)
 
@@ -119,9 +180,6 @@ def delete_report(request, pk):
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'MANAGER'])
 def marketing_report(request):
-    """
-    Báo cáo tổng hợp: Data -> Hẹn -> Đơn hàng (Phễu vận hành)
-    """
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
 
@@ -134,22 +192,17 @@ def marketing_report(request):
     except:
         date_start, date_end = start_of_month, today
 
-    # 1. Tổng Chi phí Marketing (Để hiển thị tổng quan nếu có)
     campaign_stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     total_cost = campaign_stats.aggregate(Sum('spend_amount'))['spend_amount__sum'] or 0
 
-    # 2. Tổng Data Leads (Từ Customer)
     customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     total_leads = customers.count()
     
-    # Group Leads theo Fanpage
     leads_by_page = {}
     cus_grouped = customers.values('fanpage').annotate(count=Count('id'))
     for item in cus_grouped:
         leads_by_page[item['fanpage']] = item['count']
 
-    # 3. [MỚI] Tổng Lịch Hẹn (Appointment)
-    # Đếm số lịch hẹn được tạo ra trong khoảng thời gian này
     appointments = Appointment.objects.filter(
         created_at__date__range=[date_start, date_end]
     ).select_related('customer')
@@ -162,7 +215,6 @@ def marketing_report(request):
             appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
             total_appts += 1
 
-    # 4. Tổng Doanh thu & Đơn hàng (Order)
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end],
         is_paid=True
@@ -170,7 +222,6 @@ def marketing_report(request):
     
     total_revenue = orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
 
-    # Group Doanh thu & Số đơn theo Fanpage
     revenue_by_page = {}
     orders_count_by_page = {}
     
@@ -180,9 +231,7 @@ def marketing_report(request):
             revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.total_amount
             orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
 
-    # 5. Tổng hợp bảng chi tiết Fanpage
     report_data = []
-    # Lấy tất cả Fanpage xuất hiện trong Data, Hẹn hoặc Đơn
     all_fanpages = set(list(leads_by_page.keys()) + list(appts_by_page.keys()) + list(orders_count_by_page.keys()))
     
     fanpage_choices = dict(Customer.Fanpage.choices)
@@ -195,21 +244,11 @@ def marketing_report(request):
         orders_count = orders_count_by_page.get(fp_code, 0)
         revenue = revenue_by_page.get(fp_code, 0)
         
-        # --- TÍNH TỶ LỆ CHUYỂN ĐỔI ---
-        
-        # 1. Tỷ lệ Data -> Hẹn (Chất lượng Data + Telesale)
         rate_lead_to_appt = (appts / leads * 100) if leads > 0 else 0
-        
-        # 2. Tỷ lệ Hẹn -> Đơn (Tỷ lệ đến khám + Chốt Sale tại phòng)
         rate_appt_to_order = (orders_count / appts * 100) if appts > 0 else 0
-
-        # Doanh thu trung bình mỗi Data (Revenue per Lead)
         rpl = (revenue / leads) if leads > 0 else 0
-
-        # Trung bình đơn (AOV)
         aov = (revenue / orders_count) if orders_count > 0 else 0
 
-        # Đánh giá chất lượng sơ bộ dựa trên tỷ lệ hẹn
         quality_tag = "Bình thường"
         if rate_lead_to_appt > 30: quality_tag = "🔥 Data xịn"
         elif rate_lead_to_appt > 15: quality_tag = "✅ Ổn định"
@@ -229,27 +268,17 @@ def marketing_report(request):
             'quality': quality_tag
         })
 
-    # Sắp xếp theo số lượng Data giảm dần
     report_data.sort(key=lambda x: x['leads'], reverse=True)
 
-    # 6. Chỉ số tổng quan toàn cục
     global_percent_cost = (total_cost / total_revenue * 100) if total_revenue > 0 else 0
-    
-    # Tỷ lệ chuyển đổi Data -> Hẹn toàn hệ thống
     global_conversion_appt = (total_appts / total_leads * 100) if total_leads > 0 else 0
 
-    # --- CHUẨN BỊ DỮ LIỆU BIỂU ĐỒ (Group theo ngày) ---
-    # 1. Data Leads theo ngày
     daily_leads = customers.values('created_at__date').annotate(count=Count('id')).order_by('created_at__date')
     leads_map = {item['created_at__date'].strftime('%Y-%m-%d'): item['count'] for item in daily_leads}
 
-    # 2. Doanh thu theo ngày
     daily_revenue = orders.values('order_date').annotate(total=Sum('total_amount')).order_by('order_date')
-    
-    # [FIX LỖI] Chuyển Decimal sang float tại đây để JSON serialize được
     rev_map = {item['order_date'].strftime('%Y-%m-%d'): float(item['total'] or 0) for item in daily_revenue}
 
-    # 3. Tạo danh sách ngày liên tục từ start đến end
     chart_labels = []
     chart_data_leads = []
     chart_data_revenue = []
@@ -257,11 +286,10 @@ def marketing_report(request):
     current_date = date_start
     while current_date <= date_end:
         d_str = current_date.strftime('%Y-%m-%d')
-        d_label = current_date.strftime('%d/%m') # Nhãn hiển thị (VD: 01/01)
+        d_label = current_date.strftime('%d/%m') 
         
         chart_labels.append(d_label)
         chart_data_leads.append(leads_map.get(d_str, 0))
-        # Do rev_map đã chứa float nên get ra sẽ là float (hoặc 0)
         chart_data_revenue.append(rev_map.get(d_str, 0))
         
         current_date += timedelta(days=1)
@@ -278,7 +306,7 @@ def marketing_report(request):
         'report_data': report_data,
         'chart_labels': json.dumps(chart_labels),
         'chart_data_leads': json.dumps(chart_data_leads),
-        'chart_data_revenue': json.dumps(chart_data_revenue), # Giờ đã an toàn
+        'chart_data_revenue': json.dumps(chart_data_revenue), 
     }
     return render(request, 'marketing/report.html', context)
 
@@ -393,7 +421,7 @@ def content_ads_edit(request, pk):
     return redirect('content_ads_list')
 
 # --- 5. API LẤY LỊCH SỬ FEEDBACK ---
-@login_required
+@login_required(login_url='/auth/login/')
 def get_task_feedback_api(request, task_id):
     feedbacks = TaskFeedback.objects.filter(task_id=task_id).select_related('user').order_by('-created_at')
     
