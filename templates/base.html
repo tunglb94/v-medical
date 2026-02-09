@@ -1,5 +1,6 @@
 {% load static %}
-{% load auth_extras %} <!DOCTYPE html>
+{% load auth_extras %}
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -94,9 +95,11 @@
             color: var(--text-color);
         }
         
+        /* --- SIDEBAR CSS (ĐÃ TỐI ƯU CHO MOBILE) --- */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
+            height: 100dvh; /* Fix lỗi thanh địa chỉ trên mobile che mất phần dưới */
             background-color: var(--primary-color) !important;
             color: #ecf0f1;
             position: fixed;
@@ -105,18 +108,42 @@
             z-index: 1050;
             box-shadow: 4px 0 10px rgba(0,0,0,0.1);
             transition: transform 0.3s ease-in-out;
-            overflow-y: auto;
+            overflow: hidden; /* Khóa cuộn tổng thể */
         }
-        .sidebar-brand { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); background-color: rgba(0,0,0,0.2); }
+        
+        .sidebar-brand { 
+            padding: 20px; 
+            text-align: center; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            background-color: rgba(0,0,0,0.2); 
+            flex-shrink: 0; /* Không bị co lại */
+        }
+        
         .sidebar-brand img { height: 45px; object-fit: contain; background: white; padding: 5px; border-radius: 8px; margin-bottom: 8px; }
         .sidebar-brand h6 { font-weight: 800; letter-spacing: 1px; margin: 0; color: #fff; font-size: 1.1rem; }
-        .sidebar-menu { padding: 15px 0; flex-grow: 1; list-style: none; margin: 0; }
+        
+        .sidebar-menu { 
+            padding: 15px 0; 
+            flex-grow: 1; 
+            list-style: none; 
+            margin: 0; 
+            overflow-y: auto; /* Chỉ cuộn phần menu giữa */
+            -webkit-overflow-scrolling: touch; /* Cuộn mượt trên iOS */
+        }
+        
         .sidebar-menu li { margin-bottom: 2px; }
         .sidebar-menu li a { display: flex; align-items: center; padding: 12px 25px; color: #bdc3c7; text-decoration: none; font-weight: 500; transition: all 0.2s; border-left: 4px solid transparent; }
         .sidebar-menu li a:hover, .sidebar-menu li a.active { background: rgba(255,255,255,0.05); color: #fff; border-left-color: var(--active-color); }
         .sidebar-menu li a i { margin-right: 15px; font-size: 1.2rem; width: 25px; text-align: center; }
         .menu-header { font-size: 0.75rem; text-transform: uppercase; color: #95a5a6; padding: 15px 25px 5px; font-weight: bold; letter-spacing: 0.5px; }
-        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background-color: rgba(0,0,0,0.2); }
+        
+        .sidebar-footer { 
+            padding: 20px; 
+            border-top: 1px solid rgba(255,255,255,0.1); 
+            background-color: rgba(0,0,0,0.2); 
+            flex-shrink: 0; /* Luôn hiện ở đáy, không bị co */
+            padding-bottom: calc(20px + env(safe-area-inset-bottom)); /* Fix cho iPhone tai thỏ */
+        }
         
         .top-header { position: fixed; top: 0; right: 0; left: var(--sidebar-width); height: 60px; background: var(--header-bg); z-index: 1040; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); transition: left 0.3s ease-in-out, background-color 0.3s; border-bottom: 1px solid var(--border-color); }
         .main-content { margin-left: var(--sidebar-width); padding: 80px 20px 20px 20px; transition: margin-left 0.3s ease-in-out; min-height: 100vh; width: auto; }
