@@ -42,7 +42,7 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
-    # Lọc dữ liệu Báo cáo (Chi phí, Leads...)
+    # 1. Lấy số liệu Báo cáo (Chi phí, Leads...)
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     if marketer_query:
         stats = stats.filter(marketer__icontains=marketer_query)
@@ -79,30 +79,52 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # [MỚI] TÍNH TOÁN DOANH THU ĐỂ TÍNH ROAS
-    # Lấy các đơn hàng đã thanh toán trong khoảng thời gian này
-    revenue_map = {}
+    # --- [MỚI] TÍNH TOÁN DOANH THU THEO QUY TẮC CỨNG ---
+    # Khởi tạo map doanh thu cho các nhân sự chủ chốt
+    revenue_map = {
+        'Vũ': 0,
+        'Huy': 0,
+        'Hưng': 0,
+        'Long': 0
+    }
+    
     paid_orders = Order.objects.filter(
         order_date__range=[date_start, date_end],
         is_paid=True
     ).select_related('customer')
 
     for order in paid_orders:
-        # Tìm nhân viên marketing gắn với khách hàng này (nếu có)
-        # Giả định Customer có trường 'marketing_staff' hoặc 'marketer'
-        marketer_obj = getattr(order.customer, 'marketing_staff', None) or getattr(order.customer, 'marketer', None)
-        
-        if marketer_obj:
-            # Dùng username hoặc tên để map với trường 'marketer' trong bảng DailyCampaignStat
-            # (Lưu ý: Tên nhập trong báo cáo Ads cần khớp với Username/Tên trong hệ thống)
-            m_key = str(marketer_obj) # Hoặc marketer_obj.username
-            revenue_map[m_key] = revenue_map.get(m_key, 0) + order.total_amount
-            
-            # Fallback: Map thêm theo username nếu stat lưu username
-            if hasattr(marketer_obj, 'username'):
-                revenue_map[marketer_obj.username] = revenue_map.get(marketer_obj.username, 0) + order.total_amount
+        cus = order.customer
+        # Lấy tên hiển thị của Fanpage (để so sánh chuỗi chính xác)
+        fp_name = cus.get_fanpage_display() if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage)
+        # Lấy nguồn (Source)
+        source_val = str(cus.source) if hasattr(cus, 'source') else ""
+        amount = order.total_amount
 
-    # [MỚI] THỐNG KÊ HIỆU QUẢ THEO NHÂN SỰ (MARKETER)
+        # QUY TẮC 1: Long -> Nguồn Google
+        if 'Google' in source_val or 'Google' in fp_name:
+            revenue_map['Long'] += amount
+            continue # Đã gán xong, qua đơn tiếp theo
+
+        # QUY TẮC 2: Vũ -> Page Bác Sĩ Hoàng Vũ...
+        if fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
+            revenue_map['Vũ'] += amount
+            continue
+
+        # QUY TẮC 3: Huy -> 2 Page Ultherapy... và Cao Trần Quân...
+        if fp_name in [
+            "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", 
+            "Cao Trần Quân - Viện Da Liễu V Medical"
+        ]:
+            revenue_map['Huy'] += amount
+            continue
+
+        # QUY TẮC 4: Hưng -> V - Medical Clinic
+        if fp_name == "V - Medical Clinic":
+            revenue_map['Hưng'] += amount
+            continue
+
+    # 3. Thống kê Hiệu quả theo Marketer (Gộp Chi phí + Doanh thu)
     marketer_stats_qs = stats.values('marketer').annotate(
         total_spend=Sum('spend_amount'),
         total_leads=Sum('leads'),
@@ -111,15 +133,25 @@ def marketing_dashboard(request):
 
     report_marketers = []
     for item in marketer_stats_qs:
-        m_name = item['marketer']
-        if not m_name: continue 
+        m_name = item['marketer'] # Tên nhập trong báo cáo (VD: "Vũ", "Huy Marketing", "Thế Hưng"...)
+        if not m_name: continue
         
         sp = item['total_spend'] or 0
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
-        # Lấy doanh thu từ map
-        rev = revenue_map.get(m_name, 0)
+        # Map doanh thu dựa trên tên (So sánh tương đối để bắt đúng)
+        rev = 0
+        m_name_lower = m_name.lower()
+        
+        if "vũ" in m_name_lower:
+            rev = revenue_map['Vũ']
+        elif "huy" in m_name_lower:
+            rev = revenue_map['Huy']
+        elif "hưng" in m_name_lower:
+            rev = revenue_map['Hưng']
+        elif "long" in m_name_lower:
+            rev = revenue_map['Long']
         
         cpl = (sp / ld) if ld > 0 else 0
         cpa = (sp / ap) if ap > 0 else 0
@@ -165,7 +197,7 @@ def marketing_dashboard(request):
         'marketer_query': marketer_query, 'service_query': service_query,
         'platform_query': platform_query,
         'platform_choices': platform_choices,
-        'report_marketers': report_marketers 
+        'report_marketers': report_marketers
     }
     return render(request, 'marketing/dashboard.html', context)
 
@@ -176,7 +208,7 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# --- 2. BÁO CÁO HIỆU QUẢ MARKETING (ROI & PHỄU CHUYỂN ĐỔI) ---
+# ... (Các hàm khác giữ nguyên) ...
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'MANAGER'])
 def marketing_report(request):
@@ -310,7 +342,6 @@ def marketing_report(request):
     }
     return render(request, 'marketing/report.html', context)
 
-# --- 3. QUẢN LÝ CONTENT ADS & LỊCH ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_list(request):
@@ -379,7 +410,6 @@ def content_ads_list(request):
     }
     return render(request, 'marketing/content_ads.html', context)
 
-# --- 4. SỬA TASK & LƯU FEEDBACK ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_edit(request, pk):
@@ -420,7 +450,6 @@ def content_ads_edit(request, pk):
         
     return redirect('content_ads_list')
 
-# --- 5. API LẤY LỊCH SỬ FEEDBACK ---
 @login_required(login_url='/auth/login/')
 def get_task_feedback_api(request, task_id):
     feedbacks = TaskFeedback.objects.filter(task_id=task_id).select_related('user').order_by('-created_at')
