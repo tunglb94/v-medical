@@ -79,7 +79,7 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- [MỚI] TÍNH TOÁN DOANH THU THEO QUY TẮC CỨNG ---
+    # --- [MỚI] TÍNH TOÁN DOANH THU THEO QUY TẮC CỨNG (HARDCODED RULES) ---
     # Khởi tạo map doanh thu cho các nhân sự chủ chốt
     revenue_map = {
         'Vũ': 0,
@@ -88,6 +88,7 @@ def marketing_dashboard(request):
         'Long': 0
     }
     
+    # Lấy các đơn hàng đã thanh toán trong khoảng thời gian này
     paid_orders = Order.objects.filter(
         order_date__range=[date_start, date_end],
         is_paid=True
@@ -97,21 +98,24 @@ def marketing_dashboard(request):
         cus = order.customer
         # Lấy tên hiển thị của Fanpage (để so sánh chuỗi chính xác)
         fp_name = cus.get_fanpage_display() if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage)
+        if not fp_name: fp_name = ""
+        
         # Lấy nguồn (Source)
-        source_val = str(cus.source) if hasattr(cus, 'source') else ""
+        source_val = str(cus.source) if hasattr(cus, 'source') and cus.source else ""
+        
         amount = order.total_amount
 
-        # QUY TẮC 1: Long -> Nguồn Google
+        # QUY TẮC 1: Long -> Nguồn Google (Hoặc tên Fanpage có chữ Google nếu lưu vào đó)
         if 'Google' in source_val or 'Google' in fp_name:
             revenue_map['Long'] += amount
             continue # Đã gán xong, qua đơn tiếp theo
 
-        # QUY TẮC 2: Vũ -> Page Bác Sĩ Hoàng Vũ...
+        # QUY TẮC 2: Vũ -> Page "Bác Sĩ Hoàng Vũ - CK I Da Liễu"
         if fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
             revenue_map['Vũ'] += amount
             continue
 
-        # QUY TẮC 3: Huy -> 2 Page Ultherapy... và Cao Trần Quân...
+        # QUY TẮC 3: Huy -> 2 Page "Ultherapy Prime..." và "Cao Trần Quân..."
         if fp_name in [
             "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", 
             "Cao Trần Quân - Viện Da Liễu V Medical"
@@ -119,7 +123,7 @@ def marketing_dashboard(request):
             revenue_map['Huy'] += amount
             continue
 
-        # QUY TẮC 4: Hưng -> V - Medical Clinic
+        # QUY TẮC 4: Hưng -> Page "V - Medical Clinic"
         if fp_name == "V - Medical Clinic":
             revenue_map['Hưng'] += amount
             continue
@@ -133,14 +137,14 @@ def marketing_dashboard(request):
 
     report_marketers = []
     for item in marketer_stats_qs:
-        m_name = item['marketer'] # Tên nhập trong báo cáo (VD: "Vũ", "Huy Marketing", "Thế Hưng"...)
+        m_name = item['marketer'] # Tên nhập trong báo cáo (VD: "Vũ Ads", "Huy Marketing", "Thế Hưng"...)
         if not m_name: continue
         
         sp = item['total_spend'] or 0
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
-        # Map doanh thu dựa trên tên (So sánh tương đối để bắt đúng)
+        # Map doanh thu dựa trên tên (So sánh tương đối để bắt đúng các biến thể tên nhập)
         rev = 0
         m_name_lower = m_name.lower()
         
@@ -208,7 +212,7 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# ... (Các hàm khác giữ nguyên) ...
+# --- 2. BÁO CÁO HIỆU QUẢ MARKETING (ROI & PHỄU CHUYỂN ĐỔI) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'MANAGER'])
 def marketing_report(request):
@@ -326,6 +330,20 @@ def marketing_report(request):
         
         current_date += timedelta(days=1)
 
+    # TRUY VẤN CHI TIẾT ĐƠN HÀNG KHI LỌC FANPAGE
+    detailed_orders = None
+    selected_fanpage_name = None
+    filter_fanpage = request.GET.get('filter_fanpage')
+
+    if filter_fanpage:
+        selected_fanpage_name = fanpage_choices.get(filter_fanpage, filter_fanpage)
+        
+        detailed_orders = Order.objects.filter(
+            order_date__range=[date_start, date_end],
+            is_paid=True,
+            customer__fanpage=filter_fanpage
+        ).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
+
     context = {
         'date_start': date_start_str,
         'date_end': date_end_str,
@@ -338,7 +356,11 @@ def marketing_report(request):
         'report_data': report_data,
         'chart_labels': json.dumps(chart_labels),
         'chart_data_leads': json.dumps(chart_data_leads),
-        'chart_data_revenue': json.dumps(chart_data_revenue), 
+        'chart_data_revenue': json.dumps(chart_data_revenue),
+        'fanpage_choices': Customer.Fanpage.choices,
+        'filter_fanpage': filter_fanpage,
+        'detailed_orders': detailed_orders,
+        'selected_fanpage_name': selected_fanpage_name,
     }
     return render(request, 'marketing/report.html', context)
 
