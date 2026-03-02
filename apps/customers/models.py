@@ -53,6 +53,9 @@ class Customer(models.Model):
         ULTHERAPY_57A = "ULTHERAPY_57A", "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo"
         
         OTHER = "OTHER", "Khác / Không rõ"
+        # 3. Các Page mới thêm theo yêu cầu
+        VMEDICAL_PK_DL = "VMEDICAL_PK_DL", "V Medical - Phòng khám da liễu thẩm mỹ"
+        PK_VMEDICAL_TM = "PK_VMEDICAL_TM", "Phòng Khám V Medical - Thẩm Mỹ Da Công Nghệ Cao"
 
     class Ranking(models.TextChoices):
         MEMBER = "MEMBER", "Thành viên"

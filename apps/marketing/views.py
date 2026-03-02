@@ -103,7 +103,9 @@ def marketing_dashboard(request):
             target_key = 'Vũ'
         elif fp_name in ["Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", "Cao Trần Quân - Viện Da Liễu V Medical"]:
             target_key = 'Huy'
-        elif fp_name == "V - Medical Clinic":
+        elif fp_name in [ "V - Medical Clinic", 
+        "V Medical - Phòng khám da liễu thẩm mỹ", 
+        "Phòng Khám V Medical - Thẩm Mỹ Da Công Nghệ Cao"]:
             target_key = 'Hưng'
             
         # Cộng dồn số liệu
