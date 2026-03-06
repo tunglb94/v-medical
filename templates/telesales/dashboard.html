@@ -4,6 +4,9 @@
 {% block title %}Telesale Dashboard - V-Medical{% endblock %}
 
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
 <style>
     .list-group-item.active { background-color: #0d6efd; border-color: #0d6efd; color: white !important; }
     .list-group-item.active .text-muted { color: #e9ecef !important; }
@@ -20,6 +23,11 @@
     .timeline-item.status-no-answer::before { background: #ffc107; }
     .timeline-item.status-wrong-number::before { background: #dc3545; }
     .timeline-item.status-follow-up::before { background: #0dcaf0; } 
+    
+    /* Chỉnh một chút cho Select2 đẹp hơn */
+    .select2-container .select2-selection--multiple {
+        min-height: 38px;
+    }
 </style>
 {% endblock %}
 
@@ -259,8 +267,8 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
-                                <label class="form-label small fw-bold text-muted">Fanpage (Có thể chọn nhiều)</label>
-                                <select name="fanpages" class="form-select form-select-sm" multiple style="height: 120px;">
+                                <label class="form-label small fw-bold text-muted">Fanpage (Chọn nhiều)</label>
+                                <select name="fanpages" class="form-select select2-multi" multiple data-placeholder="Nhấp để chọn Fanpage...">
                                     {% for code, label in fanpage_choices %}
                                         <option value="{{ code }}" 
                                             {% for fp in selected_customer.fanpages.all %}
@@ -270,7 +278,6 @@
                                         </option>
                                     {% endfor %}
                                 </select>
-                                <small class="text-muted fst-italic" style="font-size: 0.7rem;">Giữ phím Ctrl (hoặc Cmd trên Mac) để chọn nhiều page</small>
                             </div>
 
                             <div class="col-md-6 mb-3">
@@ -424,10 +431,9 @@
                   </div>
                   <div class="col-md-4">
                       <label class="form-label small fw-bold">Fanpage (Chọn nhiều)</label>
-                      <select name="fanpages" class="form-select" multiple style="height: 100px;">
+                      <select name="fanpages" class="form-select select2-multi" multiple data-placeholder="Gõ tên page...">
                           {% for code, label in fanpage_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
                       </select>
-                      <small class="text-muted fst-italic" style="font-size: 0.7rem;">Giữ Ctrl/Cmd để chọn</small>
                   </div>
                   <div class="col-md-4">
                       <label class="form-label small fw-bold">Dịch vụ quan tâm</label>
@@ -520,7 +526,19 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
+    $(document).ready(function() {
+        $('.select2-multi').select2({
+            theme: "bootstrap-5",
+            width: '100%',
+            closeOnSelect: false,
+            allowClear: true
+        });
+    });
+
     function toggleActionFields() {
         var status = document.getElementById('callStatusSelect').value;
         
