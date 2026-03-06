@@ -9,7 +9,7 @@ import json
 
 from .models import MarketingTask, DailyCampaignStat, ContentAd, TaskFeedback
 from apps.sales.models import Service, Order
-from apps.customers.models import Customer
+from apps.customers.models import Customer, Fanpage
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
@@ -79,40 +79,62 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- TÍNH TOÁN DOANH THU & ĐƠN RỚT THEO QUY TẮC CỨNG ---
+    # --- [CẬP NHẬT] TÍNH TOÁN DOANH THU & CHIA ĐỀU THEO FANPAGE ---
     revenue_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     failed_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
     
-    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này
+    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này kèm theo fanpages
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
-    ).select_related('customer')
+    ).select_related('customer').prefetch_related('customer__fanpages')
 
     for order in all_orders:
         cus = order.customer
-        fp_name = cus.get_fanpage_display() if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage)
-        if not fp_name: fp_name = ""
+        pages = cus.fanpages.all()
+        num_pages = pages.count()
         source_val = str(cus.source) if hasattr(cus, 'source') and cus.source else ""
         
-        target_key = None
-
-        # --- QUY TẮC GÁN NHÂN SỰ ---
-        if 'Google' in source_val or 'Google' in fp_name:
-            target_key = 'Long'
-        elif fp_name == "Bác Sĩ Hoàng Vũ - CK I Da Liễu":
-            target_key = 'Vũ'
-        elif fp_name in ["Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo", "Cao Trần Quân - Viện Da Liễu V Medical"]:
-            target_key = 'Huy'
-        elif fp_name in [ "V - Medical Clinic", 
-        "V Medical - Phòng khám da liễu thẩm mỹ", 
-        "Phòng Khám V Medical - Thẩm Mỹ Da Công Nghệ Cao"]:
-            target_key = 'Hưng'
+        if num_pages > 0:
+            # Chia đều doanh thu cho số lượng Fanpage
+            split_revenue = float(order.actual_revenue) / num_pages
             
-        # Cộng dồn số liệu
-        if target_key:
-            revenue_map[target_key] += order.actual_revenue
-            if order.actual_revenue == 0:
-                failed_map[target_key] += 1
+            for fp in pages:
+                fp_name = fp.name
+                target_key = None
+
+                # Áp dụng quy tắc gán nhân sự cho từng Fanpage
+                if 'Google' in source_val or 'Google' in fp_name:
+                    target_key = 'Long'
+                elif "Bác Sĩ Hoàng Vũ" in fp_name:
+                    target_key = 'Vũ'
+                elif any(x in fp_name for x in ["57A", "Cao Trần Quân", "Ultherapy Prime"]):
+                    target_key = 'Huy'
+                elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]):
+                    target_key = 'Hưng'
+
+                if target_key:
+                    revenue_map[target_key] += split_revenue
+                    if order.actual_revenue == 0:
+                        failed_map[target_key] += (1 / num_pages)
+        else:
+            # Rơi vào trường hợp chưa cập nhật nhiều page thì xài page cũ
+            fp_name = cus.get_fanpage_display() if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage)
+            if not fp_name: fp_name = ""
+            
+            target_key = None
+            if 'Google' in source_val or 'Google' in fp_name:
+                target_key = 'Long'
+            elif "Bác Sĩ Hoàng Vũ" in fp_name:
+                target_key = 'Vũ'
+            elif any(x in fp_name for x in ["57A", "Cao Trần Quân", "Ultherapy Prime"]):
+                target_key = 'Huy'
+            elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]):
+                target_key = 'Hưng'
+
+            if target_key:
+                revenue_map[target_key] += float(order.actual_revenue)
+                if order.actual_revenue == 0:
+                    failed_map[target_key] += 1
 
     # 3. Thống kê Hiệu quả theo Marketer (Gộp Chi phí + Doanh thu)
     marketer_stats_qs = stats.values('marketer').annotate(
@@ -126,16 +148,12 @@ def marketing_dashboard(request):
         m_name = item['marketer']
         if not m_name: continue
         
-        # [CẬP NHẬT] TÍNH CHI TIÊU CÓ VAT (10%) & LÀM TRÒN
         raw_spend = item['total_spend'] or 0
-        
-        # Nhân 1.1 rồi dùng round() để bỏ phần thập phân thừa
         sp = round(float(raw_spend) * 1.1) 
         
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
-        # Map dữ liệu doanh thu & đơn rớt theo tên
         rev = 0
         failed = 0
         m_name_lower = m_name.lower()
@@ -150,16 +168,13 @@ def marketing_dashboard(request):
             rev = revenue_map[target_key]
             failed = failed_map[target_key]
         
-        # Tính lại các chỉ số
         cpl = (sp / ld) if ld > 0 else 0
         cpa = (sp / ap) if ap > 0 else 0
-        
-        # Tính ROAS (Chi phí / Doanh thu) %
         roas = (sp / float(rev) * 100) if rev > 0 else 0
         
         report_marketers.append({
             'name': m_name,
-            'spend': sp, # Số đã làm tròn
+            'spend': sp, 
             'leads': ld,
             'appts': ap,
             'cpl': cpl,
@@ -169,7 +184,6 @@ def marketing_dashboard(request):
             'roas': roas
         })
 
-    # Dữ liệu biểu đồ
     chart_data_qs = stats.values('report_date').annotate(
         daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
     ).order_by('report_date')
@@ -180,14 +194,11 @@ def marketing_dashboard(request):
     for item in chart_data_qs:
         d_leads = item['daily_leads'] or 0
         d_spend = item['daily_spend'] or 0
-        
-        # Làm tròn số liệu biểu đồ cho đẹp
         d_spend_vat = round(float(d_spend) * 1.1)
-        
         d_cpl = (d_spend_vat / d_leads) if d_leads > 0 else 0
         chart_dates.append(item['report_date'].strftime('%d/%m'))
         chart_leads.append(d_leads)
-        chart_cpl.append(round(d_cpl)) # Làm tròn CPL biểu đồ
+        chart_cpl.append(round(d_cpl)) 
     
     platform_choices = DailyCampaignStat.Platform.choices
 
@@ -234,43 +245,64 @@ def marketing_report(request):
     total_leads = customers.count()
     
     leads_by_page = {}
-    cus_grouped = customers.values('fanpage').annotate(count=Count('id'))
-    for item in cus_grouped:
-        leads_by_page[item['fanpage']] = item['count']
+    for cus in customers.prefetch_related('fanpages'):
+        pages = cus.fanpages.all()
+        n = pages.count()
+        if n > 0:
+            for fp in pages:
+                leads_by_page[fp.code] = leads_by_page.get(fp.code, 0) + (1/n)
+        else:
+            fp = cus.fanpage
+            if fp:
+                leads_by_page[fp] = leads_by_page.get(fp, 0) + 1
 
     appointments = Appointment.objects.filter(
         created_at__date__range=[date_start, date_end]
-    ).select_related('customer')
+    ).select_related('customer').prefetch_related('customer__fanpages')
 
     appts_by_page = {}
     total_appts = 0
     for appt in appointments:
-        if appt.customer and appt.customer.fanpage:
-            fp = appt.customer.fanpage
-            appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
+        if appt.customer:
+            pages = appt.customer.fanpages.all()
+            n = pages.count()
+            if n > 0:
+                for fp in pages:
+                    appts_by_page[fp.code] = appts_by_page.get(fp.code, 0) + (1/n)
+            else:
+                fp = appt.customer.fanpage
+                if fp:
+                    appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
             total_appts += 1
 
-    # [CẬP NHẬT] Lấy tất cả đơn hàng (Bỏ filter is_paid=True)
     orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
-    ).select_related('customer')
+    ).select_related('customer').prefetch_related('customer__fanpages')
     
-    # Tính tổng doanh thu dựa trên ACTUAL_REVENUE
     total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
 
     revenue_by_page = {}
     orders_count_by_page = {}
     
     for order in orders:
-        if order.customer and order.customer.fanpage:
-            fp = order.customer.fanpage
-            revenue_by_page[fp] = revenue_by_page.get(fp, 0) + order.actual_revenue
-            orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
+        if order.customer:
+            pages = order.customer.fanpages.all()
+            n = pages.count()
+            if n > 0:
+                split_rev = float(order.actual_revenue) / n
+                for fp in pages:
+                    revenue_by_page[fp.code] = revenue_by_page.get(fp.code, 0) + split_rev
+                    orders_count_by_page[fp.code] = orders_count_by_page.get(fp.code, 0) + (1/n)
+            else:
+                fp = order.customer.fanpage
+                if fp:
+                    revenue_by_page[fp] = revenue_by_page.get(fp, 0) + float(order.actual_revenue)
+                    orders_count_by_page[fp] = orders_count_by_page.get(fp, 0) + 1
 
     report_data = []
     all_fanpages = set(list(leads_by_page.keys()) + list(appts_by_page.keys()) + list(orders_count_by_page.keys()))
     
-    fanpage_choices = dict(Customer.Fanpage.choices)
+    fanpage_choices = dict(Customer.FanpageChoices.choices)
 
     for fp_code in all_fanpages:
         if not fp_code: continue
@@ -290,12 +322,15 @@ def marketing_report(request):
         elif rate_lead_to_appt > 15: quality_tag = "✅ Ổn định"
         elif rate_lead_to_appt < 5 and leads > 10: quality_tag = "⚠️ Rác nhiều"
 
+        fp_obj = Fanpage.objects.filter(code=fp_code).first()
+        name_display = fp_obj.name if fp_obj else fanpage_choices.get(fp_code, fp_code)
+
         report_data.append({
             'code': fp_code,
-            'name': fanpage_choices.get(fp_code, fp_code),
-            'leads': leads,
-            'appts': appts,
-            'orders': orders_count,
+            'name': name_display,
+            'leads': round(leads, 1) if leads % 1 != 0 else int(leads),
+            'appts': round(appts, 1) if appts % 1 != 0 else int(appts),
+            'orders': round(orders_count, 1) if orders_count % 1 != 0 else int(orders_count),
             'revenue': revenue,
             'aov': aov,
             'rate_lead_to_appt': rate_lead_to_appt,
@@ -312,7 +347,6 @@ def marketing_report(request):
     daily_leads = customers.values('created_at__date').annotate(count=Count('id')).order_by('created_at__date')
     leads_map = {item['created_at__date'].strftime('%Y-%m-%d'): item['count'] for item in daily_leads}
 
-    # [CẬP NHẬT] Biểu đồ doanh thu cũng dùng Actual Revenue
     daily_revenue = orders.values('order_date').annotate(total=Sum('actual_revenue')).order_by('order_date')
     rev_map = {item['order_date'].strftime('%Y-%m-%d'): float(item['total'] or 0) for item in daily_revenue}
 
@@ -331,19 +365,19 @@ def marketing_report(request):
         
         current_date += timedelta(days=1)
 
-    # TRUY VẤN CHI TIẾT ĐƠN HÀNG KHI LỌC FANPAGE
     detailed_orders = None
     selected_fanpage_name = None
     filter_fanpage = request.GET.get('filter_fanpage')
 
     if filter_fanpage:
-        selected_fanpage_name = fanpage_choices.get(filter_fanpage, filter_fanpage)
+        fp_obj = Fanpage.objects.filter(code=filter_fanpage).first()
+        selected_fanpage_name = fp_obj.name if fp_obj else fanpage_choices.get(filter_fanpage, filter_fanpage)
         
-        # [CẬP NHẬT] Lấy cả đơn nợ
         detailed_orders = Order.objects.filter(
-            order_date__range=[date_start, date_end],
-            customer__fanpage=filter_fanpage
-        ).select_related('customer', 'service', 'assigned_consultant').order_by('-order_date')
+            order_date__range=[date_start, date_end]
+        ).filter(
+            Q(customer__fanpages__code=filter_fanpage) | Q(customer__fanpage=filter_fanpage)
+        ).select_related('customer', 'service', 'assigned_consultant').distinct().order_by('-order_date')
 
     context = {
         'date_start': date_start_str,
@@ -358,7 +392,7 @@ def marketing_report(request):
         'chart_labels': json.dumps(chart_labels),
         'chart_data_leads': json.dumps(chart_data_leads),
         'chart_data_revenue': json.dumps(chart_data_revenue),
-        'fanpage_choices': Customer.Fanpage.choices,
+        'fanpage_choices': Customer.FanpageChoices.choices,
         'filter_fanpage': filter_fanpage,
         'detailed_orders': detailed_orders,
         'selected_fanpage_name': selected_fanpage_name,

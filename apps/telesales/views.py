@@ -172,6 +172,11 @@ def telesale_dashboard(request):
         selected_customer.skin_condition = request.POST.get('cus_skin', selected_customer.skin_condition)
         selected_customer.fanpage = request.POST.get('cus_fanpage', selected_customer.fanpage)
         
+        # [CẬP NHẬT] Lấy danh sách fanpage chỉnh sửa
+        fanpage_ids = request.POST.getlist('fanpages')
+        if fanpage_ids:
+            selected_customer.fanpages.set(fanpage_ids)
+            
         new_telesale_id = request.POST.get('assigned_telesale_id')
         if new_telesale_id and new_telesale_id.isdigit():
             selected_customer.assigned_telesale_id = int(new_telesale_id)
@@ -236,7 +241,7 @@ def telesale_dashboard(request):
         'filter_query_string': filter_query_string,
         'source_choices': Customer.Source.choices,
         'skin_choices': Customer.SkinIssue.choices, 
-        'fanpage_choices': Customer.Fanpage.choices,
+        'fanpage_choices': Customer.FanpageChoices.choices,
         'status_choices': CallLog.CallStatus.choices,
         'gender_choices': Customer.Gender.choices,
         'telesales_list': telesales_list,
@@ -265,6 +270,9 @@ def add_customer_manual(request):
     if request.method == "POST":
         phone = request.POST.get('phone', '').strip()
         name = request.POST.get('name')
+        
+        # [CẬP NHẬT] Lấy danh sách nhiều fanpage từ form
+        fanpage_ids = request.POST.getlist('fanpages')
         
         if not phone or not name:
             messages.error(request, "Thiếu Tên hoặc SĐT!")
@@ -314,6 +322,10 @@ def add_customer_manual(request):
                 note_telesale=request.POST.get('note_telesale'),
                 assigned_telesale_id=assigned_user_id 
             )
+            
+            # [CẬP NHẬT] Liên kết với các fanpage đã chọn
+            if fanpage_ids:
+                new_customer.fanpages.set(fanpage_ids)
             
             messages.success(request, f"Đã thêm khách mới!{auto_assign_msg}")
             
@@ -376,7 +388,7 @@ def telesale_report(request):
     source_data = [{'code': x['source'], 'label': dict(Customer.Source.choices).get(x['source'], 'Khác'), 'count': x['count'], 'percent': round(x['count']/total_leads*100, 1) if total_leads else 0} for x in source_stats]
 
     fanpage_stats = customers.values('fanpage').annotate(count=Count('id')).order_by('-count')
-    fanpage_dict = dict(Customer.Fanpage.choices)
+    fanpage_dict = dict(Customer.FanpageChoices.choices)
     unmapped_fanpage_count = 0
     final_fanpage_data = []
     for x in fanpage_stats:
@@ -527,7 +539,7 @@ def telesale_report(request):
         'recare_data': recare_data, 
         'telesales_list': telesales_list,
         'gender_choices': Customer.Gender.choices,
-        'fanpage_choices': Customer.Fanpage.choices,
+        'fanpage_choices': Customer.FanpageChoices.choices,
         'skin_choices': Customer.SkinIssue.choices,
         'status_choices': CallLog.CallStatus.choices,
         'req_city': req_city,

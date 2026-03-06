@@ -4,6 +4,18 @@ from django.utils import timezone
 from django.db.models import Sum
 from datetime import date
 
+# [MỚI] TẠO BẢNG FANPAGE ĐỂ QUẢN LÝ NHIỀU FANPAGE
+class Fanpage(models.Model):
+    code = models.CharField(max_length=50, unique=True, verbose_name="Mã Fanpage")
+    name = models.CharField(max_length=200, verbose_name="Tên Fanpage hiển thị")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Fanpage"
+        verbose_name_plural = "Danh sách Fanpage"
+
 class Customer(models.Model):
     # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue
     class SkinIssue(models.TextChoices):
@@ -33,8 +45,8 @@ class Customer(models.Model):
         REFERRAL = "REFERRAL", "Bạn giới thiệu"
         OTHER = "OTHER", "Khác"
     
-    # --- [CẬP NHẬT] DANH SÁCH FANPAGE MỚI ---
-    class Fanpage(models.TextChoices):
+    # --- [CẬP NHẬT] ĐỔI TÊN THÀNH FanpageChoices ĐỂ KHÔNG BỊ TRÙNG VỚI MODEL Fanpage MỚI ---
+    class FanpageChoices(models.TextChoices):
         # 1. Các Page Bác Sĩ Hoàng Vũ
         CC_KIM_CUONG_SG_HV = "CC_KIM_CUONG_SG_HV", "Căng chỉ kim cương Sài Gòn - Bác sĩ Hoàng Vũ"
         ULTRA_DIAMOND_DB_HV = "ULTRA_DIAMOND_DB_HV", "Nâng cơ trẻ hoá Ultra Diamond - Bác sĩ Danh Bảo Hoàng Vũ"
@@ -77,7 +89,10 @@ class Customer(models.Model):
     
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.FACEBOOK, verbose_name="Nguồn khách")
     
-    fanpage = models.CharField(max_length=50, choices=Fanpage.choices, null=True, blank=True, verbose_name="Fanpage Nguồn")
+    # [THÊM MỚI] LIÊN KẾT NHIỀU FANPAGE
+    fanpages = models.ManyToManyField(Fanpage, blank=True, verbose_name="Các Fanpage Nguồn")
+    # Vẫn giữ lại trường cũ để tương thích ngược dữ liệu
+    fanpage = models.CharField(max_length=50, choices=FanpageChoices.choices, null=True, blank=True, verbose_name="Fanpage Nguồn (Cũ)")
 
     skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
     
