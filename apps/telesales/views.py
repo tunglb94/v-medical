@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta, date
 import re 
 
-from apps.customers.models import Customer
+from apps.customers.models import Customer, Fanpage
 from apps.telesales.models import CallLog
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
@@ -170,13 +170,7 @@ def telesale_dashboard(request):
         selected_customer.address = request.POST.get('cus_address', selected_customer.address)
         selected_customer.city = request.POST.get('cus_city', selected_customer.city)
         selected_customer.skin_condition = request.POST.get('cus_skin', selected_customer.skin_condition)
-        selected_customer.fanpage = request.POST.get('cus_fanpage', selected_customer.fanpage)
         
-        # [CẬP NHẬT] Lấy danh sách fanpage chỉnh sửa
-        fanpage_ids = request.POST.getlist('fanpages')
-        if fanpage_ids:
-            selected_customer.fanpages.set(fanpage_ids)
-            
         new_telesale_id = request.POST.get('assigned_telesale_id')
         if new_telesale_id and new_telesale_id.isdigit():
             selected_customer.assigned_telesale_id = int(new_telesale_id)
@@ -185,7 +179,17 @@ def telesale_dashboard(request):
 
         dob_val = request.POST.get('cus_dob')
         if dob_val: selected_customer.dob = dob_val
+        
+        # PHẢI LƯU CUSTOMER TRƯỚC KHI SET MANY-TO-MANY
         selected_customer.save()
+
+        # [CẬP NHẬT] Lấy danh sách fanpage chỉnh sửa và lấy object từ DB
+        fanpage_ids = request.POST.getlist('fanpages')
+        if fanpage_ids:
+            fanpage_objs = Fanpage.objects.filter(code__in=fanpage_ids)
+            selected_customer.fanpages.set(fanpage_objs)
+        else:
+            selected_customer.fanpages.clear()
 
         note_content = request.POST.get('note')
         status_value = request.POST.get('status')
@@ -317,15 +321,15 @@ def add_customer_manual(request):
                 city=request.POST.get('city'),
                 address=request.POST.get('address'),
                 source=request.POST.get('source'),
-                fanpage=request.POST.get('fanpage'), 
                 skin_condition=request.POST.get('skin_condition'),
                 note_telesale=request.POST.get('note_telesale'),
                 assigned_telesale_id=assigned_user_id 
             )
             
-            # [CẬP NHẬT] Liên kết với các fanpage đã chọn
+            # [CẬP NHẬT] Liên kết với các fanpage đã chọn (Lấy object từ bảng Fanpage)
             if fanpage_ids:
-                new_customer.fanpages.set(fanpage_ids)
+                fanpage_objs = Fanpage.objects.filter(code__in=fanpage_ids)
+                new_customer.fanpages.set(fanpage_objs)
             
             messages.success(request, f"Đã thêm khách mới!{auto_assign_msg}")
             
