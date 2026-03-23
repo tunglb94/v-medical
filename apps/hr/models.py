@@ -22,11 +22,11 @@ class EmployeeContract(models.Model):
         verbose_name = "Hợp đồng & Lương"
         verbose_name_plural = "Cấu hình Lương Nhân sự"
 
-# 2. Chấm công (Đơn giản hóa: Có bản ghi = Có đi làm)
+# 2. Chấm công
 class Attendance(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Nhân viên")
     date = models.DateField(default=timezone.now, verbose_name="Ngày")
-    is_present = models.BooleanField(default=True, verbose_name="Có mặt") # Admin tích vào là True
+    is_present = models.BooleanField(default=True, verbose_name="Có mặt")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -37,23 +37,20 @@ class Attendance(models.Model):
         verbose_name_plural = "Nhật ký Chấm công"
         unique_together = ('user', 'date')
 
-# 3. Bảng lương tháng (Cập nhật thêm cột Hoa hồng)
+# 3. Bảng lương tháng
 class SalarySlip(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Nhân viên")
     month = models.DateField(verbose_name="Tháng tính lương")
     
-    # Thông tin cơ bản
     standard_work_days = models.FloatField(default=26, verbose_name="Công chuẩn")
     actual_work_days = models.FloatField(default=0, verbose_name="Công thực tế")
     base_salary_lock = models.DecimalField(max_digits=15, decimal_places=0, verbose_name="Lương cứng")
     allowance_lock = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Phụ cấp")
     
-    # Thông tin Hoa hồng
     sales_revenue = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Doanh số đạt được")
     commission_rate_lock = models.FloatField(default=0, verbose_name="% Hoa hồng áp dụng")
     commission_amount = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Tiền hoa hồng")
 
-    # Tổng kết
     bonus = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Thưởng khác")
     deduction = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name="Phạt/Khấu trừ")
     total_salary = models.DecimalField(max_digits=15, decimal_places=0, verbose_name="THỰC LĨNH")
@@ -74,7 +71,14 @@ class LeaveRequest(models.Model):
         ('APPROVED', 'Đã duyệt'),
         ('REJECTED', 'Từ chối'),
     )
+    LEAVE_TYPE_CHOICES = (
+        ('FULL', 'Cả ngày'),
+        ('MORNING', 'Nửa ngày (Sáng)'),
+        ('AFTERNOON', 'Nửa ngày (Chiều)'),
+    )
+    
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Nhân viên")
+    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPE_CHOICES, default='FULL', verbose_name="Thời lượng")
     start_date = models.DateField(verbose_name="Ngày bắt đầu nghỉ")
     end_date = models.DateField(verbose_name="Ngày kết thúc nghỉ")
     reason = models.TextField(verbose_name="Lý do nghỉ")

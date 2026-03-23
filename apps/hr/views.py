@@ -12,7 +12,7 @@ from apps.authentication.decorators import allowed_users
 
 User = get_user_model()
 
-# --- 1. CHẤM CÔNG THỦ CÔNG (ADMIN TÍCH CHỌN) ---
+# --- 1. CHẤM CÔNG THỦ CÔNG ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN'])
 def attendance_list(request):
@@ -164,7 +164,7 @@ def contract_management(request):
     return render(request, 'hr/contract_list.html', context)
 
 
-# --- 4. QUẢN LÝ NGHỈ PHÉP (MỚI) ---
+# --- 4. QUẢN LÝ NGHỈ PHÉP ---
 @login_required(login_url='/auth/login/')
 def leave_request_list(request):
     # Admin thấy toàn bộ, nhân viên chỉ thấy đơn của mình
@@ -179,13 +179,19 @@ def leave_request_list(request):
 @login_required(login_url='/auth/login/')
 def leave_request_create(request):
     if request.method == 'POST':
+        leave_type = request.POST.get('leave_type', 'FULL')
         start_date_str = request.POST.get('start_date')
         end_date_str = request.POST.get('end_date')
         reason = request.POST.get('reason')
         
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            
+            # Nếu nghỉ nửa ngày thì mặc định ngày kết thúc = ngày bắt đầu
+            if leave_type in ['MORNING', 'AFTERNOON']:
+                end_date = start_date
+            else:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             
             # Check điều kiện trước 2 ngày
             min_date = timezone.now().date() + timedelta(days=2)
@@ -196,6 +202,7 @@ def leave_request_create(request):
             else:
                 LeaveRequest.objects.create(
                     user=request.user,
+                    leave_type=leave_type,
                     start_date=start_date,
                     end_date=end_date,
                     reason=reason
@@ -203,7 +210,7 @@ def leave_request_create(request):
                 messages.success(request, "Đã gửi đơn xin nghỉ phép thành công. Vui lòng chờ duyệt!")
                 return redirect('leave_list')
         except ValueError:
-            messages.error(request, "Định dạng ngày không hợp lệ.")
+            messages.error(request, "Định dạng ngày không hợp lệ. Vui lòng nhập đầy đủ.")
             
     return render(request, 'hr/leave_form.html')
 

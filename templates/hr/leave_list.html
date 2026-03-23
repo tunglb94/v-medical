@@ -24,7 +24,20 @@
                 <tr>
                     <td>{{ leave.created_at|date:"d/m/Y" }}</td>
                     <td class="fw-bold">{{ leave.user.username }}</td>
-                    <td>{{ leave.start_date|date:"d/m/Y" }} - {{ leave.end_date|date:"d/m/Y" }}</td>
+                    
+                    <td>
+                        {% if leave.leave_type == 'MORNING' %}
+                            <span class="badge bg-info text-dark mb-1">Sáng</span><br>
+                            {{ leave.start_date|date:"d/m/Y" }}
+                        {% elif leave.leave_type == 'AFTERNOON' %}
+                            <span class="badge bg-info text-dark mb-1">Chiều</span><br>
+                            {{ leave.start_date|date:"d/m/Y" }}
+                        {% else %}
+                            <span class="badge bg-primary mb-1">Cả ngày</span><br>
+                            {{ leave.start_date|date:"d/m/Y" }} - {{ leave.end_date|date:"d/m/Y" }}
+                        {% endif %}
+                    </td>
+                    
                     <td>{{ leave.reason }}</td>
                     <td>
                         {% if leave.status == 'PENDING' %}<span class="badge bg-warning text-dark">Chờ duyệt</span>{% endif %}
