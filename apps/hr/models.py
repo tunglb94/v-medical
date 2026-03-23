@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from datetime import timedelta
+from django.core.exceptions import ValidationError
 
 # 1. Cấu hình Lương & Hoa hồng cho nhân viên
 class EmployeeContract(models.Model):
@@ -64,3 +66,33 @@ class SalarySlip(models.Model):
     class Meta:
         verbose_name = "Phiếu lương"
         verbose_name_plural = "Quản lý Bảng lương"
+
+# 4. Quản lý Đơn xin nghỉ phép
+class LeaveRequest(models.Model):
+    STATUS_CHOICES = (
+        ('PENDING', 'Chờ duyệt'),
+        ('APPROVED', 'Đã duyệt'),
+        ('REJECTED', 'Từ chối'),
+    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Nhân viên")
+    start_date = models.DateField(verbose_name="Ngày bắt đầu nghỉ")
+    end_date = models.DateField(verbose_name="Ngày kết thúc nghỉ")
+    reason = models.TextField(verbose_name="Lý do nghỉ")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', verbose_name="Trạng thái")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.start_date:
+            min_date = timezone.now().date() + timedelta(days=2)
+            if self.start_date < min_date:
+                raise ValidationError("Bắt buộc phải đăng ký nghỉ phép trước ít nhất 2 ngày.")
+        
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.")
+
+    def __str__(self):
+        return f"Đơn nghỉ phép: {self.user.username} ({self.start_date} đến {self.end_date})"
+
+    class Meta:
+        verbose_name = "Đơn nghỉ phép"
+        verbose_name_plural = "Quản lý Nghỉ phép"

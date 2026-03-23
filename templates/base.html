@@ -95,11 +95,11 @@
             color: var(--text-color);
         }
         
-        /* --- SIDEBAR CSS (ĐÃ TỐI ƯU CHO MOBILE) --- */
+        /* --- SIDEBAR CSS --- */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
-            height: 100dvh; /* Fix lỗi thanh địa chỉ trên mobile che mất phần dưới */
+            height: 100dvh;
             background-color: var(--primary-color) !important;
             color: #ecf0f1;
             position: fixed;
@@ -108,7 +108,7 @@
             z-index: 1050;
             box-shadow: 4px 0 10px rgba(0,0,0,0.1);
             transition: transform 0.3s ease-in-out;
-            overflow: hidden; /* Khóa cuộn tổng thể */
+            overflow: hidden;
         }
         
         .sidebar-brand { 
@@ -116,7 +116,7 @@
             text-align: center; 
             border-bottom: 1px solid rgba(255,255,255,0.1); 
             background-color: rgba(0,0,0,0.2); 
-            flex-shrink: 0; /* Không bị co lại */
+            flex-shrink: 0; 
         }
         
         .sidebar-brand img { height: 45px; object-fit: contain; background: white; padding: 5px; border-radius: 8px; margin-bottom: 8px; }
@@ -127,8 +127,8 @@
             flex-grow: 1; 
             list-style: none; 
             margin: 0; 
-            overflow-y: auto; /* Chỉ cuộn phần menu giữa */
-            -webkit-overflow-scrolling: touch; /* Cuộn mượt trên iOS */
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; 
         }
         
         .sidebar-menu li { margin-bottom: 2px; }
@@ -141,8 +141,8 @@
             padding: 20px; 
             border-top: 1px solid rgba(255,255,255,0.1); 
             background-color: rgba(0,0,0,0.2); 
-            flex-shrink: 0; /* Luôn hiện ở đáy, không bị co */
-            padding-bottom: calc(20px + env(safe-area-inset-bottom)); /* Fix cho iPhone tai thỏ */
+            flex-shrink: 0; 
+            padding-bottom: calc(20px + env(safe-area-inset-bottom)); 
         }
         
         .top-header { position: fixed; top: 0; right: 0; left: var(--sidebar-width); height: 60px; background: var(--header-bg); z-index: 1040; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); transition: left 0.3s ease-in-out, background-color 0.3s; border-bottom: 1px solid var(--border-color); }
@@ -333,8 +333,15 @@
         </li>
         {% endif %}
 
-        {% if request.user|has_menu_access:"hr" %}
         <li class="menu-header">Nhân sự (HRM)</li>
+        
+        <li>
+            <a href="{% url 'leave_list' %}" class="{% if 'leaves' in request.path %}active{% endif %}">
+                <i class="bi bi-calendar-minus-fill"></i> <span>Quản lý Nghỉ Phép</span>
+            </a>
+        </li>
+
+        {% if request.user|has_menu_access:"hr" %}
         <li>
             <a href="{% url 'contract_management' %}" class="{% if 'contracts' in request.path %}active{% endif %}">
                 <i class="bi bi-file-earmark-person-fill"></i> <span>Hợp Đồng & Lương</span>
@@ -430,31 +437,6 @@
             });
         }
     })();
-
-    // [TẠM TẮT] Tính năng Chat chưa dùng, ẩn đi để tránh lỗi 404
-    /*
-    function checkUnreadMessages() {
-        fetch('/chat/api/unread/')
-            .then(response => { if(response.ok) return response.json(); })
-            .then(data => {
-                const badge = document.getElementById('chatBadge');
-                if (badge && data) {
-                    if (data.count > 0) {
-                        badge.innerText = data.count > 99 ? '99+' : data.count;
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-            })
-            .catch(err => {});
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        checkUnreadMessages();
-        setInterval(checkUnreadMessages, 10000); 
-    });
-    */
 </script>
 
 {% block extra_js %}{% endblock %}

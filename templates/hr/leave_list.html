@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Quản lý Nghỉ Phép{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-calendar-minus"></i> Quản lý Nghỉ Phép</h4>
+    <a href="{% url 'leave_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Đăng ký nghỉ</a>
+</div>
+
+<div class="card card-box">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Ngày nộp</th>
+                    <th>Nhân viên</th>
+                    <th>Thời gian xin nghỉ</th>
+                    <th>Lý do</th>
+                    <th>Trạng thái</th>
+                    {% if request.user.role == 'ADMIN' %}<th>Hành động</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in leaves %}
+                <tr>
+                    <td>{{ leave.created_at|date:"d/m/Y" }}</td>
+                    <td class="fw-bold">{{ leave.user.username }}</td>
+                    <td>{{ leave.start_date|date:"d/m/Y" }} - {{ leave.end_date|date:"d/m/Y" }}</td>
+                    <td>{{ leave.reason }}</td>
+                    <td>
+                        {% if leave.status == 'PENDING' %}<span class="badge bg-warning text-dark">Chờ duyệt</span>{% endif %}
+                        {% if leave.status == 'APPROVED' %}<span class="badge bg-success">Đã duyệt</span>{% endif %}
+                        {% if leave.status == 'REJECTED' %}<span class="badge bg-danger">Từ chối</span>{% endif %}
+                    </td>
+                    {% if request.user.role == 'ADMIN' %}
+                    <td>
+                        {% if leave.status == 'PENDING' %}
+                        <form action="{% url 'leave_update' leave.id %}" method="POST" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" name="action" value="approve" class="btn btn-sm btn-success" title="Duyệt"><i class="bi bi-check-lg"></i></button>
+                            <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger" title="Từ chối"><i class="bi bi-x-lg"></i></button>
+                        </form>
+                        {% else %}
+                            <span class="text-muted small">Đã xử lý</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Chưa có đơn xin nghỉ phép nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

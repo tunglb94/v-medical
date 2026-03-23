@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Đăng ký Nghỉ Phép{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card card-box mt-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Form Đăng Ký Nghỉ Phép</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle"></i> Vui lòng nộp đơn xin nghỉ phép <b>trước ít nhất 2 ngày</b> so với ngày bắt đầu nghỉ.
+                </div>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Xin nghỉ từ ngày:</label>
+                        <input type="date" name="start_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Đến hết ngày:</label>
+                        <input type="date" name="end_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Lý do xin nghỉ:</label>
+                        <textarea name="reason" rows="4" class="form-control" required placeholder="Vui lòng ghi rõ lý do xin nghỉ (Ví dụ: Khám bệnh, lo việc gia đình...)"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'leave_list' %}" class="btn btn-secondary">Quay lại</a>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Gửi Đơn Xếp Duyệt</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
