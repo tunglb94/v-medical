@@ -291,9 +291,9 @@
                             {{ form.source }}
                         </div>
                         
-                        <div class="col-md-6" id="fanpage-group">
-                            <label class="form-label small fw-bold">Các Fanpage nguồn</label>
-                            <div class="border p-2 rounded bg-light" style="max-height: 150px; overflow-y: auto;">
+                        <div class="col-12 mt-3" id="fanpage-group">
+                            <label class="form-label small fw-bold mb-2">Các Fanpage nguồn (Có thể tick chọn nhiều)</label>
+                            <div class="border p-3 rounded bg-light">
                                 {{ form.fanpages }}
                                 {% if form.fanpages.errors %}
                                     <div class="text-danger small mt-1">{{ form.fanpages.errors }}</div>
@@ -333,21 +333,31 @@
         transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
     }
     
-    /* CSS Căn chỉnh cho danh sách Checkbox Fanpage gọn gàng */
+    /* CHỈNH SỬA: CSS Hiển thị danh sách Fanpage dạng Lưới (Grid) đa cột đẹp mắt */
     #id_fanpages {
         list-style: none;
         padding: 0;
         margin: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Chia cột tự động dựa theo chiều rộng */
+        gap: 12px 15px; /* Khoảng cách hàng và cột */
     }
     #id_fanpages li {
-        margin-bottom: 6px;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
+        margin-bottom: 0;
     }
     #id_fanpages li label {
-        margin-bottom: 0;
+        display: flex;
+        align-items: flex-start;
+        font-size: 0.9rem;
         cursor: pointer;
+        margin-bottom: 0;
+        line-height: 1.4;
+        color: #333;
+    }
+    #id_fanpages li label input[type="checkbox"] {
+        margin-top: 3px;
+        margin-right: 8px;
+        flex-shrink: 0; /* Giữ checkbox không bị thu nhỏ khi text dài */
     }
 </style>
 
