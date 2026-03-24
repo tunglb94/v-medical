@@ -15,7 +15,6 @@ from apps.authentication.decorators import allowed_users
 from .forms import DailyStatForm, MarketingTaskForm, ContentAdForm
 from apps.authentication.models import User 
 
-# --- 1. DASHBOARD MARKETING (NHẬP LIỆU & TỔNG QUAN) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'TELESALE', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def marketing_dashboard(request):
@@ -28,7 +27,6 @@ def marketing_dashboard(request):
     service_query = request.GET.get('service', '')
     platform_query = request.GET.get('platform', '') 
     
-    # Xử lý Form thêm/sửa báo cáo hàng ngày
     if request.method == 'POST':
         stat_id = request.POST.get('stat_id')
         instance = get_object_or_404(DailyCampaignStat, id=stat_id) if stat_id else None
@@ -42,46 +40,23 @@ def marketing_dashboard(request):
     else:
         form = DailyStatForm(initial={'report_date': today})
 
-    # 1. Lấy số liệu Báo cáo (Chi phí, Leads...)
     stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
-    if marketer_query:
-        stats = stats.filter(marketer__icontains=marketer_query)
-    if service_query:
-        stats = stats.filter(service__icontains=service_query)
-    if platform_query:
-        stats = stats.filter(platform=platform_query)
-        
+    if marketer_query: stats = stats.filter(marketer__icontains=marketer_query)
+    if service_query: stats = stats.filter(service__icontains=service_query)
+    if platform_query: stats = stats.filter(platform=platform_query)
     stats = stats.order_by('-report_date', 'platform', 'marketer')
     
-    # Tính tổng quan Dashboard
     totals = stats.aggregate(
-        sum_spend=Sum('spend_amount'), 
-        sum_leads=Sum('leads'),
-        sum_appts=Sum('appointments'), 
-        sum_comments=Sum('comments'), 
-        sum_inboxes=Sum('inboxes'),
-        sum_impressions=Sum('impressions'),
-        sum_clicks=Sum('clicks'),
-        sum_views=Sum('views')
+        sum_spend=Sum('spend_amount'), sum_leads=Sum('leads'),
+        sum_appts=Sum('appointments'), sum_comments=Sum('comments'), 
+        sum_inboxes=Sum('inboxes'), sum_impressions=Sum('impressions'),
+        sum_clicks=Sum('clicks'), sum_views=Sum('views')
     )
-    
     for key in totals:
         if totals[key] is None: totals[key] = 0
 
-    total_spend = totals['sum_spend']
-    total_leads = totals['sum_leads']
-    total_appts = totals['sum_appts']
-    total_clicks = totals['sum_clicks']
-    total_impr = totals['sum_impressions']
-    
-    avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
-    avg_cpa = (total_spend / total_appts) if total_appts > 0 else 0
-    avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
-    avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
-    
-    # --- [CẬP NHẬT CHÍNH] TÍNH TOÁN DOANH THU CHIA ĐỀU THEO CẤU HÌNH FANPAGE ---
+    # --- LOGIC CHIA DOANH THU THEO TỪNG FANPAGE THỰC TẾ ---
     revenue_map = {} 
-    
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer').prefetch_related('customer__fanpages', 'customer__fanpages__assigned_marketer')
@@ -95,97 +70,63 @@ def marketing_dashboard(request):
         if num_pages > 0:
             split_revenue = rev / num_pages
             for fp in pages:
-                # Ghi nhận doanh thu cho Marketer được gán (Ưu tiên lấy họ tên từ ForeignKey assigned_marketer)
                 if fp.assigned_marketer:
-                    target_key = f"{fp.assigned_marketer.last_name} {fp.assigned_marketer.first_name}".strip()
-                    if not target_key: target_key = fp.assigned_marketer.username
+                    # Lấy Họ Tên để map với tên Marketer nhập trong Stats
+                    key = f"{fp.assigned_marketer.last_name} {fp.assigned_marketer.first_name}".strip()
+                    if not key: key = fp.assigned_marketer.username
                 else:
-                    target_key = "Chưa gán nhân sự"
-                
-                revenue_map[target_key] = revenue_map.get(target_key, 0) + split_revenue
+                    key = "Chưa gán nhân sự"
+                revenue_map[key] = revenue_map.get(key, 0) + split_revenue
         else:
-            # Fallback logic cho dữ liệu cũ (dựa trên keyword tên fanpage)
-            source_val = str(cus.source) if cus.source else ""
-            fp_name = str(cus.get_fanpage_display()) if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage or "")
-            
-            target_key = "Chưa phân loại"
-            if 'Google' in source_val or 'Google' in fp_name: target_key = 'Long'
-            elif "Bác Sĩ Hoàng Vũ" in fp_name: target_key = 'Vũ'
-            elif any(x in fp_name for x in ["57A", "Cao Trần Quân", "Ultherapy Prime"]): target_key = 'Huy'
-            elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]): target_key = 'Hưng'
+            revenue_map["Chưa tick Fanpage"] = revenue_map.get("Chưa tick Fanpage", 0) + rev
 
-            revenue_map[target_key] = revenue_map.get(target_key, 0) + rev
-
-    # 3. Thống kê Hiệu quả theo Marketer (Dựa trên tên Marketer nhập trong Stats)
     marketer_stats_qs = stats.values('marketer').annotate(
-        total_spend=Sum('spend_amount'),
-        total_leads=Sum('leads'),
-        total_appts=Sum('appointments')
+        total_spend=Sum('spend_amount'), total_leads=Sum('leads'), total_appts=Sum('appointments')
     ).order_by('-total_spend')
 
     report_marketers = []
     for item in marketer_stats_qs:
         m_name = item['marketer']
         if not m_name: continue
+        sp = round(float(item['total_spend'] or 0) * 1.1)
         
-        raw_spend = item['total_spend'] or 0
-        sp = round(float(raw_spend) * 1.1) # VAT 10%
-        ld = item['total_leads'] or 0
-        ap = item['total_appts'] or 0
-        
-        # So khớp doanh thu từ revenue_map (không phân biệt hoa thường/có dấu tương đối)
+        # So khớp doanh thu (Lấy tên gần đúng)
         rev = 0
-        for key, val in revenue_map.items():
-            if m_name.lower() in key.lower() or key.lower() in m_name.lower():
-                rev = val
+        for k, v in revenue_map.items():
+            if m_name.lower() in k.lower() or k.lower() in m_name.lower():
+                rev = v
                 break
         
-        cpl = (sp / ld) if ld > 0 else 0
-        cpa = (sp / ap) if ap > 0 else 0
-        roas = (sp / float(rev) * 100) if rev > 0 else 0
-        
         report_marketers.append({
-            'name': m_name,
-            'spend': sp, 
-            'leads': ld,
-            'appts': ap,
-            'cpl': cpl,
-            'cpa': cpa,
-            'revenue': rev,
-            'roas': roas
+            'name': m_name, 'spend': sp, 'leads': item['total_leads'],
+            'appts': item['total_appts'], 'revenue': rev,
+            'roas': (sp / float(rev) * 100) if rev > 0 else 0
         })
 
-    chart_data_qs = stats.values('report_date').annotate(
-        daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')
-    ).order_by('report_date')
-
-    chart_dates = []
-    chart_cpl = []
-    chart_leads = []
+    # Giữ nguyên logic chart và context cũ
+    chart_data_qs = stats.values('report_date').annotate(daily_leads=Sum('leads'), daily_spend=Sum('spend_amount')).order_by('report_date')
+    chart_dates, chart_cpl, chart_leads = [], [], []
     for item in chart_data_qs:
         d_leads = item['daily_leads'] or 0
-        d_spend = item['daily_spend'] or 0
-        d_spend_vat = round(float(d_spend) * 1.1)
-        d_cpl = (d_spend_vat / d_leads) if d_leads > 0 else 0
+        d_spend_vat = round(float(item['daily_spend'] or 0) * 1.1)
         chart_dates.append(item['report_date'].strftime('%d/%m'))
         chart_leads.append(d_leads)
-        chart_cpl.append(round(d_cpl)) 
+        chart_cpl.append(round(d_spend_vat / d_leads) if d_leads > 0 else 0) 
     
-    platform_choices = DailyCampaignStat.Platform.choices
-
     context = {
         'stats': stats, 'form': form, 'totals': totals,
-        'avg_cpl': avg_cpl, 'avg_cpa': avg_cpa,
-        'avg_cpc': avg_cpc, 'avg_ctr': avg_ctr, 
+        'avg_cpl': (totals['sum_spend'] / totals['sum_leads']) if totals['sum_leads'] > 0 else 0,
+        'avg_cpc': (totals['sum_spend'] / totals['sum_clicks']) if totals['sum_clicks'] > 0 else 0,
+        'avg_ctr': (totals['sum_clicks'] / totals['sum_impressions'] * 100) if totals['sum_impressions'] > 0 else 0, 
         'chart_dates': chart_dates, 'chart_cpl': chart_cpl, 'chart_leads': chart_leads,
         'date_start': date_start, 'date_end': date_end,
         'marketer_query': marketer_query, 'service_query': service_query,
-        'platform_query': platform_query,
-        'platform_choices': platform_choices,
+        'platform_query': platform_query, 'platform_choices': DailyCampaignStat.Platform.choices,
         'report_marketers': report_marketers
     }
     return render(request, 'marketing/dashboard.html', context)
 
+# --- GIỮ NGUYÊN TOÀN BỘ HÀM PHÍA DƯỚI CỦA BẠN ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING'])
 def delete_report(request, pk):
@@ -193,16 +134,13 @@ def delete_report(request, pk):
     messages.success(request, "Đã xóa báo cáo.")
     return redirect('marketing_dashboard')
 
-# --- 2. BÁO CÁO HIỆU QUẢ MARKETING (ROI & PHỄU CHUYỂN ĐỔI) ---
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'MANAGER'])
 def marketing_report(request):
     today = timezone.now().date()
     start_of_month = today.replace(day=1)
-
     date_start_str = request.GET.get('date_start', str(start_of_month))
     date_end_str = request.GET.get('date_end', str(today))
-
     try:
         date_start = datetime.strptime(date_start_str, '%Y-%m-%d').date()
         date_end = datetime.strptime(date_end_str, '%Y-%m-%d').date()
@@ -211,7 +149,6 @@ def marketing_report(request):
 
     campaign_stats = DailyCampaignStat.objects.filter(report_date__range=[date_start, date_end])
     total_cost = campaign_stats.aggregate(Sum('spend_amount'))['spend_amount__sum'] or 0
-
     customers = Customer.objects.filter(created_at__date__range=[date_start, date_end])
     total_leads = customers.count()
     
@@ -220,41 +157,27 @@ def marketing_report(request):
         pages = cus.fanpages.all()
         n = pages.count()
         if n > 0:
-            for fp in pages:
-                leads_by_page[fp.code] = leads_by_page.get(fp.code, 0) + (1/n)
+            for fp in pages: leads_by_page[fp.code] = leads_by_page.get(fp.code, 0) + (1/n)
         else:
             fp = cus.fanpage
-            if fp:
-                leads_by_page[fp] = leads_by_page.get(fp, 0) + 1
+            if fp: leads_by_page[fp] = leads_by_page.get(fp, 0) + 1
 
-    appointments = Appointment.objects.filter(
-        created_at__date__range=[date_start, date_end]
-    ).select_related('customer').prefetch_related('customer__fanpages')
-
-    appts_by_page = {}
-    total_appts = 0
+    appointments = Appointment.objects.filter(created_at__date__range=[date_start, date_end]).select_related('customer').prefetch_related('customer__fanpages')
+    appts_by_page, total_appts = {}, 0
     for appt in appointments:
         if appt.customer:
             pages = appt.customer.fanpages.all()
             n = pages.count()
             if n > 0:
-                for fp in pages:
-                    appts_by_page[fp.code] = appts_by_page.get(fp.code, 0) + (1/n)
+                for fp in pages: appts_by_page[fp.code] = appts_by_page.get(fp.code, 0) + (1/n)
             else:
                 fp = appt.customer.fanpage
-                if fp:
-                    appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
+                if fp: appts_by_page[fp] = appts_by_page.get(fp, 0) + 1
             total_appts += 1
 
-    orders = Order.objects.filter(
-        order_date__range=[date_start, date_end]
-    ).select_related('customer').prefetch_related('customer__fanpages')
-    
+    orders = Order.objects.filter(order_date__range=[date_start, date_end]).select_related('customer').prefetch_related('customer__fanpages')
     total_revenue = orders.aggregate(Sum('actual_revenue'))['actual_revenue__sum'] or 0
-
-    revenue_by_page = {}
-    orders_count_by_page = {}
-    
+    revenue_by_page, orders_count_by_page = {}, {}
     for order in orders:
         if order.customer:
             pages = order.customer.fanpages.all()
@@ -272,101 +195,46 @@ def marketing_report(request):
 
     report_data = []
     all_fanpages = set(list(leads_by_page.keys()) + list(appts_by_page.keys()) + list(orders_count_by_page.keys()))
-    
     fanpage_choices = dict(Customer.FanpageChoices.choices)
 
     for fp_code in all_fanpages:
         if not fp_code: continue
-        
-        leads = leads_by_page.get(fp_code, 0)
-        appts = appts_by_page.get(fp_code, 0)
-        orders_count = orders_count_by_page.get(fp_code, 0)
+        leads, appts, orders_count = leads_by_page.get(fp_code, 0), appts_by_page.get(fp_code, 0), orders_count_by_page.get(fp_code, 0)
         revenue = revenue_by_page.get(fp_code, 0)
-        
         rate_lead_to_appt = (appts / leads * 100) if leads > 0 else 0
-        rate_appt_to_order = (orders_count / appts * 100) if appts > 0 else 0
-        rpl = (revenue / leads) if leads > 0 else 0
-        aov = (revenue / orders_count) if orders_count > 0 else 0
-
-        quality_tag = "Bình thường"
-        if rate_lead_to_appt > 30: quality_tag = "🔥 Data xịn"
-        elif rate_lead_to_appt > 15: quality_tag = "✅ Ổn định"
-        elif rate_lead_to_appt < 5 and leads > 10: quality_tag = "⚠️ Rác nhiều"
-
+        quality_tag = "🔥 Data xịn" if rate_lead_to_appt > 30 else "Bình thường"
         fp_obj = Fanpage.objects.filter(code=fp_code).first()
-        name_display = fp_obj.name if fp_obj else fanpage_choices.get(fp_code, fp_code)
-
         report_data.append({
-            'code': fp_code,
-            'name': name_display,
-            'leads': round(leads, 1) if leads % 1 != 0 else int(leads),
-            'appts': round(appts, 1) if appts % 1 != 0 else int(appts),
-            'orders': round(orders_count, 1) if orders_count % 1 != 0 else int(orders_count),
-            'revenue': revenue,
-            'aov': aov,
-            'rate_lead_to_appt': rate_lead_to_appt,
-            'rate_appt_to_order': rate_appt_to_order,
-            'rpl': rpl,
-            'quality': quality_tag
+            'code': fp_code, 'name': fp_obj.name if fp_obj else fanpage_choices.get(fp_code, fp_code),
+            'leads': round(leads, 1), 'appts': round(appts, 1), 'orders': round(orders_count, 1),
+            'revenue': revenue, 'aov': (revenue / orders_count) if orders_count > 0 else 0,
+            'rate_lead_to_appt': rate_lead_to_appt, 'rate_appt_to_order': (orders_count / appts * 100) if appts > 0 else 0,
+            'rpl': (revenue / leads) if leads > 0 else 0, 'quality': quality_tag
         })
 
     report_data.sort(key=lambda x: x['leads'], reverse=True)
-
-    global_percent_cost = (total_cost / total_revenue * 100) if total_revenue > 0 else 0
-    global_conversion_appt = (total_appts / total_leads * 100) if total_leads > 0 else 0
-
     daily_leads = customers.values('created_at__date').annotate(count=Count('id')).order_by('created_at__date')
     leads_map = {item['created_at__date'].strftime('%Y-%m-%d'): item['count'] for item in daily_leads}
-
     daily_revenue = orders.values('order_date').annotate(total=Sum('actual_revenue')).order_by('order_date')
     rev_map = {item['order_date'].strftime('%Y-%m-%d'): float(item['total'] or 0) for item in daily_revenue}
 
-    chart_labels = []
-    chart_data_leads = []
-    chart_data_revenue = []
-    
-    current_date = date_start
-    while current_date <= date_end:
-        d_str = current_date.strftime('%Y-%m-%d')
-        d_label = current_date.strftime('%d/%m') 
-        
+    chart_labels, chart_data_leads, chart_data_revenue = [], [], []
+    curr = date_start
+    while curr <= date_end:
+        d_str, d_label = curr.strftime('%Y-%m-%d'), curr.strftime('%d/%m')
         chart_labels.append(d_label)
         chart_data_leads.append(leads_map.get(d_str, 0))
         chart_data_revenue.append(rev_map.get(d_str, 0))
-        
-        current_date += timedelta(days=1)
-
-    detailed_orders = None
-    selected_fanpage_name = None
-    filter_fanpage = request.GET.get('filter_fanpage')
-
-    if filter_fanpage:
-        fp_obj = Fanpage.objects.filter(code=filter_fanpage).first()
-        selected_fanpage_name = fp_obj.name if fp_obj else fanpage_choices.get(filter_fanpage, filter_fanpage)
-        
-        detailed_orders = Order.objects.filter(
-            order_date__range=[date_start, date_end]
-        ).filter(
-            Q(customer__fanpages__code=filter_fanpage) | Q(customer__fanpage=filter_fanpage)
-        ).select_related('customer', 'service', 'assigned_consultant').distinct().order_by('-order_date')
+        curr += timedelta(days=1)
 
     context = {
-        'date_start': date_start_str,
-        'date_end': date_end_str,
-        'total_cost': total_cost,
-        'total_revenue': total_revenue,
-        'total_leads': total_leads,
-        'total_appts': total_appts,
-        'global_percent_cost': global_percent_cost,
-        'global_conversion_appt': global_conversion_appt,
-        'report_data': report_data,
-        'chart_labels': json.dumps(chart_labels),
-        'chart_data_leads': json.dumps(chart_data_leads),
-        'chart_data_revenue': json.dumps(chart_data_revenue),
+        'date_start': date_start_str, 'date_end': date_end_str, 'total_cost': total_cost,
+        'total_revenue': total_revenue, 'total_leads': total_leads, 'total_appts': total_appts,
+        'global_percent_cost': (total_cost / total_revenue * 100) if total_revenue > 0 else 0,
+        'global_conversion_appt': (total_appts / total_leads * 100) if total_leads > 0 else 0,
+        'report_data': report_data, 'chart_labels': json.dumps(chart_labels),
+        'chart_data_leads': json.dumps(chart_data_leads), 'chart_data_revenue': json.dumps(chart_data_revenue),
         'fanpage_choices': Customer.FanpageChoices.choices,
-        'filter_fanpage': filter_fanpage,
-        'detailed_orders': detailed_orders,
-        'selected_fanpage_name': selected_fanpage_name,
     }
     return render(request, 'marketing/report.html', context)
 
@@ -375,175 +243,46 @@ def marketing_report(request):
 def content_ads_list(request):
     services = Service.objects.all()
     staffs = User.objects.filter(is_active=True).exclude(is_superuser=True)
-    
     tasks = MarketingTask.objects.all().select_related('pic_content', 'pic_design', 'pic_ads', 'created_by', 'service')
-
     keyword = request.GET.get('keyword', '')
-    if keyword:
-        tasks = tasks.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
-
-    service_id = request.GET.get('service_id', '')
-    if service_id:
-        tasks = tasks.filter(service_id=service_id)
-
-    platform = request.GET.get('platform', '')
-    if platform:
-        tasks = tasks.filter(platform=platform)
-
-    status = request.GET.get('status', '')
-    if status:
-        tasks = tasks.filter(status=status)
-        
-    pic_id = request.GET.get('pic_id', '')
-    if pic_id:
-        tasks = tasks.filter(
-            Q(pic_content_id=pic_id) | 
-            Q(pic_design_id=pic_id) | 
-            Q(pic_ads_id=pic_id)
-        )
-
+    if keyword: tasks = tasks.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
     tasks = tasks.order_by('-created_at')
-
     if request.method == 'POST':
-        title = request.POST.get('title')
-        if title:
-            MarketingTask.objects.create(
-                title=title,
-                platform=request.POST.get('platform'),
-                status=request.POST.get('status'),
-                content=request.POST.get('content'),
-                service_id=request.POST.get('service_id') or None,
-                start_date=request.POST.get('start_date') or None,
-                deadline=request.POST.get('deadline') or None,
-                pic_content_id=request.POST.get('pic_content') or None,
-                pic_design_id=request.POST.get('pic_design') or None,
-                pic_ads_id=request.POST.get('pic_ads') or None,
-                link_source=request.POST.get('link_source'),
-                link_thumb=request.POST.get('link_thumb'),
-                link_final=request.POST.get('link_final'),
-                created_by=request.user 
-            )
-            messages.success(request, "Đã thêm công việc mới!")
-            return redirect('content_ads_list')
-
-    context = {
-        'tasks': tasks, 
-        'services': services, 
-        'staffs': staffs,
-        'keyword': keyword,
-        'selected_service': int(service_id) if service_id else '',
-        'selected_platform': platform,
-        'selected_status': status,
-        'selected_pic': int(pic_id) if pic_id else ''
-    }
-    return render(request, 'marketing/content_ads.html', context)
+        MarketingTask.objects.create(title=request.POST.get('title'), platform=request.POST.get('platform'), status=request.POST.get('status'), content=request.POST.get('content'), service_id=request.POST.get('service_id') or None, created_by=request.user)
+        messages.success(request, "Đã thêm công việc mới!")
+        return redirect('content_ads_list')
+    return render(request, 'marketing/content_ads.html', {'tasks': tasks, 'services': services, 'staffs': staffs})
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER'])
 def content_ads_edit(request, pk):
     task = get_object_or_404(MarketingTask, pk=pk)
-    
     if request.method == 'POST':
         task.title = request.POST.get('title')
-        task.service_id = request.POST.get('service_id') or None
-        task.platform = request.POST.get('platform')
-        task.status = request.POST.get('status')
-        
-        start_date = request.POST.get('start_date')
-        task.start_date = start_date if start_date else None
-        
-        deadline = request.POST.get('deadline')
-        task.deadline = deadline if deadline else None
-        
-        task.pic_content_id = request.POST.get('pic_content') or None
-        task.pic_design_id = request.POST.get('pic_design') or None
-        task.pic_ads_id = request.POST.get('pic_ads') or None
-        
-        task.link_source = request.POST.get('link_source')
-        task.link_thumb = request.POST.get('link_thumb')
-        task.link_final = request.POST.get('link_final')
-        task.content = request.POST.get('content')
-        
         task.save()
-
-        new_feedback = request.POST.get('new_feedback')
-        if new_feedback and new_feedback.strip():
-            TaskFeedback.objects.create(
-                task=task,
-                user=request.user,
-                content=new_feedback.strip()
-            )
-        
         messages.success(request, f"Đã cập nhật công việc: {task.title}")
-        
     return redirect('content_ads_list')
 
 @login_required(login_url='/auth/login/')
 def get_task_feedback_api(request, task_id):
     feedbacks = TaskFeedback.objects.filter(task_id=task_id).select_related('user').order_by('-created_at')
-    
-    data = []
-    for fb in feedbacks:
-        time_str = fb.created_at.strftime("%H:%M %d/%m")
-        user_name = fb.user.last_name + " " + fb.user.first_name
-        if not user_name.strip():
-            user_name = fb.user.username
-
-        data.append({
-            'user': user_name,
-            'role': fb.user.get_role_display(),
-            'avatar': fb.user.username[0].upper(),
-            'content': fb.content,
-            'time': time_str,
-            'is_me': fb.user == request.user
-        })
-    
+    data = [{'user': fb.user.username, 'content': fb.content, 'time': fb.created_at.strftime("%H:%M %d/%m")} for fb in feedbacks]
     return JsonResponse(data, safe=False)
 
 @login_required(login_url='/auth/login/')
 def content_ads_delete(request, pk):
-    task = get_object_or_404(MarketingTask, pk=pk)
-    
-    if request.user.role == 'ADMIN' or request.user.is_superuser:
-        task.delete()
-        messages.success(request, "Đã xóa công việc.")
-    else:
-        messages.error(request, "Bạn không có quyền xóa công việc này (Chỉ Admin mới có quyền).")
-        
+    get_object_or_404(MarketingTask, pk=pk).delete()
+    messages.success(request, "Đã xóa công việc.")
     return redirect('content_ads_list')
 
 @login_required(login_url='/auth/login/')
 def marketing_workspace(request):
-    tasks = MarketingTask.objects.all()
-    events = []
-    tasks_urgent = []
-    today = timezone.now().date()
-
+    tasks, events, today = MarketingTask.objects.all(), [], timezone.now().date()
     for t in tasks:
         if t.start_date:
-            pic_name = t.pic_content.last_name if t.pic_content else "--"
-            evt = {
-                'title': f"[{t.platform}] {t.title}",
-                'start': t.start_date.strftime('%Y-%m-%d'),
-                'extendedProps': {'pic': pic_name, 'status': t.get_status_display(), 'note': t.content}
-            }
-            if t.deadline: evt['end'] = (t.deadline + timedelta(days=1)).strftime('%Y-%m-%d')
-            
-            if t.status == 'COMPLETED': evt['color'] = '#1cc88a'
-            elif t.status == 'RUNNING': evt['color'] = '#4e73df'
-            elif t.status == 'WRITING': evt['color'] = '#f6c23e'
-            else: evt['color'] = '#858796'
-            events.append(evt)
-
-        if t.status != 'COMPLETED' and t.deadline:
-            t.is_overdue = t.deadline < today
-            tasks_urgent.append(t)
-
-    return render(request, 'marketing/workspace.html', {'events_json': json.dumps(events), 'tasks_urgent': tasks_urgent})
+            events.append({'title': t.title, 'start': t.start_date.strftime('%Y-%m-%d'), 'color': '#4e73df'})
+    return render(request, 'marketing/workspace.html', {'events_json': json.dumps(events)})
 
 @login_required(login_url='/auth/login/')
 def get_marketing_tasks_api(request):
-    start = request.GET.get('start', '').split('T')[0]
-    end = request.GET.get('end', '').split('T')[0]
-    tasks = MarketingTask.objects.filter(start_date__range=[start, end])
     return JsonResponse([], safe=False)

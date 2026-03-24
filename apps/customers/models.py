@@ -4,22 +4,23 @@ from django.utils import timezone
 from django.db.models import Sum
 from datetime import date
 
+# [CẬP NHẬT] BẢNG FANPAGE LẤY NHÂN SỰ TỪ HỆ THỐNG
 class Fanpage(models.Model):
     code = models.CharField(max_length=50, unique=True, verbose_name="Mã Fanpage")
     name = models.CharField(max_length=200, verbose_name="Tên Fanpage hiển thị")
-    # Thay vì nhập tay, ta liên kết trực tiếp với tài khoản nhân viên trong hệ thống
+    # Liên kết trực tiếp với bảng User để tick chọn nhân sự
     assigned_marketer = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
         limit_choices_to={'role__in': ['ADMIN', 'MARKETING']},
-        verbose_name="Marketer phụ trách",
-        related_name="managed_fanpages"
+        verbose_name="Marketer phụ trách"
     )
 
     def __str__(self):
-        return f"{self.name} ({self.assigned_marketer.last_name if self.assigned_marketer else 'Chưa gán'})"
+        marketer = f"{self.assigned_marketer.last_name} {self.assigned_marketer.first_name}" if self.assigned_marketer else "Chưa gán"
+        return f"{self.name} ({marketer})"
 
     class Meta:
         verbose_name = "Fanpage"
