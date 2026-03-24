@@ -3,9 +3,9 @@ from .models import Customer, Fanpage
 import re
 
 class CustomerForm(forms.ModelForm):
-    # [CẬP NHẬT] Sử dụng trường ManyToMany cho Fanpages
-    fanpages = forms.ModelMultipleChoiceField(
-        queryset=Fanpage.objects.all(),
+    # [CẬP NHẬT] Sử dụng MultipleChoiceField lấy data cứng giống hệt bên Telesale
+    fanpages = forms.MultipleChoiceField(
+        choices=Customer.FanpageChoices.choices,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input me-2 cursor-pointer'}),
         required=False,
         label="Các Fanpage Nguồn"
@@ -13,7 +13,7 @@ class CustomerForm(forms.ModelForm):
 
     class Meta:
         model = Customer
-        # [CẬP NHẬT] Loại bỏ fanpage (cũ), giữ nguyên các trường exclude khác
+        # Loại bỏ fanpage (cũ), giữ nguyên các trường exclude khác
         exclude = ['assigned_telesale', 'created_at', 'ranking', 'customer_code', 'fanpage'] 
         
         widgets = {
@@ -27,6 +27,12 @@ class CustomerForm(forms.ModelForm):
             'gender': forms.Select(attrs={'class': 'form-select'}),
             'note_telesale': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # [QUAN TRỌNG] Khi mở Modal Sửa, tự động check lại các Fanpage mà khách này đã liên kết
+        if self.instance and self.instance.pk:
+            self.fields['fanpages'].initial = list(self.instance.fanpages.values_list('code', flat=True))
 
     def clean_phone(self):
         phone = self.cleaned_data.get('phone')
@@ -46,3 +52,26 @@ class CustomerForm(forms.ModelForm):
             self.add_error('fanpages', "Bắt buộc phải chọn Fanpage khi nguồn là Facebook Ads.")
         
         return cleaned_data
+
+    def save(self, commit=True):
+        # Lưu Customer trước
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            
+            # [LOGIC TỰ ĐỘNG ĐỒNG BỘ M2M] 
+            # Lấy list các code do user tick chọn
+            selected_codes = self.cleaned_data.get('fanpages', [])
+            fanpage_objs = []
+            choice_dict = dict(Customer.FanpageChoices.choices)
+            
+            for code in selected_codes:
+                name = choice_dict.get(code, code)
+                # Tự động tạo bản ghi Fanpage trong DB nếu chưa có -> Tránh lỗi trống data
+                fp_obj, _ = Fanpage.objects.get_or_create(code=code, defaults={'name': name})
+                fanpage_objs.append(fp_obj)
+                
+            # Set dữ liệu vào field fanpages
+            instance.fanpages.set(fanpage_objs)
+            
+        return instance

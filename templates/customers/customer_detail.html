@@ -294,14 +294,7 @@
                         <div class="col-md-6" id="fanpage-group">
                             <label class="form-label small fw-bold">Các Fanpage nguồn</label>
                             <div class="border p-2 rounded bg-light" style="max-height: 150px; overflow-y: auto;">
-                                {% if not form.fanpages.field.queryset %}
-                                    <div class="text-danger small fst-italic">
-                                        <i class="bi bi-exclamation-triangle"></i> Chưa có dữ liệu Fanpage trên hệ thống. Vui lòng vào Admin để thêm!
-                                    </div>
-                                {% else %}
-                                    {{ form.fanpages }}
-                                {% endif %}
-                                
+                                {{ form.fanpages }}
                                 {% if form.fanpages.errors %}
                                     <div class="text-danger small mt-1">{{ form.fanpages.errors }}</div>
                                 {% endif %}
