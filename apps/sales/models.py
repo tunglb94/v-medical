@@ -49,6 +49,15 @@ class Order(models.Model):
         limit_choices_to={'role': 'CONSULTANT'},
         verbose_name="Tư vấn viên (Sales)"
     )
+
+    # [MỚI] Cho phép chọn nhiều nhân sự Digital phụ trách đơn hàng
+    digitals = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='digital_assigned_orders',
+        limit_choices_to={'role__in': ['ADMIN', 'MARKETING']},
+        verbose_name="Digital Marketing"
+    )
     
     appointment = models.OneToOneField(Appointment, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lịch hẹn liên quan")
     
@@ -68,13 +77,11 @@ class Order(models.Model):
     @property
     def allocated_marketing_revenue(self):
         """
-        [MỚI] Tính toán doanh thu phân bổ cho từng Fanpage để ghi nhận Digital Marketing.
-        Logic: Nếu nguồn là Facebook, doanh thu = Thực thu / Tổng số Fanpage đã chọn.
+        Tính toán doanh thu phân bổ cho từng Fanpage để ghi nhận Digital Marketing.
         """
         num_fanpages = self.customer.fanpages.count()
         if num_fanpages > 0:
             return self.actual_revenue / num_fanpages
-        # Nếu là Facebook nhưng chưa chọn page (phòng hờ dữ liệu cũ) hoặc nguồn khác
         return self.actual_revenue if self.customer.source == 'FACEBOOK' else 0
 
     def save(self, *args, **kwargs):

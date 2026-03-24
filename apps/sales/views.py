@@ -88,7 +88,7 @@ def revenue_dashboard(request):
 
     orders_qs = Order.objects.filter(
         order_date__range=[date_start, date_end]
-    ).select_related('customer__assigned_telesale', 'service', 'assigned_consultant', 'appointment__assigned_technician')
+    ).select_related('customer__assigned_telesale', 'service', 'assigned_consultant', 'appointment__assigned_technician').prefetch_related('digitals')
 
     if doctor_id: orders_qs = orders_qs.filter(appointment__assigned_doctor_id=doctor_id)
     if consultant_id: 
@@ -171,6 +171,7 @@ def revenue_dashboard(request):
             'service_name': o.service.name if o.service else "Khác",
             'service_id': o.service.id if o.service else "",
             'consultant': o.assigned_consultant, 'telesale': o.customer.assigned_telesale,
+            'digitals': o.digitals.all(), # Hiển thị Digital
             'total_amount': o.total_amount
         })
         
@@ -187,6 +188,7 @@ def revenue_dashboard(request):
             'customer_name': app.customer.name, 'customer_phone': app.customer.phone,
             'service_name': fail_reason, 'service_id': "",
             'consultant': app.assigned_consultant, 'telesale': app.customer.assigned_telesale,
+            'digitals': [],
             'total_amount': 0
         })
     order_logs.sort(key=lambda x: x['date'], reverse=True)
@@ -249,6 +251,8 @@ def revenue_dashboard(request):
     consultants = User.objects.filter(role='CONSULTANT')
     services = Service.objects.all().order_by('name')
     telesales_list = User.objects.filter(role='TELESALE').order_by('first_name')
+    # [MỚI] Lấy danh sách Digital cho dropdown modal
+    digitals_list = User.objects.filter(role__in=['ADMIN', 'MARKETING']).order_by('first_name')
 
     context = {
         'orders': orders, 'order_logs': order_logs,
@@ -266,6 +270,7 @@ def revenue_dashboard(request):
         'consultants': consultants,
         'services': services, 
         'telesales_list': telesales_list,
+        'digitals_list': digitals_list, # Context mới
     }
     return render(request, 'sales/revenue_dashboard.html', context)
 
@@ -299,6 +304,13 @@ def update_order_details(request):
                 new_date = request.POST.get('order_date')
                 if new_date: order.order_date = new_date
                 
+                # [MỚI] Lưu danh sách Digital (Multi-select)
+                digital_ids = request.POST.getlist('digital_ids')
+                if digital_ids:
+                    order.digitals.set(digital_ids)
+                else:
+                    order.digitals.clear()
+
                 order.save()
                 
                 if order.appointment:

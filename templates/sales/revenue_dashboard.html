@@ -229,7 +229,7 @@
                             <th>Dịch vụ</th>
                             <th>Sale Spa</th>
                             <th>Telesale</th>
-                            <th class="text-end">Tổng tiền</th>
+                            <th>Digital</th> <th class="text-end">Tổng tiền</th>
                             <th class="text-center">Thao tác</th>
                         </tr>
                     </thead>
@@ -273,6 +273,13 @@
                                     <span class="text-muted small">-</span>
                                 {% endif %}
                             </td>
+                            <td>
+                                {% for d in log.digitals %}
+                                    <span class="badge bg-info text-dark small">{{ d.last_name }}</span>
+                                {% empty %}
+                                    <span class="text-muted small">-</span>
+                                {% endfor %}
+                            </td>
                             
                             <td class="text-end fw-bold {% if log.is_fail %}text-danger{% else %}text-success{% endif %}">
                                 {{ log.total_amount|intcomma }}
@@ -288,7 +295,8 @@
                                             '{{ log.total_amount|floatformat:0 }}',
                                             '{{ log.date|date:'Y-m-d' }}',
                                             '{{ log.service_id|default:'' }}',
-                                            '{{ log.telesale.id|default:'' }}'
+                                            '{{ log.telesale.id|default:'' }}',
+                                            [{% for d in log.digitals %}'{{ d.id }}'{% if not forloop.last %},{% endif %}{% endfor %}]
                                         )"
                                         title="Chỉnh sửa thông tin">
                                     <i class="bi bi-pencil-square"></i>
@@ -303,7 +311,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">Không có dữ liệu.</td>
+                            <td colspan="9" class="text-center py-4 text-muted">Không có dữ liệu.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -368,6 +376,16 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="mb-3" id="divDigital">
+                        <label class="form-label small fw-bold text-info">Digital Marketing (Chọn nhiều)</label>
+                        <select name="digital_ids" id="editDigital" class="form-select form-select-sm" multiple style="height: 100px;">
+                            {% for digi in digitals_list %}
+                                <option value="{{ digi.id }}">{{ digi.last_name }} {{ digi.first_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small">Giữ phím Ctrl (Cmd) để chọn nhiều người.</div>
+                    </div>
                 </div>
                 <div class="modal-footer p-1 bg-light">
                     <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">LƯU THAY ĐỔI</button>
@@ -379,21 +397,29 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    function openEditModal(itemId, itemType, saleId, amount, dateStr, serviceId, telesaleId) {
+    function openEditModal(itemId, itemType, saleId, amount, dateStr, serviceId, telesaleId, digitalIds) {
         document.getElementById('editItemId').value = itemId;
         document.getElementById('editItemType').value = itemType;
         document.getElementById('editDate').value = dateStr;
         document.getElementById('editSale').value = saleId;
         document.getElementById('editTelesale').value = telesaleId;
         
+        // Reset and set multiple select for Digital
+        const digiSelect = document.getElementById('editDigital');
+        Array.from(digiSelect.options).forEach(option => {
+            option.selected = digitalIds.includes(option.value);
+        });
+        
         if (itemType === 'order') {
             document.getElementById('divAmount').style.display = 'block';
             document.getElementById('editAmount').value = amount;
             document.getElementById('divService').style.display = 'block';
             document.getElementById('editService').value = serviceId;
+            document.getElementById('divDigital').style.display = 'block';
         } else {
             document.getElementById('divAmount').style.display = 'none'; 
             document.getElementById('divService').style.display = 'none';
+            document.getElementById('divDigital').style.display = 'none';
         }
         new bootstrap.Modal(document.getElementById('editDetailModal')).show();
     }
