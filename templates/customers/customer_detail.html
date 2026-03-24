@@ -290,15 +290,24 @@
                             <label class="form-label small fw-bold">Nguồn khách</label>
                             {{ form.source }}
                         </div>
-                        <div class="col-md-6">
+                        
+                        <div class="col-md-6" id="fanpage-group">
                             <label class="form-label small fw-bold">Các Fanpage nguồn</label>
                             <div class="border p-2 rounded bg-light" style="max-height: 150px; overflow-y: auto;">
-                                {{ form.fanpages }}
+                                {% if not form.fanpages.field.queryset %}
+                                    <div class="text-danger small fst-italic">
+                                        <i class="bi bi-exclamation-triangle"></i> Chưa có dữ liệu Fanpage trên hệ thống. Vui lòng vào Admin để thêm!
+                                    </div>
+                                {% else %}
+                                    {{ form.fanpages }}
+                                {% endif %}
+                                
                                 {% if form.fanpages.errors %}
                                     <div class="text-danger small mt-1">{{ form.fanpages.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
+
                         <div class="col-12">
                             <label class="form-label small fw-bold">Ghi chú Telesale/CSKH</label>
                             {{ form.note_telesale }}
@@ -330,15 +339,44 @@
         border-radius: 0.25rem;
         transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
     }
-    /* Style cho checkboxes fanpage list */
+    
+    /* CSS Căn chỉnh cho danh sách Checkbox Fanpage gọn gàng */
     #id_fanpages {
         list-style: none;
         padding: 0;
         margin: 0;
     }
     #id_fanpages li {
-        margin-bottom: 5px;
-        font-size: 0.85rem;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+    #id_fanpages li label {
+        margin-bottom: 0;
+        cursor: pointer;
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sourceSelect = document.getElementById('id_source');
+        const fanpageGroup = document.getElementById('fanpage-group');
+
+        function toggleFanpage() {
+            if (sourceSelect && fanpageGroup) {
+                if (sourceSelect.value === 'FACEBOOK') {
+                    fanpageGroup.style.display = 'block';
+                } else {
+                    fanpageGroup.style.display = 'none';
+                }
+            }
+        }
+
+        if (sourceSelect) {
+            sourceSelect.addEventListener('change', toggleFanpage);
+            toggleFanpage(); // Chạy ngay khi load để ẩn/hiện đúng trạng thái ban đầu
+        }
+    });
+</script>
 {% endblock %}

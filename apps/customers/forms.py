@@ -6,7 +6,7 @@ class CustomerForm(forms.ModelForm):
     # [CẬP NHẬT] Sử dụng trường ManyToMany cho Fanpages
     fanpages = forms.ModelMultipleChoiceField(
         queryset=Fanpage.objects.all(),
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input me-2 cursor-pointer'}),
         required=False,
         label="Các Fanpage Nguồn"
     )
