@@ -79,10 +79,9 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- [CẬP NHẬT] TÍNH TOÁN DOANH THU & CHIA ĐỀU THEO MARKETER ĐƯỢC GÁN TRÊN FANPAGE ---
+    # --- [CẬP NHẬT CHÍNH] TÍNH TOÁN DOANH THU CHIA ĐỀU THEO CẤU HÌNH FANPAGE ---
     revenue_map = {} 
     
-    # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này kèm theo fanpages
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer').prefetch_related('customer__fanpages')
@@ -94,30 +93,25 @@ def marketing_dashboard(request):
         rev = float(order.actual_revenue or 0)
         
         if num_pages > 0:
-            # Chia đều doanh thu cho số lượng Fanpage
             split_revenue = rev / num_pages
             for fp in pages:
-                # Lấy marketer được cấu hình trực tiếp trong bảng Fanpage
-                target_key = fp.assigned_marketer if hasattr(fp, 'assigned_marketer') and fp.assigned_marketer else "Chưa phân loại"
+                # Lấy đúng Marketer được Admin gán cho Fanpage trong Admin Customer
+                target_key = fp.assigned_marketer if hasattr(fp, 'assigned_marketer') and fp.assigned_marketer else "Chưa gán"
                 revenue_map[target_key] = revenue_map.get(target_key, 0) + split_revenue
         else:
-            # Fallback cho dữ liệu cũ hoặc khách hàng chưa gán ManyToMany Fanpage
+            # Fallback nếu chưa tick Fanpage (giữ logic cũ để không mất số liệu cũ)
             source_val = str(cus.source) if cus.source else ""
             fp_name = str(cus.get_fanpage_display()) if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage or "")
             
             target_key = "Chưa phân loại"
-            if 'Google' in source_val or 'Google' in fp_name:
-                target_key = 'Long'
-            elif "Bác Sĩ Hoàng Vũ" in fp_name:
-                target_key = 'Vũ'
-            elif any(x in fp_name for x in ["57A", "Cao Trần Quân", "Ultherapy Prime"]):
-                target_key = 'Huy'
-            elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]):
-                target_key = 'Hưng'
+            if 'Google' in source_val or 'Google' in fp_name: target_key = 'Long'
+            elif "Bác Sĩ Hoàng Vũ" in fp_name: target_key = 'Vũ'
+            elif any(x in fp_name for x in ["57A", "Cao Trần Quân", "Ultherapy Prime"]): target_key = 'Huy'
+            elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]): target_key = 'Hưng'
 
             revenue_map[target_key] = revenue_map.get(target_key, 0) + rev
 
-    # 3. Thống kê Hiệu quả theo Marketer (Gộp Chi phí + Doanh thu)
+    # 3. Thống kê Hiệu quả theo Marketer (Dựa trên tên Marketer nhập trong Stats)
     marketer_stats_qs = stats.values('marketer').annotate(
         total_spend=Sum('spend_amount'),
         total_leads=Sum('leads'),
