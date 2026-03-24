@@ -4,30 +4,34 @@ from django.utils import timezone
 from django.db.models import Sum
 from datetime import date
 
-# [MỚI] TẠO BẢNG FANPAGE ĐỂ QUẢN LÝ NHIỀU FANPAGE
+# [CẬP NHẬT] TẠO BẢNG FANPAGE ĐỂ QUẢN LÝ NHIỀU FANPAGE
 class Fanpage(models.Model):
     code = models.CharField(max_length=50, unique=True, verbose_name="Mã Fanpage")
     name = models.CharField(max_length=200, verbose_name="Tên Fanpage hiển thị")
+    # [THÊM MỚI] Gán Marketer phụ trách để tính KPI doanh thu
+    assigned_marketer = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name="Marketer phụ trách",
+        help_text="Nhập chính xác tên (VD: Vũ, Hưng, Huy, Long) để hệ thống tự cộng doanh số"
+    )
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.assigned_marketer or 'Chưa gán'})"
 
     class Meta:
         verbose_name = "Fanpage"
         verbose_name_plural = "Danh sách Fanpage"
 
 class Customer(models.Model):
-    # GIỮ NGUYÊN TÊN CLASS LÀ SkinIssue
     class SkinIssue(models.TextChoices):
-        # --- CÁC DỊCH VỤ MỚI ---
         THREAD_LIFT = "THREAD_LIFT", "Căng chỉ"
         PROFHILO = "PROFHILO", "Profhilo" 
         EXOSONE = "EXOSONE", "Exosone"   
         REJURAN = "REJURAN", "Rejuran"   
         KARISMA = "KARISMA", "Karisma"   
         HAIR_TREATMENT = "HAIR_TREATMENT", "Tóc" 
-        
-        # --- CÁC DỊCH VỤ CŨ ---
         ULTHERAPY = "ULTHERAPY", "Ultherapy"
         THERMA = "THERMA", "Therma"
         PRP = "PRP", "PRP"
@@ -45,27 +49,17 @@ class Customer(models.Model):
         REFERRAL = "REFERRAL", "Bạn giới thiệu"
         OTHER = "OTHER", "Khác"
     
-    # --- [CẬP NHẬT] ĐỔI TÊN THÀNH FanpageChoices ĐỂ KHÔNG BỊ TRÙNG VỚI MODEL Fanpage MỚI ---
     class FanpageChoices(models.TextChoices):
-        # 1. Các Page Bác Sĩ Hoàng Vũ
         CC_KIM_CUONG_SG_HV = "CC_KIM_CUONG_SG_HV", "Căng chỉ kim cương Sài Gòn - Bác sĩ Hoàng Vũ"
         ULTRA_DIAMOND_DB_HV = "ULTRA_DIAMOND_DB_HV", "Nâng cơ trẻ hoá Ultra Diamond - Bác sĩ Danh Bảo Hoàng Vũ"
-        BS_HOANG_VU = "BS_HOANG_VU", "Bác Sĩ Hoàng Vũ - CK I Da Liễu"  # <--- [MỚI THÊM]
+        BS_HOANG_VU = "BS_HOANG_VU", "Bác Sĩ Hoàng Vũ - CK I Da Liễu"
         HOANG_VU = 'HOANG_VU', 'Bác sĩ CKI Hoàng Vũ - Viện da liễu V Medical'
-        
-        # 2. Các Page Bác Sĩ Quân & V-Medical (Đã đổi tên hiển thị)
-        # "Bác sĩ Cao Trần Quân" -> "Cao Trần Quân - Viện Da Liễu V Medical"
         BS_QUAN = "BS_QUAN", "Cao Trần Quân - Viện Da Liễu V Medical"
-        
-        # "Cao Trần Quân - Viện Da Liễu V Medical since 2006" -> "Bác sĩ Cao Trần Quân - V Medical Clinic"
         QUAN_SINCE_2006 = "QUAN_SINCE_2006", "Bác sĩ Cao Trần Quân - V Medical Clinic"
-        
         VMEDICAL_CLINIC = "VMEDICAL_CLINIC", "V - Medical Clinic"
         DL_VMEDICAL = "DL_VMEDICAL", "Phòng Khám Da Liễu Thẩm Mỹ V-Medical"
         ULTHERAPY_57A = "ULTHERAPY_57A", "Ultherapy Prime - Căng Da Không Phẫu Thuật 57A Trần Quốc Thảo"
-        
         OTHER = "OTHER", "Khác / Không rõ"
-        # 3. Các Page mới thêm theo yêu cầu
         VMEDICAL_PK_DL = "VMEDICAL_PK_DL", "V Medical - Phòng khám da liễu thẩm mỹ"
         PK_VMEDICAL_TM = "PK_VMEDICAL_TM", "Phòng Khám V Medical - Thẩm Mỹ Da Công Nghệ Cao"
 
@@ -86,26 +80,12 @@ class Customer(models.Model):
     dob = models.DateField(null=True, blank=True, verbose_name="Ngày sinh")
     address = models.TextField(null=True, blank=True, verbose_name="Địa chỉ chi tiết")
     city = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tỉnh/Thành phố")
-    
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.FACEBOOK, verbose_name="Nguồn khách")
-    
-    # [THÊM MỚI] LIÊN KẾT NHIỀU FANPAGE
     fanpages = models.ManyToManyField(Fanpage, blank=True, verbose_name="Các Fanpage Nguồn")
-    # Vẫn giữ lại trường cũ để tương thích ngược dữ liệu
     fanpage = models.CharField(max_length=50, choices=FanpageChoices.choices, null=True, blank=True, verbose_name="Fanpage Nguồn (Cũ)")
-
     skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
-    
     customer_code = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Mã khách hàng/ID")
-
-    assigned_telesale = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.SET_NULL, 
-        null=True, blank=True,
-        limit_choices_to={'role': 'TELESALE'},
-        verbose_name="Telesale phụ trách"
-    )
-
+    assigned_telesale = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, limit_choices_to={'role': 'TELESALE'}, verbose_name="Telesale phụ trách")
     note_telesale = models.TextField(blank=True, verbose_name="Ghi chú ban đầu")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Ngày tạo")
     ranking = models.CharField(max_length=20, choices=Ranking.choices, default=Ranking.MEMBER, verbose_name="Hạng thành viên")
@@ -118,7 +98,6 @@ class Customer(models.Model):
         return None
 
     def update_ranking(self):
-        # Tránh import vòng lặp nếu cần
         total_spent = self.order_set.filter(is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         if total_spent > 70000000: self.ranking = self.Ranking.DIAMOND
         elif total_spent >= 20000000: self.ranking = self.Ranking.GOLD

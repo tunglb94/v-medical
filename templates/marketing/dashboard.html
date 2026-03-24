@@ -147,8 +147,14 @@
 </div>
 
 <div class="card card-box mb-4 shadow-sm border-0 border-start border-4 border-info">
-    <div class="card-header bg-white py-3">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
         <h6 class="fw-bold text-info m-0"><i class="bi bi-person-badge-fill me-2"></i>HIỆU QUẢ THEO NHÂN SỰ ADS (MARKETER)</h6>
+        
+        {% if user.role == 'ADMIN' or user.is_superuser %}
+        <a href="/admin/customers/fanpage/" target="_blank" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-gear-fill me-1"></i> Cấu hình Marketer - Fanpage
+        </a>
+        {% endif %}
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -156,11 +162,11 @@
                 <thead class="bg-info bg-opacity-10 text-dark">
                     <tr>
                         <th class="text-start ps-4">Marketer</th>
-                        <th class="text-end">Chi tiêu</th>
+                        <th class="text-end">Chi tiêu (Tạm tính)</th>
                         <th>Leads</th>
                         <th class="text-end">Giá Lead (CPL)</th>
-                        <th class="text-end">Doanh thu</th>
-                        <th class="text-end pe-4">ROAS (Ads/DT)</th>
+                        <th class="text-end">Doanh thu (Chia đều)</th>
+                        <th class="text-end pe-4">Chi phí / DT (%)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -308,11 +314,9 @@
     }
 
     function editReport(button) {
-        // Điền dữ liệu cũ vào form
         document.getElementById('statId').value = button.getAttribute('data-id');
         document.querySelector('[name="report_date"]').value = button.getAttribute('data-date');
         
-        // Load thêm Platform & Metrics mới
         document.querySelector('[name="platform"]').value = button.getAttribute('data-platform');
         document.querySelector('[name="impressions"]').value = button.getAttribute('data-impr');
         document.querySelector('[name="clicks"]').value = button.getAttribute('data-clicks');
@@ -326,7 +330,6 @@
         document.querySelector('[name="leads"]').value = button.getAttribute('data-leads');
         document.querySelector('[name="appointments"]').value = button.getAttribute('data-appointments');
 
-        // Đổi trạng thái form
         document.getElementById('formTitle').innerText = "CẬP NHẬT SỐ LIỆU";
         var btn = document.getElementById('btnSave');
         btn.innerText = "CẬP NHẬT";

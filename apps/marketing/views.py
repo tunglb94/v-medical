@@ -79,9 +79,8 @@ def marketing_dashboard(request):
     avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     avg_ctr = (total_clicks / total_impr * 100) if total_impr > 0 else 0
     
-    # --- [CẬP NHẬT] TÍNH TOÁN DOANH THU & CHIA ĐỀU THEO FANPAGE ---
-    revenue_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
-    failed_map = {'Vũ': 0, 'Huy': 0, 'Hưng': 0, 'Long': 0}
+    # --- [CẬP NHẬT] TÍNH TOÁN DOANH THU & CHIA ĐỀU THEO MARKETER ĐƯỢC GÁN TRÊN FANPAGE ---
+    revenue_map = {} 
     
     # Lấy TẤT CẢ đơn hàng trong khoảng thời gian này kèm theo fanpages
     all_orders = Order.objects.filter(
@@ -92,36 +91,21 @@ def marketing_dashboard(request):
         cus = order.customer
         pages = cus.fanpages.all()
         num_pages = pages.count()
-        source_val = str(cus.source) if hasattr(cus, 'source') and cus.source else ""
+        rev = float(order.actual_revenue or 0)
         
         if num_pages > 0:
             # Chia đều doanh thu cho số lượng Fanpage
-            split_revenue = float(order.actual_revenue) / num_pages
-            
+            split_revenue = rev / num_pages
             for fp in pages:
-                fp_name = fp.name
-                target_key = None
-
-                # Áp dụng quy tắc gán nhân sự cho từng Fanpage
-                if 'Google' in source_val or 'Google' in fp_name:
-                    target_key = 'Long'
-                elif "Bác Sĩ Hoàng Vũ" in fp_name:
-                    target_key = 'Vũ'
-                elif any(x in fp_name for x in ["57A", "Cao Trần Quân", "Ultherapy Prime"]):
-                    target_key = 'Huy'
-                elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]):
-                    target_key = 'Hưng'
-
-                if target_key:
-                    revenue_map[target_key] += split_revenue
-                    if order.actual_revenue == 0:
-                        failed_map[target_key] += (1 / num_pages)
+                # Lấy marketer được cấu hình trực tiếp trong bảng Fanpage
+                target_key = fp.assigned_marketer if hasattr(fp, 'assigned_marketer') and fp.assigned_marketer else "Chưa phân loại"
+                revenue_map[target_key] = revenue_map.get(target_key, 0) + split_revenue
         else:
-            # Rơi vào trường hợp chưa cập nhật nhiều page thì xài page cũ
-            fp_name = cus.get_fanpage_display() if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage)
-            if not fp_name: fp_name = ""
+            # Fallback cho dữ liệu cũ hoặc khách hàng chưa gán ManyToMany Fanpage
+            source_val = str(cus.source) if cus.source else ""
+            fp_name = str(cus.get_fanpage_display()) if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage or "")
             
-            target_key = None
+            target_key = "Chưa phân loại"
             if 'Google' in source_val or 'Google' in fp_name:
                 target_key = 'Long'
             elif "Bác Sĩ Hoàng Vũ" in fp_name:
@@ -131,10 +115,7 @@ def marketing_dashboard(request):
             elif any(x in fp_name for x in ["V - Medical Clinic", "V Medical", "Công Nghệ Cao"]):
                 target_key = 'Hưng'
 
-            if target_key:
-                revenue_map[target_key] += float(order.actual_revenue)
-                if order.actual_revenue == 0:
-                    failed_map[target_key] += 1
+            revenue_map[target_key] = revenue_map.get(target_key, 0) + rev
 
     # 3. Thống kê Hiệu quả theo Marketer (Gộp Chi phí + Doanh thu)
     marketer_stats_qs = stats.values('marketer').annotate(
@@ -149,24 +130,16 @@ def marketing_dashboard(request):
         if not m_name: continue
         
         raw_spend = item['total_spend'] or 0
-        sp = round(float(raw_spend) * 1.1) 
-        
+        sp = round(float(raw_spend) * 1.1) # VAT 10%
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
+        # So khớp doanh thu từ revenue_map (không phân biệt hoa thường)
         rev = 0
-        failed = 0
-        m_name_lower = m_name.lower()
-        
-        target_key = None
-        if "vũ" in m_name_lower: target_key = 'Vũ'
-        elif "huy" in m_name_lower: target_key = 'Huy'
-        elif "hưng" in m_name_lower: target_key = 'Hưng'
-        elif "long" in m_name_lower: target_key = 'Long'
-        
-        if target_key:
-            rev = revenue_map[target_key]
-            failed = failed_map[target_key]
+        for key, val in revenue_map.items():
+            if m_name.lower() == key.lower():
+                rev = val
+                break
         
         cpl = (sp / ld) if ld > 0 else 0
         cpa = (sp / ap) if ap > 0 else 0
@@ -180,7 +153,6 @@ def marketing_dashboard(request):
             'cpl': cpl,
             'cpa': cpa,
             'revenue': rev,
-            'failed_orders': failed,
             'roas': roas
         })
 
