@@ -294,9 +294,9 @@
                         <div class="col-12 mt-3" id="fanpage-group">
                             <label class="form-label small fw-bold mb-2">Các Fanpage nguồn (Có thể tick chọn nhiều)</label>
                             <div class="border rounded bg-light p-3">
-                                <input type="text" id="fanpageSearch" class="form-control form-control-sm mb-3" placeholder="Gõ tên fanpage để tìm nhanh...">
+                                <input type="text" id="fanpageSearch" class="form-control form-control-sm mb-3 shadow-sm border-primary" placeholder="Gõ tên fanpage để tìm nhanh...">
                                 
-                                <div id="fanpageListContainer" style="max-height: 450px; overflow-y: auto; overflow-x: hidden; padding-right: 10px;">
+                                <div id="fanpageListContainer" style="height: 400px; overflow-y: auto; overflow-x: hidden; padding-right: 5px;">
                                     {{ form.fanpages }}
                                 </div>
                                 
@@ -338,28 +338,30 @@
         transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
     }
     
-    /* CSS cho danh sách Fanpage trong Box mới */
+    /* CHỈNH SỬA TƯƠNG THÍCH DJANGO: Django sinh ra các thẻ <div> lồng nhau, không phải <li> */
     #id_fanpages {
-        list-style: none;
-        padding: 0;
-        margin: 0;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Chia 2-3 cột tự động */
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 12px 15px;
+        width: 100%;
     }
-    #id_fanpages li {
+    
+    /* Target trực tiếp vào các thẻ div con do Django sinh ra */
+    #id_fanpages > div {
         margin-bottom: 0;
-        padding: 8px;
+        padding: 8px 10px;
         background: #fff;
         border: 1px solid #e0e0e0;
         border-radius: 6px;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
     }
-    #id_fanpages li:hover {
+    #id_fanpages > div:hover {
         background: #f8f9fa;
         border-color: #0d6efd;
     }
-    #id_fanpages li label {
+    #id_fanpages > div label {
         display: flex;
         align-items: flex-start;
         font-size: 0.85rem;
@@ -369,13 +371,13 @@
         color: #333;
         width: 100%;
     }
-    #id_fanpages li label input[type="checkbox"] {
+    #id_fanpages > div label input[type="checkbox"] {
         margin-top: 2px;
         margin-right: 10px;
-        flex-shrink: 0;
+        flex-shrink: 0; /* Đảm bảo ô vuông không bị méo */
     }
 
-    /* Custom Scrollbar cho Box Fanpage đẹp hơn */
+    /* Custom Scrollbar */
     #fanpageListContainer::-webkit-scrollbar {
         width: 6px;
     }
@@ -388,7 +390,7 @@
         border-radius: 4px;
     }
     #fanpageListContainer::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8; 
+        background: #0d6efd; 
     }
 </style>
 
@@ -399,7 +401,7 @@
         const searchInput = document.getElementById('fanpageSearch');
         const fanpageList = document.getElementById('id_fanpages');
 
-        // 1. Chức năng Ẩn/Hiện Box Fanpage theo Nguồn
+        // 1. Ẩn/Hiện Box
         function toggleFanpage() {
             if (sourceSelect && fanpageGroup) {
                 if (sourceSelect.value === 'FACEBOOK') {
@@ -412,31 +414,32 @@
 
         if (sourceSelect) {
             sourceSelect.addEventListener('change', toggleFanpage);
-            toggleFanpage(); // Chạy ngay khi load
+            toggleFanpage();
         }
 
-        // 2. Chức năng Tìm kiếm Fanpage (Live Search)
+        // 2. Chức năng Tìm kiếm Fanpage (Sửa lỗi QuerySelector cho thẻ <div>)
         if (searchInput && fanpageList) {
-            const listItems = fanpageList.getElementsByTagName('li');
+            // Lấy toàn bộ các thẻ div con trực tiếp của #id_fanpages
+            const listItems = fanpageList.querySelectorAll(':scope > div');
             
             searchInput.addEventListener('keyup', function() {
                 const filter = searchInput.value.toLowerCase().trim();
                 
-                for (let i = 0; i < listItems.length; i++) {
-                    const label = listItems[i].getElementsByTagName('label')[0];
+                listItems.forEach(function(item) {
+                    const label = item.querySelector('label');
                     if (label) {
                         const txtValue = label.textContent || label.innerText;
-                        // Nếu text chứa từ khóa tìm kiếm thì hiện, không thì ẩn
+                        // Khớp từ khóa thì hiện, không thì ẩn
                         if (txtValue.toLowerCase().indexOf(filter) > -1) {
-                            listItems[i].style.display = "";
+                            item.style.display = "";
                         } else {
-                            listItems[i].style.display = "none";
+                            item.style.display = "none";
                         }
                     }
-                }
+                });
             });
             
-            // Ngăn việc nhấn Enter trong ô tìm kiếm làm submit Form
+            // Chặn Enter submit form
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
