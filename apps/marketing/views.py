@@ -84,7 +84,7 @@ def marketing_dashboard(request):
     
     all_orders = Order.objects.filter(
         order_date__range=[date_start, date_end]
-    ).select_related('customer').prefetch_related('customer__fanpages')
+    ).select_related('customer').prefetch_related('customer__fanpages', 'customer__fanpages__assigned_marketer')
 
     for order in all_orders:
         cus = order.customer
@@ -95,11 +95,16 @@ def marketing_dashboard(request):
         if num_pages > 0:
             split_revenue = rev / num_pages
             for fp in pages:
-                # Lấy đúng Marketer được Admin gán cho Fanpage trong Admin Customer
-                target_key = fp.assigned_marketer if hasattr(fp, 'assigned_marketer') and fp.assigned_marketer else "Chưa gán"
+                # Ghi nhận doanh thu cho Marketer được gán (Ưu tiên lấy họ tên từ ForeignKey assigned_marketer)
+                if fp.assigned_marketer:
+                    target_key = f"{fp.assigned_marketer.last_name} {fp.assigned_marketer.first_name}".strip()
+                    if not target_key: target_key = fp.assigned_marketer.username
+                else:
+                    target_key = "Chưa gán nhân sự"
+                
                 revenue_map[target_key] = revenue_map.get(target_key, 0) + split_revenue
         else:
-            # Fallback nếu chưa tick Fanpage (giữ logic cũ để không mất số liệu cũ)
+            # Fallback logic cho dữ liệu cũ (dựa trên keyword tên fanpage)
             source_val = str(cus.source) if cus.source else ""
             fp_name = str(cus.get_fanpage_display()) if hasattr(cus, 'get_fanpage_display') else str(cus.fanpage or "")
             
@@ -128,10 +133,10 @@ def marketing_dashboard(request):
         ld = item['total_leads'] or 0
         ap = item['total_appts'] or 0
         
-        # So khớp doanh thu từ revenue_map (không phân biệt hoa thường)
+        # So khớp doanh thu từ revenue_map (không phân biệt hoa thường/có dấu tương đối)
         rev = 0
         for key, val in revenue_map.items():
-            if m_name.lower() == key.lower():
+            if m_name.lower() in key.lower() or key.lower() in m_name.lower():
                 rev = val
                 break
         

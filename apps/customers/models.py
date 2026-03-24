@@ -4,21 +4,22 @@ from django.utils import timezone
 from django.db.models import Sum
 from datetime import date
 
-# [CẬP NHẬT] TẠO BẢNG FANPAGE ĐỂ QUẢN LÝ NHIỀU FANPAGE
 class Fanpage(models.Model):
     code = models.CharField(max_length=50, unique=True, verbose_name="Mã Fanpage")
     name = models.CharField(max_length=200, verbose_name="Tên Fanpage hiển thị")
-    # [THÊM MỚI] Gán Marketer phụ trách để tính KPI doanh thu
-    assigned_marketer = models.CharField(
-        max_length=100, 
-        blank=True, 
+    # Thay vì nhập tay, ta liên kết trực tiếp với tài khoản nhân viên trong hệ thống
+    assigned_marketer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
         null=True, 
+        blank=True, 
+        limit_choices_to={'role__in': ['ADMIN', 'MARKETING']},
         verbose_name="Marketer phụ trách",
-        help_text="Nhập chính xác tên (VD: Vũ, Hưng, Huy, Long) để hệ thống tự cộng doanh số"
+        related_name="managed_fanpages"
     )
 
     def __str__(self):
-        return f"{self.name} ({self.assigned_marketer or 'Chưa gán'})"
+        return f"{self.name} ({self.assigned_marketer.last_name if self.assigned_marketer else 'Chưa gán'})"
 
     class Meta:
         verbose_name = "Fanpage"
