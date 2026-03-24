@@ -72,7 +72,13 @@
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
                         <span class="text-muted small">Fanpage nguồn:</span>
-                        <span class="fw-bold text-end" style="max-width: 60%;">{{ customer.get_fanpage_display|default:"--" }}</span>
+                        <span class="fw-bold text-end" style="max-width: 60%;">
+                            {% for fp in customer.fanpages.all %}
+                                {{ fp.name }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                --
+                            {% endfor %}
+                        </span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
                         <span class="text-muted small">Dịch vụ quan tâm:</span>
@@ -241,6 +247,11 @@
             <form method="POST">
                 {% csrf_token %}
                 <div class="modal-body">
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            Vui lòng kiểm tra lại các trường thông tin bên dưới.
+                        </div>
+                    {% endif %}
                     <div class="row g-3">
                         <div class="col-12"><h6 class="fw-bold text-primary border-bottom pb-2">1. Thông tin cá nhân</h6></div>
                         
@@ -253,16 +264,16 @@
                             {{ form.phone }}
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Mã Khách hàng</label>
-                            {{ form.customer_code }}
-                        </div>
-                        <div class="col-md-4">
                             <label class="form-label small fw-bold">Giới tính</label>
                             {{ form.gender }}
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Ngày sinh</label>
                             {{ form.dob }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Dịch vụ quan tâm</label>
+                            {{ form.skin_condition }}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Tỉnh/Thành phố</label>
@@ -280,16 +291,13 @@
                             {{ form.source }}
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Fanpage nguồn</label>
-                            {{ form.fanpage }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Dịch vụ quan tâm</label>
-                            {{ form.skin_condition }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Telesale phụ trách</label>
-                            {{ form.assigned_telesale }}
+                            <label class="form-label small fw-bold">Các Fanpage nguồn</label>
+                            <div class="border p-2 rounded bg-light" style="max-height: 150px; overflow-y: auto;">
+                                {{ form.fanpages }}
+                                {% if form.fanpages.errors %}
+                                    <div class="text-danger small mt-1">{{ form.fanpages.errors }}</div>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-bold">Ghi chú Telesale/CSKH</label>
@@ -307,12 +315,7 @@
 </div>
 
 <style>
-    /* Làm đẹp các input được render từ Django Form */
-    .modal-body input[type="text"], 
-    .modal-body input[type="email"], 
-    .modal-body input[type="date"],
-    .modal-body select,
-    .modal-body textarea {
+    .modal-body select, .modal-body textarea {
         display: block;
         width: 100%;
         padding: 0.375rem 0.75rem;
@@ -327,8 +330,15 @@
         border-radius: 0.25rem;
         transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
     }
-    .modal-body textarea {
-        min-height: 80px;
+    /* Style cho checkboxes fanpage list */
+    #id_fanpages {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    #id_fanpages li {
+        margin-bottom: 5px;
+        font-size: 0.85rem;
     }
 </style>
 {% endblock %}

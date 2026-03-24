@@ -65,6 +65,18 @@ class Order(models.Model):
         help_text="Số buổi khách mua thực tế (VD: 10 buổi)"
     )
 
+    @property
+    def allocated_marketing_revenue(self):
+        """
+        [MỚI] Tính toán doanh thu phân bổ cho từng Fanpage để ghi nhận Digital Marketing.
+        Logic: Nếu nguồn là Facebook, doanh thu = Thực thu / Tổng số Fanpage đã chọn.
+        """
+        num_fanpages = self.customer.fanpages.count()
+        if num_fanpages > 0:
+            return self.actual_revenue / num_fanpages
+        # Nếu là Facebook nhưng chưa chọn page (phòng hờ dữ liệu cũ) hoặc nguồn khác
+        return self.actual_revenue if self.customer.source == 'FACEBOOK' else 0
+
     def save(self, *args, **kwargs):
         if not self.pk and self.service:
             self.original_price = self.service.base_price
