@@ -221,3 +221,7 @@ JAZZMIN_UI_TWEAKS = {
         "warning": "btn-warning", "danger": "btn-danger", "success": "btn-success"
     }
 }
+
+# META CONVERSIONS API CONFIG
+META_DATASET_ID = '572199181199160'
+META_ACCESS_TOKEN = 'EAAan8QQ3nQIBRG8WuqDwTS4GKzIDuz3e0tTcs9mmQzvZAhpZCWSiBlEZAbHwkxtdiPft9sh98AfpyEra9GGBrZAr1rjRMbsT8mB7tVxzfFkjhYUdwm3q7l0073Sb5f2gliOx5s1wRCqSUoCBAbcFqhO51Yo5x11NgzLMTZCx8AKFB8LXCvZC9sJkDLip1aYd4hjwZDZD'

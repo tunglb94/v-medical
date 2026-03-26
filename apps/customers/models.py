@@ -87,6 +87,10 @@ class Customer(models.Model):
     fanpage = models.CharField(max_length=50, choices=FanpageChoices.choices, null=True, blank=True, verbose_name="Fanpage Nguồn (Cũ)")
     skin_condition = models.CharField(max_length=50, choices=SkinIssue.choices, default=SkinIssue.OTHER, verbose_name="Dịch vụ quan tâm")
     customer_code = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Mã khách hàng/ID")
+    
+    # [THÊM MỚI] Dành cho tích hợp Meta Conversions API
+    fb_lead_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="Facebook Lead ID", help_text="ID khách hàng tiềm năng đổ về từ Facebook")
+    
     assigned_telesale = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, limit_choices_to={'role': 'TELESALE'}, verbose_name="Telesale phụ trách")
     note_telesale = models.TextField(blank=True, verbose_name="Ghi chú ban đầu")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Ngày tạo")
