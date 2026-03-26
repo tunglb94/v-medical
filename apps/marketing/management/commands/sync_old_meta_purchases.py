@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
-from apps.customers.models import Customer
 from apps.sales.models import Order
 from apps.marketing.meta_capi import send_purchase_event_to_meta
 import time
+from datetime import datetime
 
 class Command(BaseCommand):
     help = 'Đồng bộ doanh thu quá khứ của khách Facebook lên Meta CAPI'
@@ -20,10 +20,15 @@ class Command(BaseCommand):
         self.stdout.write(f"Tìm thấy {total} đơn hàng thoả mãn. Bắt đầu đồng bộ...")
 
         for order in paid_orders:
+            # Chuyển đổi order_date (DateField) sang Datetime để lấy timestamp
+            dt = datetime.now()
+            if order.order_date:
+                dt = datetime.combine(order.order_date, datetime.min.time())
+
             response = send_purchase_event_to_meta(
                 customer=order.customer,
                 amount=order.total_amount,
-                event_time=order.created_at # Hoặc trường lưu ngày thanh toán của bạn
+                event_time=dt
             )
             
             if response and not response.get('error'):
