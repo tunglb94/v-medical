@@ -14,3 +14,16 @@ class FacebookPage(models.Model):
 
     def __str__(self):
         return self.name
+
+class FacebookPostLog(models.Model):
+    page = models.ForeignKey(FacebookPage, on_delete=models.CASCADE, verbose_name="Fanpage")
+    staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Nhân viên thực hiện")
+    content = models.TextField(verbose_name="Nội dung")
+    status = models.CharField(max_length=20, choices=[('Success', 'Thành công'), ('Failed', 'Thất bại')])
+    post_id = models.CharField(max_length=100, null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời điểm đăng")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Nhật ký đăng bài"

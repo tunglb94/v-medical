@@ -3,7 +3,8 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-10 col-lg-8"> <div class="card card-box shadow-sm">
+    <div class="col-md-10 col-lg-8"> 
+        <div class="card card-box shadow-sm">
             <div class="card-header bg-white py-3 border-bottom">
                 <h5 class="fw-bold m-0 text-primary">{{ title }}</h5>
             </div>
@@ -53,7 +54,7 @@
                             <label class="form-label fw-bold small">Vai trò (Role Logic) *</label>
                             {{ form.role }}
                             <div class="form-text small text-muted">
-                                * Role dùng để xác định logic xử lý (VD: Bác sĩ được khám, Sale được nhận hoa hồng...).
+                                * Role dùng để xác định logic xử lý (VD: Telesale, Marketing...).
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -67,7 +68,7 @@
                     <h6 class="text-uppercase text-primary small fw-bold mb-3"><i class="bi bi-shield-check me-1"></i> 3. Phân quyền Menu (Tùy chọn)</h6>
                     <div class="bg-light p-3 rounded border">
                         <div class="mb-2 small text-muted fst-italic">
-                            Tích chọn các mục Menu mà nhân viên này được phép nhìn thấy trên thanh Sidebar. (Admin mặc định thấy tất cả).
+                            Tích chọn các mục Menu mà nhân viên này được phép nhìn thấy trên thanh Sidebar.
                         </div>
                         <div class="row">
                             {% for value, text in form.allowed_menus.field.choices %}
