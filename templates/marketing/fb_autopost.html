@@ -32,10 +32,26 @@
                     <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-pencil-square me-2"></i>SOẠN THẢO NỘI DUNG</h5>
                     <textarea id="postContent" class="form-control mb-3 shadow-none" rows="6" placeholder="Nhập nội dung bài viết tại đây..."></textarea>
                     
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="fw-bold mb-2"><i class="bi bi-images me-2"></i>HÌNH ẢNH / VIDEO (HỖ TRỢ ĐĂNG NHIỀU FILE)</label>
                         <input type="file" id="mediaFiles" class="form-control shadow-none" multiple accept="image/*,video/*">
-                        <small class="text-muted mt-1 d-block italic">Giữ phím Ctrl để chọn nhiều ảnh cùng lúc.</small>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-light rounded border border-warning">
+                        <label class="fw-bold text-danger mb-2">
+                            <i class="bi bi-clock-history me-2"></i>HẸN GIỜ ĐĂNG BÀI (TÙY CHỌN)
+                        </label>
+                        <div class="row align-items-center">
+                            <div class="col-md-5">
+                                <input type="datetime-local" id="scheduleTime" class="form-control shadow-none border-warning">
+                            </div>
+                            <div class="col-md-7">
+                                <small class="text-muted italic">
+                                    * Lưu ý: Thời gian hẹn phải cách hiện tại ít nhất 15 phút và tối đa 75 ngày. 
+                                    Nếu để trống, bài viết sẽ được đăng ngay lập tức.
+                                </small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="d-flex gap-2 flex-wrap">
@@ -65,14 +81,13 @@
                         <thead class="table-light">
                             <tr>
                                 <th width="200">Fanpage</th>
-                                <th>Nội dung</th>
+                                <th>Nội dung & Lịch trình</th>
                                 <th width="100">Media</th>
                                 <th width="250">Trạng thái / Nhật ký lỗi</th>
                                 <th width="50">Xóa</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -129,7 +144,6 @@
         const mediaContainer = document.getElementById('previewMedia');
         mediaContainer.innerHTML = '';
 
-        // Xử lý hiển thị ảnh thực tế
         Array.from(mediaFiles).slice(0, 4).forEach((file, index) => {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -152,6 +166,7 @@
     function addToQueue() {
         const content = document.getElementById('postContent').value;
         const mediaInput = document.getElementById('mediaFiles');
+        const scheduleTime = document.getElementById('scheduleTime').value;
         const files = Array.from(mediaInput.files);
         const selectedPages = document.querySelectorAll('.page-checkbox:checked');
 
@@ -166,12 +181,11 @@
                 page_id: p.value,
                 page_name: p.getAttribute('data-name'),
                 content: content,
-                files: files
+                files: files,
+                schedule_time: scheduleTime
             });
         });
 
-        document.getElementById('postContent').value = '';
-        mediaInput.value = '';
         renderQueue();
     }
 
@@ -179,10 +193,17 @@
         const tbody = document.querySelector('#queueTable tbody');
         tbody.innerHTML = '';
         queue.forEach((item, index) => {
+            let scheduleBadge = item.schedule_time 
+                ? `<br><small class="text-danger fw-bold"><i class="bi bi-clock me-1"></i>Hẹn giờ: ${item.schedule_time.replace('T', ' ')}</small>` 
+                : `<br><small class="text-success fw-bold"><i class="bi bi-lightning-fill me-1"></i>Đăng ngay</small>`;
+
             tbody.innerHTML += `
                 <tr id="row-${index}">
                     <td class="fw-bold text-primary">${item.page_name}</td>
-                    <td><div class="text-truncate" style="max-width: 300px;">${item.content}</div></td>
+                    <td>
+                        <div class="text-truncate" style="max-width: 300px;">${item.content}</div>
+                        ${scheduleBadge}
+                    </td>
                     <td><span class="badge bg-secondary">${item.files.length} file</span></td>
                     <td id="status-${index}"><span class="badge bg-light text-dark border">Chờ xác nhận</span></td>
                     <td><button class="btn btn-sm text-danger" onclick="removeFromQueue(${index})"><i class="bi bi-x-circle"></i></button></td>
@@ -206,13 +227,12 @@
 
     async function startCampaign() {
         if (queue.length === 0) return;
-        if (!confirm("Hệ thống sẽ đăng bài. Bạn đã kiểm tra kỹ Demo chưa?")) return;
+        if (!confirm("Hệ thống sẽ đăng bài theo lịch đã chọn. Bắt đầu?")) return;
 
         const btn = document.getElementById('btnStart');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG CHẠY CHIẾN DỊCH...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...';
 
-        // Tạo bản copy của queue để xử lý (tránh lỗi index khi xóa)
         const currentTasks = [...queue];
 
         for (let i = 0; i < currentTasks.length; i++) {
@@ -223,6 +243,9 @@
             let formData = new FormData();
             formData.append('page_id', item.page_id);
             formData.append('content', item.content);
+            if (item.schedule_time) {
+                formData.append('schedule_time', item.schedule_time);
+            }
             item.files.forEach(f => formData.append('images', f));
             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
@@ -234,9 +257,9 @@
                 let res = await response.json();
 
                 if (res.id || (res.data && res.data.id)) {
-                    statusCell.innerHTML = '<span class="badge bg-success"><i class="bi bi-check-all me-1"></i>Thành công</span>';
+                    let successText = item.schedule_time ? "Đã đặt lịch" : "Thành công";
+                    statusCell.innerHTML = `<span class="badge bg-success"><i class="bi bi-check-all me-1"></i>${successText}</span>`;
                 } else {
-                    // HIỂN THỊ LOG LỖI CHI TIẾT TỪ FACEBOOK
                     let errorDetail = res.error ? (res.error.message || JSON.stringify(res.error)) : "Lỗi không xác định";
                     statusCell.innerHTML = `<span class="badge bg-danger">Thất bại</span><br><small class="text-danger" style="font-size: 10px;">${errorDetail}</small>`;
                 }
@@ -247,7 +270,6 @@
         
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-rocket-takeoff me-2"></i>BẮT ĐẦU CHIẾN DỊCH MỚI';
-        alert("Chiến dịch hoàn tất! Vui lòng kiểm tra nhật ký trạng thái.");
     }
 </script>
 
@@ -255,6 +277,6 @@
     .scrollable-list::-webkit-scrollbar { width: 4px; }
     .scrollable-list::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
     .page-checkbox:checked + .form-check-label { color: #0d6efd; font-weight: bold; }
-    .italic { font-style: italic; }
+    .italic { font-style: italic; font-size: 0.85rem; }
 </style>
 {% endblock %}
