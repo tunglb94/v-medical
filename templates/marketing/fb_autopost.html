@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between">
+                    <span class="fw-bold">DANH SÁCH FANPAGE</span>
+                    <div>
+                        <button class="btn btn-sm btn-light" onclick="toggleAll(true)">Tất cả</button>
+                        <button class="btn btn-sm btn-light" onclick="toggleAll(false)">Bỏ</button>
+                    </div>
+                </div>
+                <div class="card-body scrollable-list" style="max-height: 600px; overflow-y: auto;">
+                    {% for page in pages %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input page-checkbox" type="checkbox" value="{{ page.page_id }}" data-name="{{ page.name }}" id="p{{ page.id }}">
+                        <label class="form-check-label text-wrap" for="p{{ page.id }}">{{ page.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">SOẠN THẢO NỘI DUNG</h5>
+                    <textarea id="postContent" class="form-control mb-3" rows="6" placeholder="Nhập nội dung bài viết tại đây..."></textarea>
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold">HÌNH ẢNH / VIDEO (CHỌN NHIỀU FILE)</label>
+                        <input type="file" id="mediaFiles" class="form-control" multiple accept="image/*,video/*">
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" onclick="previewOnFacebook()">👁️ XEM DEMO FACEBOOK</button>
+                        <button class="btn btn-warning" onclick="addToQueue()">➕ THÊM VÀO HÀNG CHỜ</button>
+                        <button class="btn btn-danger" onclick="clearQueue()">🗑️ XÓA HẾT HÀNG CHỜ</button>
+                        <button class="btn btn-success flex-grow-1 fw-bold" onclick="startCampaign()">🚀 BẮT ĐẦU CHIẾN DỊCH</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">HÀNG CHỜ CHIẾN DỊCH</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="queueTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fanpage</th>
+                                <th>Nội dung</th>
+                                <th>Media</th>
+                                <th>Trạng thái</th>
+                                <th>Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content" style="background-color: #242526; color: white; border-radius: 15px;">
+            <div class="modal-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="width: 45px; height: 45px; background: #0866FF; border-radius: 50%;"></div>
+                    <div class="ms-2">
+                        <div class="fw-bold" id="previewPageName">Tên Fanpage</div>
+                        <small class="text-muted">Vừa xong · 🌎</small>
+                    </div>
+                </div>
+                <div id="previewText" class="mb-3" style="white-space: pre-wrap;"></div>
+                <div id="previewMedia" class="row g-1"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let queue = [];
+
+    function addToQueue() {
+        const content = document.getElementById('postContent').value;
+        const files = document.getElementById('mediaFiles').files;
+        const selectedPages = document.querySelectorAll('.page-checkbox:checked');
+
+        if (!content || selectedPages.length === 0) {
+            alert("Vui lòng nhập nội dung và chọn ít nhất 1 Fanpage!");
+            return;
+        }
+
+        selectedPages.forEach(p => {
+            const item = {
+                id: Date.now() + Math.random(),
+                page_id: p.value,
+                page_name: p.getAttribute('data-name'),
+                content: content,
+                files: Array.from(files)
+            };
+            queue.push(item);
+            renderQueue();
+        });
+    }
+
+    function renderQueue() {
+        const tbody = document.querySelector('#queueTable tbody');
+        tbody.innerHTML = '';
+        queue.forEach((item, index) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.page_name}</td>
+                    <td>${item.content.substring(0, 50)}...</td>
+                    <td>${item.files.length} file</td>
+                    <td id="status-${index}"><span class="badge bg-secondary">Sẵn sàng</span></td>
+                    <td><button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue(${index})">×</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function removeFromQueue(index) {
+        queue.splice(index, 1);
+        renderQueue();
+    }
+
+    async function startCampaign() {
+        if (queue.length === 0) return;
+        if (!confirm("XÁC NHẬN: Bạn đã kiểm tra kỹ Demo và nội dung chưa?")) return;
+
+        for (let i = 0; i < queue.length; i++) {
+            const item = queue[i];
+            document.getElementById(`status-${i}`).innerHTML = '<span class="badge bg-info">Đang gửi...</span>';
+            
+            let formData = new FormData();
+            formData.append('page_id', item.page_id);
+            formData.append('content', item.content);
+            item.files.forEach(f => formData.append('images', f));
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            try {
+                let response = await fetch("{% url 'facebook_marketing:api_post' %}", {
+                    method: 'POST',
+                    body: formData
+                });
+                let res = await response.json();
+                if (res.id) {
+                    document.getElementById(`status-${i}`).innerHTML = '<span class="badge bg-success">Thành công</span>';
+                } else {
+                    document.getElementById(`status-${i}`).innerHTML = '<span class="badge bg-danger">Lỗi</span>';
+                }
+            } catch (e) {
+                document.getElementById(`status-${i}`).innerHTML = '<span class="badge bg-danger">Lỗi kết nối</span>';
+            }
+        }
+    }
+</script>
+{% endblock %}

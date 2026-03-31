@@ -63,6 +63,8 @@ urlpatterns = [
     path('resources/', include('apps.resources.urls')),
     path('inventory/', include('apps.inventory.urls')),
     path('service-calendar/', include('apps.service_calendar.urls')),
+    
+    path('marketing/facebook/', include('apps.facebook_marketing.urls')),
 ]
 
 if settings.DEBUG:

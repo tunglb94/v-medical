@@ -40,6 +40,7 @@ SESSION_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
     'jazzmin',
+    'apps.facebook_marketing',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
