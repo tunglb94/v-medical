@@ -321,6 +321,11 @@
                 <i class="bi bi-kanban-fill"></i> <span>Lịch Marketing</span>
             </a>
         </li>
+        <li>
+            <a href="{% url 'facebook_marketing:autopost' %}" class="{% if 'facebook_marketing' in request.path %}active{% endif %} text-info">
+                <i class="bi bi-facebook"></i> <span>Facebook Autopost</span>
+            </a>
+        </li>
         {% endif %}
 
         <li class="menu-header">Đào tạo nội bộ</li>
