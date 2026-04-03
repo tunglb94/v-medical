@@ -5,6 +5,8 @@ from .fb_service import FBGraphService
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 import datetime
+import traceback  # <-- THƯ VIỆN ĐỂ IN LỖI CHI TIẾT TỚI TỪNG DÒNG (TRACEBACK)
+import json       # <-- THƯ VIỆN ĐỂ IN KẾT QUẢ TỪ FACEBOOK CHO DỄ ĐỌC
 
 @login_required
 def facebook_autopost_view(request):
@@ -37,8 +39,29 @@ def api_post_fb(request):
             
             for f in files: f.seek(0)
             
+            # -------------------------------------------------------------
+            # 1. IN LOG CHI TIẾT NHỮNG GÌ BẠN ĐANG GỬI LÊN FB
+            # -------------------------------------------------------------
+            print("\n" + "="*70)
+            print("🚀 [AUTO POST FB] ĐANG GỬI YÊU CẦU...")
+            print(f"👉 Fanpage ID : {page_id}")
+            print(f"👉 Nội dung   : {content}")
+            print(f"👉 Hẹn giờ    : {schedule_time} (Unix: {unix_schedule_time})")
+            print(f"👉 Đính kèm   : {len(files)} file")
+            for idx, f in enumerate(files):
+                print(f"   - File {idx+1}: {f.name} (Type: {f.content_type}, Size: {f.size} bytes)")
+            print("-" * 70)
+            
             # TRUYỀN unix_schedule_time vào Service
             res = service.post_to_facebook(content, files, scheduled_time=unix_schedule_time)
+            
+            # -------------------------------------------------------------
+            # 2. IN NGUYÊN VĂN PHẢN HỒI TỪ FACEBOOK 
+            # (Giúp phát hiện "báo thành công nhưng là ảo")
+            # -------------------------------------------------------------
+            print("📬 [AUTO POST FB] KẾT QUẢ TỪ FACEBOOK TRẢ VỀ:")
+            print(json.dumps(res, indent=4, ensure_ascii=False))
+            print("="*70 + "\n")
             
             # LƯU LOG VÀO DATABASE
             status = 'Success' if 'id' in res else 'Failed'
@@ -53,7 +76,21 @@ def api_post_fb(request):
                 error_message=err
             )
             return JsonResponse(res)
+            
         except Exception as e:
-            return JsonResponse({'error': {'message': str(e)}}, status=500)
+            # -------------------------------------------------------------
+            # 3. TRACEBACK: IN LỖI CHI TIẾT TỪNG DÒNG CODE NẾU BỊ CRASH
+            # -------------------------------------------------------------
+            print("\n" + "="*70)
+            print("❌ [AUTO POST FB] HỆ THỐNG BỊ LỖI (CRASH):")
+            print(traceback.format_exc()) # Hàm này in ra dòng code nào gây lỗi
+            print("="*70 + "\n")
+            
+            return JsonResponse({
+                'error': {
+                    'message': str(e), 
+                    'details': "Hãy xem log Server để biết lỗi chi tiết."
+                }
+            }, status=500)
             
     return JsonResponse({'error': {'message': 'Invalid Method'}}, status=405)
