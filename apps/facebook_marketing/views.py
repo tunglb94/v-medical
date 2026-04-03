@@ -7,8 +7,10 @@ from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def facebook_autopost_view(request):
-    pages = FacebookPage.objects.filter(allowed_staff=request.user, is_active=True)
-    # Lấy 10 log gần nhất của nhân viên này để hiển thị trên giao diện
+    # Đã bỏ lọc theo allowed_staff=request.user, lấy tất cả page đang active
+    pages = FacebookPage.objects.filter(is_active=True)
+    
+    # Vẫn chỉ hiển thị log bài đăng của chính user đang xem
     recent_logs = FacebookPostLog.objects.filter(staff=request.user)[:10]
     return render(request, 'marketing/fb_autopost.html', {'pages': pages, 'recent_logs': recent_logs})
 
@@ -21,7 +23,8 @@ def api_post_fb(request):
         files = request.FILES.getlist('images')
         
         try:
-            page = FacebookPage.objects.get(page_id=page_id, allowed_staff=request.user)
+            # Đã bỏ điều kiện allowed_staff ở đây để user có quyền đăng
+            page = FacebookPage.objects.get(page_id=page_id, is_active=True)
             service = FBGraphService(page.page_id, page.access_token)
             
             for f in files: f.seek(0)
