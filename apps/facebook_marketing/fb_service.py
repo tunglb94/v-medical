@@ -14,16 +14,32 @@ class FBGraphService:
         """
         payload = {'access_token': self.token}
         
-        # Nếu có hẹn giờ
+        # Xử lý trạng thái công khai hay hẹn giờ
         if scheduled_time:
             payload['published'] = 'false'
             payload['scheduled_publish_time'] = scheduled_time
+        else:
+            payload['published'] = 'true'
 
-        # Logic đăng nhiều ảnh (Multi-photo)
-        if files and len(files) > 1:
+        if not files:
+            payload['message'] = message
+            return requests.post(f"{self.base_url}/feed", data=payload).json()
+
+        # Phân loại file tải lên (dựa vào content_type của Django)
+        video_files = [f for f in files if f.content_type.startswith('video/')]
+        photo_files = [f for f in files if f.content_type.startswith('image/')]
+
+        # Logic 1: Đăng Video (Gửi tới endpoint /videos)
+        if video_files:
+            v_file = video_files[0] 
+            payload['description'] = message # API video dùng 'description' thay vì 'message'
+            return requests.post(f"{self.base_url}/videos", data=payload, files={'source': v_file}).json()
+
+        # Logic 2: Đăng nhiều ảnh (Multi-photo)
+        elif len(photo_files) > 1:
             media_ids = []
-            for f in files:
-                # Upload ảnh tạm (chưa publish)
+            for f in photo_files:
+                # Upload ảnh tạm (buộc phải published=false khi upload mảng ảnh)
                 res = requests.post(f"{self.base_url}/photos", 
                                     data={'access_token': self.token, 'published': 'false'}, 
                                     files={'source': f}).json()
@@ -34,10 +50,11 @@ class FBGraphService:
             payload['attached_media'] = json.dumps(media_ids)
             return requests.post(f"{self.base_url}/feed", data=payload).json()
         
-        # Logic đăng 1 ảnh hoặc Text
-        elif files and len(files) == 1:
+        # Logic 3: Đăng 1 ảnh
+        elif len(photo_files) == 1:
             payload['caption'] = message
-            return requests.post(f"{self.base_url}/photos", data=payload, files={'source': files[0]}).json()
+            return requests.post(f"{self.base_url}/photos", data=payload, files={'source': photo_files[0]}).json()
 
+        # Fallback an toàn
         payload['message'] = message
         return requests.post(f"{self.base_url}/feed", data=payload).json()
