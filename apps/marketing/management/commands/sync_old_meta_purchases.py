@@ -1,47 +1,42 @@
 from django.core.management.base import BaseCommand
+from django.utils import timezone
+from datetime import timedelta
 from apps.sales.models import Order
 from apps.marketing.meta_capi import send_purchase_event_to_meta
-import time
-from datetime import datetime, timedelta
-from django.utils import timezone
 
 class Command(BaseCommand):
-    help = 'Đồng bộ doanh thu quá khứ (7 ngày) của khách Facebook lên Meta CAPI'
+    help = 'Đẩy lại các đơn hàng cũ sang Meta CAPI để tính ROAS'
 
-    def handle(self, *args, **kwargs):
-        # Tính toán mốc thời gian 7 ngày trước
-        seven_days_ago = timezone.now().date() - timedelta(days=7)
+    def add_arguments(self, parser):
+        parser.add_argument('--days', type=int, default=7, help='Số ngày quét ngược lại')
 
-        # Lấy tất cả các đơn hàng ĐÃ THANH TOÁN của khách đến từ FACEBOOK
-        # VÀ CHỈ LẤY TRONG VÒNG 7 NGÀY QUA (để không bị lỗi Facebook từ chối)
-        paid_orders = Order.objects.filter(
-            is_paid=True, 
-            customer__source='FACEBOOK',
-            order_date__gte=seven_days_ago
-        ).select_related('customer')
+    def handle(self, *args, **options):
+        days = options['days']
+        start_date = timezone.now() - timedelta(days=days)
+        
+        # Lấy các đơn hàng đã thanh toán từ start_date
+        # Lưu ý: Thay đổi 'PAID' thành status đúng trong database của bạn
+        orders = Order.objects.filter(
+            status='PAID', 
+            created_at__gte=start_date
+        )
 
-        total = paid_orders.count()
-        success = 0
+        self.stdout.write(self.style.SUCCESS(f"Bắt đầu quét {orders.count()} đơn hàng trong {days} ngày qua..."))
 
-        self.stdout.write(f"Tìm thấy {total} đơn hàng hợp lệ (trong 7 ngày qua). Bắt đầu đồng bộ...")
-
-        for order in paid_orders:
-            dt = datetime.now()
-            if order.order_date:
-                dt = datetime.combine(order.order_date, datetime.min.time())
-
-            response = send_purchase_event_to_meta(
+        success_count = 0
+        for order in orders:
+            # Gọi hàm send_purchase_event_to_meta mới (đã có value và currency)
+            result = send_purchase_event_to_meta(
                 customer=order.customer,
                 amount=order.total_amount,
-                event_time=dt
+                order_id=order.id,
+                event_time=order.created_at
             )
             
-            if response and not response.get('error'):
-                success += 1
-                self.stdout.write(self.style.SUCCESS(f"Thành công: {order.customer.name} - {order.total_amount}đ"))
+            if result and 'error' not in result:
+                success_count += 1
+                self.stdout.write(f"--- Đã đẩy đơn #{order.id}: {order.total_amount} VND")
             else:
-                self.stdout.write(self.style.ERROR(f"Lỗi {order.customer.name}: {response}"))
-            
-            time.sleep(0.2)
+                self.stdout.write(self.style.ERROR(f"--- Lỗi đơn #{order.id}: {result}"))
 
-        self.stdout.write(self.style.SUCCESS(f"Hoàn tất! Đã đồng bộ thành công {success}/{total} đơn hàng."))
+        self.stdout.write(self.style.SUCCESS(f"=== HOÀN THÀNH: Đã đẩy thành công {success_count} đơn! ==="))
