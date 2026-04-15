@@ -443,6 +443,18 @@
                       </select>
                   </div>
 
+                  <!-- [CẬP NHẬT MỚI] Ô chọn Telesale phụ trách cho Modal thêm khách -->
+                  <div class="col-12 bg-light p-2 rounded border">
+                      <label class="form-label small fw-bold text-primary"><i class="bi bi-person-check-fill me-1"></i>NHÂN VIÊN PHỤ TRÁCH (TELESALE)</label>
+                      <select name="assigned_telesale_id" class="form-select fw-bold border-primary">
+                          <option value="">-- Hệ thống tự chia (Dựa trên team/tải trọng) --</option>
+                          {% for sale in telesales_list %}
+                              <option value="{{ sale.id }}">{{ sale.last_name }} {{ sale.first_name }} ({{ sale.username }})</option>
+                          {% endfor %}
+                      </select>
+                      <div class="form-text text-muted small">Nếu chọn nhân viên, hệ thống sẽ gán thẳng cho người đó và không chạy logic chia số tự động.</div>
+                  </div>
+
                   <div class="col-12">
                       <label class="form-label small fw-bold">Ghi chú ban đầu</label>
                       <textarea name="note_telesale" class="form-control" rows="2"></textarea>

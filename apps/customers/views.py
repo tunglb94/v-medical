@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count # <--- Nhớ thêm Count
+from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model 
 
@@ -21,33 +21,34 @@ def customer_add(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
-            # Tạo đối tượng nhưng chưa lưu xuống DB để gán Telesale
+            # Tạo đối tượng nhưng chưa lưu xuống DB để kiểm tra logic chia số
             customer = form.save(commit=False)
             
-            # --- LOGIC 1: TEAM A NHẬP -> CHIA CHO TEAM B ---
-            if request.user.role == 'TELESALE' and request.user.team == 'TEAM_A':
-                # Tìm các bạn Team B đang hoạt động
-                team_b_members = User.objects.filter(role='TELESALE', team='TEAM_B', is_active=True)
+            # [CẬP NHẬT LOGIC] Nếu người dùng KHÔNG chọn nhân viên phụ trách trong form, mới chạy chia số tự động
+            if not customer.assigned_telesale:
                 
-                if team_b_members.exists():
-                    # Thuật toán: Tìm người đang giữ ít khách nhất (công bằng), nếu bằng nhau thì random (?)
-                    # Lưu ý: 'customer_set' là tên mặc định Django đặt cho quan hệ ngược nếu model không có related_name
-                    target_telesale = team_b_members.annotate(
-                        load=Count('customer_set') 
-                    ).order_by('load', '?').first()
+                # --- LOGIC 1: TEAM A NHẬP -> CHIA CHO TEAM B ---
+                if request.user.role == 'TELESALE' and request.user.team == 'TEAM_A':
+                    team_b_members = User.objects.filter(role='TELESALE', team='TEAM_B', is_active=True)
                     
-                    if target_telesale:
-                        customer.assigned_telesale = target_telesale
-                        messages.info(request, f"Đã chia số tự động cho: {target_telesale.last_name} {target_telesale.first_name}")
-            
-            # --- LOGIC 2: TỰ NHẬP (KHÔNG PHẢI TEAM A) ---
-            # Nếu người nhập là Telesale (nhưng không phải Team A hoặc logic trên không chạy)
-            # Thì gán chính người nhập là người phụ trách (để không bị mất số)
-            elif request.user.role == 'TELESALE':
-                if not customer.assigned_telesale:
+                    if team_b_members.exists():
+                        target_telesale = team_b_members.annotate(
+                            load=Count('customer_set') 
+                        ).order_by('load', '?').first()
+                        
+                        if target_telesale:
+                            customer.assigned_telesale = target_telesale
+                            messages.info(request, f"Đã chia số tự động cho: {target_telesale.last_name} {target_telesale.first_name}")
+                
+                # --- LOGIC 2: TỰ NHẬP (DÀNH CHO TELESALE KHÁC) ---
+                elif request.user.role == 'TELESALE':
                     customer.assigned_telesale = request.user
 
+            # Lưu chính thức vào DB
             customer.save()
+            # Cần gọi save_m2m() để lưu các trường ManyToMany (như fanpages) vì đã dùng commit=False
+            form.save_m2m()
+            
             messages.success(request, "Thêm khách hàng thành công!")
             return redirect('customer_list')
     else:

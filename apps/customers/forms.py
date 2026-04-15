@@ -1,6 +1,9 @@
 from django import forms
 from .models import Customer, Fanpage
 import re
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class CustomerForm(forms.ModelForm):
     # [CẬP NHẬT] Sử dụng MultipleChoiceField lấy data cứng giống hệt bên Telesale
@@ -13,23 +16,32 @@ class CustomerForm(forms.ModelForm):
 
     class Meta:
         model = Customer
-        # Loại bỏ fanpage (cũ), giữ nguyên các trường exclude khác
-        exclude = ['assigned_telesale', 'created_at', 'ranking', 'customer_code', 'fanpage'] 
+        # [CẬP NHẬT] Đã bỏ 'assigned_telesale' khỏi exclude để hiển thị ô chọn
+        exclude = ['created_at', 'ranking', 'customer_code', 'fanpage'] 
         
         widgets = {
-            'dob': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ và tên khách hàng'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0xxxxxxxxx'}),
+            'dob': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
             'address': forms.TextInput(attrs={'class': 'form-control'}),
             'city': forms.TextInput(attrs={'class': 'form-control'}),
             'source': forms.Select(attrs={'class': 'form-select', 'id': 'id_source'}),
             'skin_condition': forms.Select(attrs={'class': 'form-select'}),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
+            # [THÊM MỚI] Widget cho ô chọn Telesale
+            'assigned_telesale': forms.Select(attrs={'class': 'form-select'}),
             'note_telesale': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Chỉ hiển thị các user có role là TELESALE trong danh sách chọn
+        if 'assigned_telesale' in self.fields:
+            self.fields['assigned_telesale'].queryset = User.objects.filter(role='TELESALE', is_active=True)
+            self.fields['assigned_telesale'].label = "Nhân viên phụ trách"
+            self.fields['assigned_telesale'].empty_label = "-- Để hệ thống tự chia --"
+            self.fields['assigned_telesale'].required = False
+
         # [QUAN TRỌNG] Khi mở Modal Sửa, tự động check lại các Fanpage mà khách này đã liên kết
         if self.instance and self.instance.pk:
             self.fields['fanpages'].initial = list(self.instance.fanpages.values_list('code', flat=True))
