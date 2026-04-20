@@ -446,6 +446,12 @@
                 }
             });
         }
+
+        // Tự động mở lại modal nếu form submit có lỗi (Django render lại trang)
+        {% if form.errors %}
+        var editModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));
+        editModal.show();
+        {% endif %}
     });
 </script>
 {% endblock %}
