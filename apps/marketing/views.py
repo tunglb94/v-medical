@@ -259,6 +259,23 @@ def content_ads_edit(request, pk):
     task = get_object_or_404(MarketingTask, pk=pk)
     if request.method == 'POST':
         task.title = request.POST.get('title')
+        task.platform = request.POST.get('platform', task.platform)
+        task.status = request.POST.get('status', task.status)
+        task.content = request.POST.get('content', task.content)
+        if request.POST.get('service_id'):
+            task.service_id = request.POST.get('service_id')
+        if request.POST.get('pic_content_id'):
+            task.pic_content_id = request.POST.get('pic_content_id')
+        if request.POST.get('pic_design_id'):
+            task.pic_design_id = request.POST.get('pic_design_id')
+        if request.POST.get('pic_ads_id'):
+            task.pic_ads_id = request.POST.get('pic_ads_id')
+        task.link_source = request.POST.get('link_source', task.link_source)
+        task.link_thumb = request.POST.get('link_thumb', task.link_thumb)
+        task.link_final = request.POST.get('link_final', task.link_final)
+        task.budget = request.POST.get('budget') or task.budget
+        task.start_date = request.POST.get('start_date') or task.start_date
+        task.deadline = request.POST.get('deadline') or task.deadline
         task.save()
         messages.success(request, f"Đã cập nhật công việc: {task.title}")
     return redirect('content_ads_list')
