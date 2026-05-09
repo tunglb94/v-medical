@@ -120,7 +120,7 @@
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-secondary me-1" 
                                                     title="Sửa lịch"
-                                                    onclick="openEditModal({{ app.id }}, '{{ app.customer.name }}', '{{ app.appointment_date|date:'Y-m-d\TH:i' }}')">
+                                                    onclick="openEditModal('{{ app.id|stringformat:"d" }}', '{{ app.customer.name }}', '{{ app.appointment_date|date:'Y-m-d\TH:i' }}')">
                                                 <i class="bi bi-pencil-square"></i>
                                             </button>
                                         {% endif %}
@@ -128,7 +128,7 @@
                                         {% if app.status == 'SCHEDULED' %}
                                             <button type="button" 
                                                     class="btn btn-sm btn-warning fw-bold shadow-sm me-1"
-                                                    onclick="openCheckinModal({{ app.id }}, '{{ app.customer.name }}', '{{ app.appointment_date|date:'H:i d/m/Y' }}', '{{ app.customer.customer_code|default:'' }}')">
+                                                    onclick="openCheckinModal('{{ app.id|stringformat:"d" }}', '{{ app.customer.name }}', '{{ app.appointment_date|date:'H:i d/m/Y' }}', '{{ app.customer.customer_code|default:'' }}')">
                                                 <i class="bi bi-box-arrow-in-right"></i> Check-in
                                             </button>
                                             
@@ -147,7 +147,7 @@
                                             </a>
 
                                         {% elif app.status == 'ARRIVED' %}
-                                            <button class="btn btn-sm btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#finishModal" data-id="{{ app.id }}" data-name="{{ app.customer.name }}">
+                                            <button class="btn btn-sm btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#finishModal" data-id="{{ app.id|stringformat:"d" }}" data-name="{{ app.customer.name }}">
                                                 <i class="bi bi-clipboard-check me-1"></i> CHỐT CA
                                             </button>
                                         {% else %}
@@ -192,7 +192,7 @@
                                             <button type="button" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 fw-bold"
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#receptionBookingModal"
-                                                    data-id="{{ customer.id }}" 
+                                                    data-id="{{ customer.id|stringformat:"d" }}" 
                                                     data-name="{{ customer.name }}">
                                                 + Đặt lịch
                                             </button>
