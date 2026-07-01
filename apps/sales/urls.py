@@ -5,7 +5,10 @@ from . import views
 
 urlpatterns = [
     # Báo cáo doanh thu
-    path('report/', views.revenue_dashboard, name='sales_report'), 
+    path('report/', views.revenue_dashboard, name='sales_report'),
+
+    # [MỚI] Xuất CSV toàn bộ khách đã mua hàng cho Meta Offline Event Set
+    path('report/export-meta-offline/', views.export_meta_offline_events, name='export_meta_offline_events'),
     
     # [MỚI] Trang cấu hình hoa hồng
     # Tên (name) ở đây chính là cái được gọi trong {% url '...' %}

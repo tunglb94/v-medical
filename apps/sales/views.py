@@ -6,13 +6,15 @@ from django.db.models.functions import Cast
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import datetime, timedelta
-from django.http import Http404
+from django.http import Http404, HttpResponse
+import csv
 
 from apps.sales.models import Order, Service
 from apps.customers.models import Customer
 from apps.telesales.models import CallLog
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
+from apps.marketing.meta_capi import hash_data, clean_phone, split_vietnamese_name, remove_accents
 
 User = get_user_model()
 
@@ -72,6 +74,59 @@ def service_commission_config(request):
     })
 
 # ---------------------------------------------------------
+
+# --- [MỚI] XUẤT CSV TOÀN BỘ KHÁCH ĐÃ MUA HÀNG THEO CHUẨN META OFFLINE EVENT SET ---
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=['ADMIN'])
+def export_meta_offline_events(request):
+    """
+    Xuất toàn bộ đơn hàng đã thanh toán (từ trước tới nay) ra file CSV
+    theo đúng các trường mà Meta Offline Event Set / Customer List chấp nhận.
+    File này dùng để tự tải lên (upload) thủ công trong Meta Events Manager.
+    Các trường định danh khách hàng (PII) được băm SHA256 sẵn theo quy tắc của Meta
+    trước khi rời khỏi CRM.
+    """
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="v-medical_meta_offline_events.csv"'
+    response.write('﻿')  # BOM để Excel đọc đúng UTF-8
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'event_name', 'event_time', 'value', 'currency', 'order_id',
+        'email', 'phone', 'fn', 'ln', 'ct', 'country', 'ge', 'doby', 'external_id', 'lead_id',
+    ])
+
+    orders = Order.objects.filter(is_paid=True).select_related('customer').order_by('order_date')
+
+    for order in orders:
+        customer = order.customer
+        if not customer:
+            continue
+
+        first_name, last_name = split_vietnamese_name(customer.name)
+        gender_val = 'f' if customer.gender == 'FEMALE' else ('m' if customer.gender == 'MALE' else '')
+        birth_year = str(customer.dob.year) if customer.dob else ''
+        event_time = int(datetime.combine(order.order_date, datetime.min.time()).timestamp())
+
+        writer.writerow([
+            'Purchase',
+            event_time,
+            order.total_amount,
+            'VND',
+            order.id,
+            '',  # email: CRM hiện chưa lưu email khách hàng
+            hash_data(clean_phone(customer.phone)),
+            hash_data(first_name) if first_name else '',
+            hash_data(last_name) if last_name else '',
+            hash_data(remove_accents(customer.city)) if customer.city else '',
+            hash_data('vn'),
+            hash_data(gender_val) if gender_val else '',
+            hash_data(birth_year) if birth_year else '',
+            hash_data(str(customer.id)),
+            customer.fb_lead_id or '',
+        ])
+
+    return response
 
 @login_required(login_url='/auth/login/')
 @allowed_users(allowed_roles=['ADMIN', 'CONSULTANT', 'TELESALE'])
