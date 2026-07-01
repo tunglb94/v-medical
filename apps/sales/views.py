@@ -14,7 +14,7 @@ from apps.customers.models import Customer
 from apps.telesales.models import CallLog
 from apps.bookings.models import Appointment
 from apps.authentication.decorators import allowed_users
-from apps.marketing.meta_capi import hash_data, clean_phone, split_vietnamese_name, remove_accents
+from apps.marketing.meta_capi import clean_phone, split_vietnamese_name, remove_accents
 
 User = get_user_model()
 
@@ -83,8 +83,9 @@ def export_meta_offline_events(request):
     Xuất toàn bộ đơn hàng đã thanh toán (từ trước tới nay) ra file CSV
     theo đúng các trường mà Meta Offline Event Set / Customer List chấp nhận.
     File này dùng để tự tải lên (upload) thủ công trong Meta Events Manager.
-    Các trường định danh khách hàng (PII) được băm SHA256 sẵn theo quy tắc của Meta
-    trước khi rời khỏi CRM.
+    Lưu ý: công cụ upload file thủ công của Meta tự hash dữ liệu ở phía họ,
+    nên các trường định danh khách hàng ở đây chỉ chuẩn hoá (thường, bỏ dấu,
+    SĐT có mã quốc gia) chứ KHÔNG băm SHA256 sẵn - khác với luồng gửi qua CAPI.
     """
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="v-medical_meta_offline_events.csv"'
@@ -115,14 +116,14 @@ def export_meta_offline_events(request):
             'VND',
             order.id,
             '',  # email: CRM hiện chưa lưu email khách hàng
-            hash_data(clean_phone(customer.phone)),
-            hash_data(first_name) if first_name else '',
-            hash_data(last_name) if last_name else '',
-            hash_data(remove_accents(customer.city)) if customer.city else '',
-            hash_data('vn'),
-            hash_data(gender_val) if gender_val else '',
-            hash_data(birth_year) if birth_year else '',
-            hash_data(str(customer.id)),
+            clean_phone(customer.phone),
+            first_name,
+            last_name,
+            remove_accents(customer.city) if customer.city else '',
+            'vn',
+            gender_val,
+            birth_year,
+            str(customer.id),
             customer.fb_lead_id or '',
         ])
 
