@@ -94,7 +94,7 @@ def export_meta_offline_events(request):
     writer = csv.writer(response)
     writer.writerow([
         'event_name', 'event_time', 'value', 'currency', 'order_id',
-        'email', 'phone', 'fn', 'ln', 'ct', 'country', 'ge', 'doby', 'external_id', 'lead_id',
+        'email', 'phone', 'fn', 'ln', 'ct', 'country', 'gen', 'doby', 'external_id', 'lead_id',
     ])
 
     orders = Order.objects.filter(is_paid=True).select_related('customer').order_by('order_date')
@@ -107,7 +107,9 @@ def export_meta_offline_events(request):
         first_name, last_name = split_vietnamese_name(customer.name)
         gender_val = 'f' if customer.gender == 'FEMALE' else ('m' if customer.gender == 'MALE' else '')
         birth_year = str(customer.dob.year) if customer.dob else ''
-        event_time = int(datetime.combine(order.order_date, datetime.min.time()).timestamp())
+        # Meta yêu cầu event_time dạng ISO 8601 (vd 2024-05-04T18:28:00Z),
+        # KHÔNG phải Unix timestamp - gửi số nguyên khiến Meta lỗi xử lý hàng loạt.
+        event_time = datetime.combine(order.order_date, dt_time.min).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         writer.writerow([
             'Purchase',
@@ -120,7 +122,7 @@ def export_meta_offline_events(request):
             first_name,
             last_name,
             remove_accents(customer.city) if customer.city else '',
-            'vn',
+            'VN',
             gender_val,
             birth_year,
             str(customer.id),
