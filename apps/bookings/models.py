@@ -40,3 +40,6 @@ class Appointment(models.Model):
     class Meta:
         verbose_name = "Lịch hẹn"
         verbose_name_plural = "Quản lý Lịch hẹn"
+        indexes = [
+            models.Index(fields=['appointment_date'], name='bookings_appt_date_idx'),
+        ]

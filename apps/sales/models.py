@@ -113,6 +113,9 @@ class Order(models.Model):
         verbose_name = "Đơn hàng"
         verbose_name_plural = "Đơn hàng và Hợp đồng"
         ordering = ['-order_date']
+        indexes = [
+            models.Index(fields=['order_date'], name='sales_order_order_date_idx'),
+        ]
 
 @receiver([post_save, post_delete], sender=Order)
 def update_customer_ranking(sender, instance, **kwargs):

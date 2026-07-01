@@ -5,7 +5,7 @@ from django.db.models import Sum, Count, Q, CharField
 from django.db.models.functions import Cast
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dt_time
 from django.http import Http404, HttpResponse
 import csv
 
@@ -142,6 +142,14 @@ def revenue_dashboard(request):
     consultant_id = request.GET.get('consultant_id')
     telesale_id = request.GET.get('telesale_id')
 
+    # [TỐI ƯU] Dùng range datetime đầy đủ (00:00:00 -> 23:59:59) thay vì
+    # appointment_date__date__range: lookup __date bọc hàm DATE() quanh cột
+    # khiến MySQL không dùng được index, phải quét toàn bảng Lịch hẹn.
+    date_start_obj = datetime.strptime(date_start, '%Y-%m-%d').date()
+    date_end_obj = datetime.strptime(date_end, '%Y-%m-%d').date()
+    dt_range_start = datetime.combine(date_start_obj, dt_time.min)
+    dt_range_end = datetime.combine(date_end_obj, dt_time.max)
+
     orders_qs = Order.objects.filter(
         order_date__range=[date_start, date_end]
     ).select_related('customer__assigned_telesale', 'service', 'assigned_consultant', 'appointment__assigned_technician').prefetch_related('digitals')
@@ -205,9 +213,9 @@ def revenue_dashboard(request):
 
     # Lấy Ca thất bại
     failed_apps = Appointment.objects.filter(
-        appointment_date__date__range=[date_start, date_end],
+        appointment_date__range=[dt_range_start, dt_range_end],
         status='COMPLETED'
-    ).exclude(id__in=booked_appointment_ids).select_related('customer', 'assigned_consultant', 'customer__assigned_telesale')
+    ).exclude(id__in=booked_appointment_ids).select_related('customer', 'assigned_consultant', 'customer__assigned_telesale', 'order')
 
     if doctor_id: failed_apps = failed_apps.filter(assigned_doctor_id=doctor_id)
     if consultant_id:
@@ -261,28 +269,52 @@ def revenue_dashboard(request):
     revenue_table = [{'date': d, 'amount': revenue_data[d]} for d in sorted_dates]
 
     # Hiệu suất Sale
+    # [TỐI ƯU] Trước đây mỗi Sale chạy riêng 4 query .count() vào bảng Lịch hẹn
+    # (N+1) -> giờ lấy 1 lần toàn bộ Lịch hẹn trong khoảng ngày rồi tính bằng
+    # 1 vòng lặp Python, y hệt cách "orders" đã được xử lý ở trên.
     consultants_list = User.objects.filter(role='CONSULTANT')
     if consultant_id and consultant_id.isdigit():
         consultants_list = consultants_list.filter(id=consultant_id)
-        
+
+    perf_apps_qs = Appointment.objects.filter(
+        assigned_consultant__isnull=False,
+        appointment_date__range=[dt_range_start, dt_range_end]
+    ).select_related('order')
+    if consultant_id and consultant_id.isdigit():
+        perf_apps_qs = perf_apps_qs.filter(assigned_consultant_id=consultant_id)
+    if telesale_id:
+        if telesale_id == 'none': perf_apps_qs = perf_apps_qs.filter(customer__assigned_telesale__isnull=True)
+        elif telesale_id.isdigit(): perf_apps_qs = perf_apps_qs.filter(customer__assigned_telesale_id=telesale_id)
+
+    perf_stats = {}
+    for app in perf_apps_qs:
+        stat = perf_stats.setdefault(app.assigned_consultant_id, {'assigned': 0, 'checkin': 0, 'completed': 0, 'success': 0})
+        stat['assigned'] += 1
+        if app.status in ('ARRIVED', 'IN_CONSULTATION', 'COMPLETED'):
+            stat['checkin'] += 1
+        if app.status == 'COMPLETED':
+            stat['completed'] += 1
+            appt_order = getattr(app, 'order', None)
+            if appt_order and appt_order.total_amount > 0:
+                stat['success'] += 1
+
+    orders_by_consultant = {}
+    for o in orders:
+        orders_by_consultant.setdefault(o.assigned_consultant_id, []).append(o)
+
     sale_performance_data = []
     for cons in consultants_list:
-        apps = Appointment.objects.filter(assigned_consultant=cons, appointment_date__date__range=[date_start, date_end])
-        if telesale_id:
-            if telesale_id == 'none': apps = apps.filter(customer__assigned_telesale__isnull=True)
-            elif telesale_id.isdigit(): apps = apps.filter(customer__assigned_telesale_id=telesale_id)
+        stat = perf_stats.get(cons.id, {'assigned': 0, 'checkin': 0, 'completed': 0, 'success': 0})
+        my_orders = orders_by_consultant.get(cons.id, [])
 
-        assigned_count = apps.count()
-        checkin_count = apps.filter(status__in=['ARRIVED', 'IN_CONSULTATION', 'COMPLETED']).count()
-        
-        my_orders = [o for o in orders if o.assigned_consultant_id == cons.id]
-        
-        success_count = apps.filter(status='COMPLETED', order__total_amount__gt=0).count()
-        failed_count = max(0, apps.filter(status='COMPLETED').count() - success_count)
-        
+        assigned_count = stat['assigned']
+        checkin_count = stat['checkin']
+        success_count = stat['success']
+        failed_count = max(0, stat['completed'] - success_count)
+
         rev_val = sum(o.actual_revenue for o in my_orders)
         real_orders = sum(1 for o in my_orders if o.total_amount > 0)
-        
+
         if assigned_count > 0 or len(my_orders) > 0:
             sale_performance_data.append({
                 'name': f"{cons.last_name} {cons.first_name}".strip() or cons.username,
