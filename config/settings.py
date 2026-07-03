@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     
     # App mới tách riêng (Không ảnh hưởng core cũ)
     'apps.service_calendar',
+    'apps.clinical_portal',
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Đặt lịch - {{ session.customer.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 480px;">
+    <a href="{% url 'clinical_portal:patient_detail' session.customer_id %}" class="text-decoration-none small mb-2 d-inline-block">
+        <i class="bi bi-arrow-left me-1"></i>Quay lại hồ sơ khách
+    </a>
+
+    <div class="card-box p-3">
+        <h6 class="fw-bold mb-1">Đặt lịch buổi điều trị</h6>
+        <p class="text-muted small mb-3">
+            {{ session.customer.name }} —
+            <span class="badge {% if session.session_type == 'MAIN' %}bg-primary{% else %}bg-success{% endif %}">
+                {% if session.session_type == 'MAIN' %}Chính{% else %}Tặng{% endif %} {{ session.session_number }}/{{ session.total_in_group }}
+            </span>
+            {{ session.service.name }}
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Ngày giờ hẹn</label>
+                <input type="datetime-local" name="scheduled_date" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Bác sĩ phụ trách</label>
+                <select name="assigned_doctor" class="form-select">
+                    <option value="">-- Không chọn --</option>
+                    {% for doc in doctors %}
+                    <option value="{{ doc.id }}" {% if request.user.id == doc.id %}selected{% endif %}>{{ doc.last_name }} {{ doc.first_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">KTV phụ trách</label>
+                <select name="assigned_technician" class="form-select">
+                    <option value="">-- Không chọn --</option>
+                    {% for tech in technicians %}
+                    <option value="{{ tech.id }}" {% if request.user.id == tech.id %}selected{% endif %}>{{ tech.last_name }} {{ tech.first_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold">Lưu lịch hẹn</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

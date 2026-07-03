@@ -15,6 +15,7 @@ MENU_CHOICES = [
     ('debt', '📒 Sổ Theo Dõi Nợ'),
     ('inventory', '📦 Kho & Vật tư'),
     ('service_calendar', '📅 Lịch CS & Nhắc hẹn'),
+    ('clinical_portal', '🩺 Cổng KTV/Bác sĩ'),
     ('hr', '👥 Nhân sự (Hợp đồng/Lương)'),
     ('attendance', '⏰ Bảng công'),
     ('resources', '📚 Tài liệu & Đào tạo'),

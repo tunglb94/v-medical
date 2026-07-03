@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}{{ customer.name }} - Hồ Sơ Khách Hàng{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 560px;">
+    <a href="{% url 'clinical_portal:patient_list' %}" class="text-decoration-none small mb-2 d-inline-block">
+        <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+    </a>
+
+    <div class="card-box p-3 mb-3">
+        <div class="fw-bold fs-5">{{ customer.name }}</div>
+        <div class="text-muted"><i class="bi bi-telephone me-1"></i>{{ customer.phone }}</div>
+        {% if customer.city %}<div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ customer.city }}</div>{% endif %}
+        <span class="badge {% if customer.ranking == 'DIAMOND' %}bg-info{% elif customer.ranking == 'GOLD' %}bg-warning text-dark{% elif customer.ranking == 'SILVER' %}bg-secondary{% else %}bg-light text-dark{% endif %} mt-2">
+            {{ customer.get_ranking_display }}
+        </span>
+    </div>
+
+    <h6 class="fw-bold mb-2"><i class="bi bi-bag-check me-2"></i>Các gói đã mua</h6>
+
+    {% for item in orders_data %}
+    <div class="card-box p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <div class="fw-bold">{{ item.order.service.name|default:"Dịch vụ khác" }}</div>
+                <div class="small text-muted">{{ item.order.order_date|date:"d/m/Y" }} • {{ item.order.total_amount|intcomma }}đ • {{ item.order.total_sessions }} buổi chính</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#planModal{{ item.order.id }}">
+                <i class="bi bi-plus-lg"></i> {% if item.has_plan %}Thêm buổi tặng{% else %}Tạo dịch vụ{% endif %}
+            </button>
+        </div>
+
+        {% if item.sessions %}
+        <ul class="list-group list-group-flush">
+            {% for s in item.sessions %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge {% if s.session_type == 'MAIN' %}bg-primary{% else %}bg-success{% endif %} me-1">
+                        {% if s.session_type == 'MAIN' %}Chính{% else %}Tặng{% endif %} {{ s.session_number }}/{{ s.total_in_group }}
+                    </span>
+                    <span class="small">{{ s.service.name }}</span>
+                    {% if s.status == 'SCHEDULED' %}
+                        <div class="small text-primary"><i class="bi bi-clock me-1"></i>{{ s.scheduled_date|date:"d/m/Y H:i" }}</div>
+                    {% elif s.status == 'DONE' %}
+                        <div class="small text-success"><i class="bi bi-check-circle me-1"></i>Đã hoàn thành</div>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    {% if s.status == 'PENDING' %}
+                        <a href="{% url 'clinical_portal:book_session' s.id %}" class="btn btn-sm btn-primary">Đặt lịch</a>
+                    {% elif s.status == 'SCHEDULED' %}
+                        <div class="d-flex gap-1">
+                            <form method="post" action="{% url 'clinical_portal:complete_session' s.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success">Hoàn thành</button>
+                            </form>
+                            <form method="post" action="{% url 'clinical_portal:cancel_session' s.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Huỷ</button>
+                            </form>
+                        </div>
+                    {% elif s.status == 'CANCELLED' %}
+                        <span class="badge bg-secondary">Đã huỷ</span>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-muted small">Chưa lên kế hoạch buổi điều trị cho gói này.</div>
+        {% endif %}
+    </div>
+
+    <!-- Modal: Tạo dịch vụ / Thêm buổi tặng -->
+    <div class="modal fade" id="planModal{{ item.order.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="{% url 'clinical_portal:save_session_plan' item.order.id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h6 class="modal-title fw-bold">Quản lý buổi điều trị</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        {% if not item.has_plan %}
+                        <p class="small text-muted">Sẽ tự tạo <b>{{ item.order.total_sessions }} buổi chính</b> cho gói này. Có thể thêm buổi tặng kèm bên dưới (không bắt buộc).</p>
+                        {% else %}
+                        <p class="small text-muted">Thêm buổi tặng kèm mới (buổi chính đã được tạo trước đó).</p>
+                        {% endif %}
+
+                        <div class="bonus-rows" id="bonusRows{{ item.order.id }}">
+                            <div class="row g-2 mb-2 bonus-row">
+                                <div class="col-7">
+                                    <select name="bonus_service_id" class="form-select form-select-sm">
+                                        <option value="">-- Chọn dịch vụ tặng --</option>
+                                        {% for svc in services %}
+                                        <option value="{{ svc.id }}">{{ svc.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-5">
+                                    <input type="number" name="bonus_quantity" class="form-control form-control-sm" placeholder="Số buổi" min="1">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-link p-0" onclick="addBonusRow({{ item.order.id }})">
+                            <i class="bi bi-plus-circle me-1"></i>Thêm dòng
+                        </button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1"></i>
+        <p class="mt-2">Khách hàng chưa có gói dịch vụ nào.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% block extra_js %}
+<script>
+function addBonusRow(orderId) {
+    const container = document.getElementById('bonusRows' + orderId);
+    const row = container.querySelector('.bonus-row').cloneNode(true);
+    row.querySelectorAll('select, input').forEach(el => el.value = '');
+    container.appendChild(row);
+}
+</script>
+{% endblock %}
+{% endblock %}
