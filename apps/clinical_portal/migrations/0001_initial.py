@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('sales', '0003_order_order_date_index'),
         ('customers', '0007_customer_customer_code_customer_fanpage'),
-        ('service_calendar', '0001_initial'),
+        ('service_calendar', '0002_remove_reminderlog_appointment_and_more'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
