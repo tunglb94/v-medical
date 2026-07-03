@@ -256,7 +256,7 @@
         </li>
         {% endif %}
 
-        {% if request.user.role == 'DOCTOR' or request.user.role == 'TECHNICIAN' %}
+        {% if request.user|has_menu_access:"clinical_portal" or request.user.role == 'DOCTOR' or request.user.role == 'TECHNICIAN' %}
         <li>
             <a href="{% url 'clinical_portal:patient_list' %}" class="{% if 'portal' in request.path and 'schedule' not in request.path %}active{% endif %}">
                 <i class="bi bi-journal-medical"></i> <span>Hồ Sơ Khách Hàng</span>

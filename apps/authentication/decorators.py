@@ -37,6 +37,7 @@ def allowed_users(allowed_roles=[]):
                 'sales': 'sales_report',       # App sales (báo cáo) cần quyền 'sales_report'
                 'inventory': 'inventory',      # App inventory cần quyền 'inventory'
                 'hr': 'hr',                    # App hr cần quyền 'hr'
+                'clinical_portal': 'clinical_portal',  # App clinical_portal cần quyền 'clinical_portal'
             }
 
             required_permission = app_permission_map.get(app_name)
