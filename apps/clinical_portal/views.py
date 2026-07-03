@@ -27,7 +27,9 @@ def patient_list(request):
     ).distinct().order_by('-last_order_date')
 
     if query:
-        customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query))
+        customers = customers.filter(
+            Q(name__icontains=query) | Q(phone__icontains=query) | Q(customer_code__icontains=query)
+        )
 
     return render(request, 'clinical_portal/patient_list.html', {
         'customers': customers[:100],
@@ -45,6 +47,8 @@ def patient_detail(request, customer_id):
     ).order_by('-order_date')
 
     services = Service.objects.all().order_by('name')
+    doctors = User.objects.filter(role='DOCTOR', is_active=True)
+    technicians = User.objects.filter(role='TECHNICIAN', is_active=True)
 
     orders_data = []
     for order in orders:
@@ -59,6 +63,8 @@ def patient_detail(request, customer_id):
         'customer': customer,
         'orders_data': orders_data,
         'services': services,
+        'doctors': doctors,
+        'technicians': technicians,
     })
 
 
@@ -71,17 +77,30 @@ def save_session_plan(request, order_id):
     if request.method == 'POST':
         if not order.planned_sessions.filter(session_type=PlannedSession.SessionType.MAIN).exists():
             total_main = order.total_sessions or 1
+            main_first_date = request.POST.get('main_first_date') or None
+            main_doctor_id = request.POST.get('main_doctor_id') or None
+            main_technician_id = request.POST.get('main_technician_id') or None
             for i in range(1, total_main + 1):
+                is_first = (i == 1 and main_first_date)
                 PlannedSession.objects.create(
                     order=order, customer=order.customer, service=order.service,
                     session_type=PlannedSession.SessionType.MAIN,
                     session_number=i, total_in_group=total_main,
+                    scheduled_date=main_first_date if is_first else None,
+                    status=PlannedSession.Status.SCHEDULED if is_first else PlannedSession.Status.PENDING,
+                    assigned_doctor_id=main_doctor_id if is_first else None,
+                    assigned_technician_id=main_technician_id if is_first else None,
                     created_by=request.user,
                 )
 
         bonus_service_ids = request.POST.getlist('bonus_service_id')
         bonus_quantities = request.POST.getlist('bonus_quantity')
-        for service_id, qty_raw in zip(bonus_service_ids, bonus_quantities):
+        bonus_first_dates = request.POST.getlist('bonus_first_date')
+        bonus_doctor_ids = request.POST.getlist('bonus_doctor_id')
+        bonus_technician_ids = request.POST.getlist('bonus_technician_id')
+        for service_id, qty_raw, first_date, doctor_id, technician_id in zip(
+            bonus_service_ids, bonus_quantities, bonus_first_dates, bonus_doctor_ids, bonus_technician_ids
+        ):
             if not service_id or not qty_raw:
                 continue
             try:
@@ -91,10 +110,15 @@ def save_session_plan(request, order_id):
             if qty <= 0:
                 continue
             for i in range(1, qty + 1):
+                is_first = (i == 1 and first_date)
                 PlannedSession.objects.create(
                     order=order, customer=order.customer, service_id=service_id,
                     session_type=PlannedSession.SessionType.BONUS,
                     session_number=i, total_in_group=qty,
+                    scheduled_date=first_date if is_first else None,
+                    status=PlannedSession.Status.SCHEDULED if is_first else PlannedSession.Status.PENDING,
+                    assigned_doctor_id=doctor_id if is_first else None,
+                    assigned_technician_id=technician_id if is_first else None,
                     created_by=request.user,
                 )
 
@@ -177,7 +201,7 @@ def my_schedule(request):
         status=PlannedSession.Status.SCHEDULED
     ).filter(
         Q(assigned_doctor=request.user) | Q(assigned_technician=request.user)
-    ).select_related('customer', 'service', 'order').order_by('scheduled_date')
+    ).select_related('customer', 'service', 'order', 'assigned_doctor', 'assigned_technician').order_by('scheduled_date')
 
     today = timezone.now().date()
 

@@ -24,6 +24,11 @@
                             </span>
                             {{ s.service.name }}
                         </div>
+                        <div class="small text-muted mt-1">
+                            {% if s.assigned_doctor %}<i class="bi bi-person-badge me-1"></i>BS. {{ s.assigned_doctor.last_name }} {{ s.assigned_doctor.first_name }}{% endif %}
+                            {% if s.assigned_doctor and s.assigned_technician %} • {% endif %}
+                            {% if s.assigned_technician %}KTV. {{ s.assigned_technician.last_name }} {{ s.assigned_technician.first_name }}{% endif %}
+                        </div>
                     </div>
                     <div class="text-end">
                         <div class="fw-bold {% if s.scheduled_date.date == today %}text-primary{% endif %}">

@@ -42,6 +42,14 @@
                     <span class="small">{{ s.service.name }}</span>
                     {% if s.status == 'SCHEDULED' %}
                         <div class="small text-primary"><i class="bi bi-clock me-1"></i>{{ s.scheduled_date|date:"d/m/Y H:i" }}</div>
+                        {% if s.assigned_doctor or s.assigned_technician %}
+                        <div class="small text-muted">
+                            <i class="bi bi-person-badge me-1"></i>
+                            {% if s.assigned_doctor %}BS. {{ s.assigned_doctor.last_name }} {{ s.assigned_doctor.first_name }}{% endif %}
+                            {% if s.assigned_doctor and s.assigned_technician %} • {% endif %}
+                            {% if s.assigned_technician %}KTV. {{ s.assigned_technician.last_name }} {{ s.assigned_technician.first_name }}{% endif %}
+                        </div>
+                        {% endif %}
                     {% elif s.status == 'DONE' %}
                         <div class="small text-success"><i class="bi bi-check-circle me-1"></i>Đã hoàn thành</div>
                     {% endif %}
@@ -84,14 +92,37 @@
                     </div>
                     <div class="modal-body">
                         {% if not item.has_plan %}
-                        <p class="small text-muted">Sẽ tự tạo <b>{{ item.order.total_sessions }} buổi chính</b> cho gói này. Có thể thêm buổi tặng kèm bên dưới (không bắt buộc).</p>
+                        <p class="small text-muted">Sẽ tự tạo <b>{{ item.order.total_sessions }} buổi chính</b> cho gói này. Có thể chọn ngày + người phụ trách cho buổi đầu tiên (các buổi sau đặt lịch dần khi khách quay lại).</p>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <label class="form-label small fw-bold mb-1">Ngày hẹn buổi chính đầu tiên (không bắt buộc)</label>
+                                <input type="datetime-local" name="main_first_date" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <select name="main_doctor_id" class="form-select form-select-sm">
+                                    <option value="">-- Bác sĩ --</option>
+                                    {% for doc in doctors %}
+                                    <option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select name="main_technician_id" class="form-select form-select-sm">
+                                    <option value="">-- KTV --</option>
+                                    {% for tech in technicians %}
+                                    <option value="{{ tech.id }}">{{ tech.last_name }} {{ tech.first_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <hr>
                         {% else %}
                         <p class="small text-muted">Thêm buổi tặng kèm mới (buổi chính đã được tạo trước đó).</p>
                         {% endif %}
 
                         <div class="bonus-rows" id="bonusRows{{ item.order.id }}">
-                            <div class="row g-2 mb-2 bonus-row">
-                                <div class="col-7">
+                            <div class="row g-2 mb-2 bonus-row border-bottom pb-2">
+                                <div class="col-6">
                                     <select name="bonus_service_id" class="form-select form-select-sm">
                                         <option value="">-- Chọn dịch vụ tặng --</option>
                                         {% for svc in services %}
@@ -99,8 +130,27 @@
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <div class="col-5">
+                                <div class="col-6">
                                     <input type="number" name="bonus_quantity" class="form-control form-control-sm" placeholder="Số buổi" min="1">
+                                </div>
+                                <div class="col-12">
+                                    <input type="datetime-local" name="bonus_first_date" class="form-control form-control-sm" title="Ngày buổi đầu (không bắt buộc)">
+                                </div>
+                                <div class="col-6">
+                                    <select name="bonus_doctor_id" class="form-select form-select-sm">
+                                        <option value="">-- Bác sĩ --</option>
+                                        {% for doc in doctors %}
+                                        <option value="{{ doc.id }}">{{ doc.last_name }} {{ doc.first_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select name="bonus_technician_id" class="form-select form-select-sm">
+                                        <option value="">-- KTV --</option>
+                                        {% for tech in technicians %}
+                                        <option value="{{ tech.id }}">{{ tech.last_name }} {{ tech.first_name }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                             </div>
                         </div>
