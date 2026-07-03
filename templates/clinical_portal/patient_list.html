@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Hồ Sơ Khách Hàng - Cổng KTV/Bác sĩ{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 560px;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="fw-bold mb-0"><i class="bi bi-journal-medical me-2"></i>Hồ Sơ Khách Hàng</h4>
+        <a href="{% url 'clinical_portal:my_schedule' %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-calendar-week me-1"></i> Lịch của tôi
+        </a>
+    </div>
+
+    <form method="get" class="mb-3">
+        <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="Tìm theo tên hoặc số điện thoại..." value="{{ query }}">
+            {% if query %}
+            <a href="{% url 'clinical_portal:patient_list' %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if customers %}
+    <div class="d-flex flex-column gap-2">
+        {% for customer in customers %}
+        <a href="{% url 'clinical_portal:patient_detail' customer.id %}" class="text-decoration-none">
+            <div class="card-box p-3 d-flex flex-row align-items-center justify-content-between">
+                <div>
+                    <div class="fw-bold fs-6">{{ customer.name }}</div>
+                    <div class="small text-muted"><i class="bi bi-telephone me-1"></i>{{ customer.phone }}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge {% if customer.ranking == 'DIAMOND' %}bg-info{% elif customer.ranking == 'GOLD' %}bg-warning text-dark{% elif customer.ranking == 'SILVER' %}bg-secondary{% else %}bg-light text-dark{% endif %}">
+                        {{ customer.get_ranking_display }}
+                    </span>
+                    <div><i class="bi bi-chevron-right text-muted"></i></div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1"></i>
+        <p class="mt-2">Không tìm thấy khách hàng nào.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

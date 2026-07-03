@@ -45,6 +45,8 @@ def redirect_based_on_role(user):
         return redirect('reception_home')
     elif user.role == 'TELESALE':
         return redirect('telesale_home')
+    elif user.role in ['DOCTOR', 'TECHNICIAN']:
+        return redirect('clinical_portal:patient_list')
     return redirect('user_profile')
 
 @login_required(login_url='/auth/login/')
