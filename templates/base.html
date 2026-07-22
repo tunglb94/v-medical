@@ -341,6 +341,14 @@
         </li>
         {% endif %}
 
+        {% if request.user|has_menu_access:"viral_analysis" or request.user.role == 'MARKETING' or request.user.role == 'CONTENT' or request.user.role == 'EDITOR' or request.user.role == 'DESIGNER' %}
+        <li>
+            <a href="{% url 'viral_analysis:submission_list' %}" class="{% if 'viral-analysis' in request.path %}active{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i> <span>Viral Analysis</span>
+            </a>
+        </li>
+        {% endif %}
+
         <li class="menu-header">Đào tạo nội bộ</li>
         
         {% if request.user|has_menu_access:"resources" %}

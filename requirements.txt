@@ -2,3 +2,4 @@ Django>=5.0
 Pillow          # Để xử lý ảnh (avatar, ảnh da)
 psycopg2-binary # Driver cho PostgreSQL (nếu dùng)
 django-crispy-forms # Để form đẹp hơn sau này
+openai>=2.46.0 # Dùng gọi DeepSeek API (OpenAI-compatible) - chấm điểm kịch bản viral

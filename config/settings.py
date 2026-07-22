@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     # App mới tách riêng (Không ảnh hưởng core cũ)
     'apps.service_calendar',
     'apps.clinical_portal',
+    'apps.viral_analysis',
 ]
 
 MIDDLEWARE = [
@@ -227,6 +228,9 @@ JAZZMIN_UI_TWEAKS = {
 # META CONVERSIONS API CONFIG
 META_DATASET_ID = '572199181199160'
 META_ACCESS_TOKEN = 'EAAan8QQ3nQIBRG8WuqDwTS4GKzIDuz3e0tTcs9mmQzvZAhpZCWSiBlEZAbHwkxtdiPft9sh98AfpyEra9GGBrZAr1rjRMbsT8mB7tVxzfFkjhYUdwm3q7l0073Sb5f2gliOx5s1wRCqSUoCBAbcFqhO51Yo5x11NgzLMTZCx8AKFB8LXCvZC9sJkDLip1aYd4hjwZDZD'
+
+# DEEPSEEK API - Dùng để chấm điểm kịch bản Viral Analysis
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 
 # Cho phép upload file lớn lên tới 250MB (262144000 bytes)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 262144000

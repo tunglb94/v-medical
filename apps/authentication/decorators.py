@@ -38,6 +38,7 @@ def allowed_users(allowed_roles=[]):
                 'inventory': 'inventory',      # App inventory cần quyền 'inventory'
                 'hr': 'hr',                    # App hr cần quyền 'hr'
                 'clinical_portal': 'clinical_portal',  # App clinical_portal cần quyền 'clinical_portal'
+                'viral_analysis': 'viral_analysis',    # App viral_analysis cần quyền 'viral_analysis'
             }
 
             required_permission = app_permission_map.get(app_name)

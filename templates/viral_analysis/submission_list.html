@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Viral Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 640px;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Viral Analysis</h4>
+        <a href="{% url 'viral_analysis:submission_create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Chấm kịch bản mới
+        </a>
+    </div>
+
+    {% if submissions %}
+    <div class="d-flex flex-column gap-2">
+        {% for s in submissions %}
+        <a href="{% url 'viral_analysis:submission_detail' s.id %}" class="text-decoration-none">
+            <div class="card-box p-3 d-flex flex-row align-items-center justify-content-between">
+                <div>
+                    <div class="fw-bold">{{ s.title|default:s.hook|truncatechars:60 }}</div>
+                    <div class="small text-muted">
+                        <span class="badge bg-secondary">{{ s.get_platform_display }}</span>
+                        {{ s.created_at|date:"d/m/Y H:i" }}
+                        {% if s.submitted_by %} • {{ s.submitted_by.username }}{% endif %}
+                    </div>
+                </div>
+                <div class="text-end">
+                    {% if s.status == 'DONE' %}
+                        <span class="badge {% if s.score >= 70 %}bg-success{% elif s.score >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6">
+                            {{ s.score }}
+                        </span>
+                    {% elif s.status == 'PENDING' %}
+                        <span class="badge bg-secondary">Đang chấm...</span>
+                    {% else %}
+                        <span class="badge bg-danger">Lỗi</span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1"></i>
+        <p class="mt-2">Chưa có kịch bản nào được chấm.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Chấm kịch bản mới - Viral Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 640px;">
+    <a href="{% url 'viral_analysis:submission_list' %}" class="text-decoration-none small mb-2 d-inline-block">
+        <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+    </a>
+
+    <div class="card-box p-3">
+        <h5 class="fw-bold mb-3"><i class="bi bi-magic me-2"></i>Nộp kịch bản để chấm điểm</h5>
+        <p class="small text-muted">AI sẽ chấm điểm dựa trên cẩm nang viral 2026 (TikTok/YouTube/Facebook) - công tâm, không xu nịnh, góp ý cụ thể.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Nền tảng đăng</label>
+                <select name="platform" class="form-select" required>
+                    <option value="">-- Chọn nền tảng --</option>
+                    {% for value, label in platforms %}
+                    <option value="{{ value }}" {% if form_data.platform == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Tên chủ đề/dự án (không bắt buộc)</label>
+                <input type="text" name="title" class="form-control" value="{{ form_data.title|default:'' }}" placeholder="VD: Video giới thiệu dịch vụ căng chỉ">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Hook (3 giây đầu) <span class="text-danger">*</span></label>
+                <textarea name="hook" class="form-control" rows="3" required placeholder="Câu/hình ảnh mở đầu để giữ chân người xem...">{{ form_data.hook|default:'' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Nội dung kịch bản <span class="text-danger">*</span></label>
+                <textarea name="script_content" class="form-control" rows="8" required placeholder="Toàn bộ nội dung/lời thoại/diễn biến của video...">{{ form_data.script_content|default:'' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Nội dung bài đăng (caption)</label>
+                <textarea name="post_caption" class="form-control" rows="3" placeholder="Caption sẽ đăng kèm video...">{{ form_data.post_caption|default:'' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold">
+                <i class="bi bi-magic me-1"></i>Chấm điểm ngay
+            </button>
+            <p class="small text-muted mt-2 mb-0 text-center">Quá trình chấm có thể mất vài giây, vui lòng chờ sau khi bấm.</p>
+        </form>
+    </div>
+</div>
+{% endblock %}

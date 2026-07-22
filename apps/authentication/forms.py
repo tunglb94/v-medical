@@ -16,6 +16,7 @@ MENU_CHOICES = [
     ('inventory', '📦 Kho & Vật tư'),
     ('service_calendar', '📅 Lịch CS & Nhắc hẹn'),
     ('clinical_portal', '🩺 Cổng KTV/Bác sĩ'),
+    ('viral_analysis', '🚀 Viral Analysis'),
     ('hr', '👥 Nhân sự (Hợp đồng/Lương)'),
     ('attendance', '⏰ Bảng công'),
     ('resources', '📚 Tài liệu & Đào tạo'),

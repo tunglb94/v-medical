@@ -64,6 +64,7 @@ urlpatterns = [
     path('inventory/', include('apps.inventory.urls')),
     path('service-calendar/', include('apps.service_calendar.urls')),
     path('portal/', include('apps.clinical_portal.urls')),
+    path('viral-analysis/', include('apps.viral_analysis.urls')),
 
     path('marketing/facebook/', include('apps.facebook_marketing.urls')),
 ]
