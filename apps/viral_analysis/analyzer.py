@@ -38,13 +38,24 @@ RESULT_JSON_SHAPE = f"""{{
   ],
   "strengths": ["<điểm mạnh cụ thể>", "..."],
   "weaknesses": ["<điểm yếu cụ thể>", "..."],
-  "suggestions": ["<gợi ý chỉnh sửa nội dung/lời thoại cụ thể, áp dụng được ngay>", "..."],
+  "suggestions": [
+    "<gợi ý cụ thể, LUÔN kèm câu ví dụ thật trong dấu ngoặc kép để copy dùng ngay. Đúng format: '<mô tả gợi ý>: ví dụ \\"<câu mẫu tiếng Việt tự nhiên, viral>\\"'>",
+    ... (tối thiểu 6-8 gợi ý, bao quát: thêm mini-hook giữa video, viết lại câu mở đầu, viết lại câu payoff/kết quả, viết lại CTA, cắt bỏ đoạn thừa, thêm số liệu/bằng chứng cụ thể)
+  ],
+  "rewrite_examples": [
+    {{"section": "<tên đoạn, VD: 'Câu mở đầu (Hook)' / 'Đoạn giữa - giải thích giá' / 'Câu kết (CTA)' / 'Mini-hook giữa video (mới)'>", "original": "<trích ĐÚNG NGUYÊN VĂN câu/đoạn yếu trong kịch bản đang chấm, hoặc để trống nếu là đoạn hoàn toàn mới cần thêm>", "rewritten": "<câu/đoạn viết lại HOÀN CHỈNH, viral hơn, tự nhiên, đúng giọng văn ngành thẩm mỹ/y tế, sẵn sàng dùng luôn>", "why": "<lý do ngắn gọn tại sao bản viết lại này viral/hiệu quả hơn, dựa vào cẩm nang>"}},
+    ... (tối thiểu 4-6 dòng: bắt buộc có ít nhất 1 dòng viết lại Hook, 1-2 dòng viết lại đoạn thân bài yếu nhất, 1 dòng thêm mini-hook mới, 1 dòng viết lại CTA)
+  ],
   "production_tips": [
     {{"aspect": "<đúng tên 1 trong 6 khía cạnh bên dưới>", "suggestion": "<gợi ý cụ thể, áp dụng được ngay cho đúng kịch bản này>"}},
     ... (đủ 6 dòng, đúng thứ tự, đúng tên: {", ".join(PRODUCTION_ASPECTS)})
   ],
   "platform_fit": "<nhận xét mức độ phù hợp với đặc thù nền tảng đã chọn>"
 }}"""
+
+EXAMPLE_SUGGESTION_STYLE = (
+    'Thêm mini-hook sau mỗi 10-15 giây: ví dụ "Nhưng khoan, có một điều ít người biết..."'
+)
 
 
 def _load_knowledge_base():
@@ -80,10 +91,19 @@ def analyze_script(platform_display, hook, script_content, post_caption):
     """
     knowledge_base = _load_knowledge_base()
 
-    system_prompt = f"""Bạn là chuyên gia phân tích nội dung mạng xã hội, chấm điểm kịch bản video ngắn dựa
-CHÍNH XÁC theo cẩm nang dưới đây - không dùng kiến thức lý thuyết chung chung, không xu nịnh, phải công tâm.
-Nếu kịch bản yếu, nói thẳng là yếu và chỉ rõ tại sao. Nếu tốt, chỉ rõ tốt ở điểm nào để người viết học lại
-được công thức. Luôn góp ý cụ thể, có thể áp dụng ngay - không nhận xét mơ hồ chung chung.
+    system_prompt = f"""Bạn là biên tập viên & chuyên gia viết kịch bản viral hàng đầu, chấm điểm VÀ trực tiếp
+viết lại kịch bản video ngắn dựa CHÍNH XÁC theo cẩm nang dưới đây - không dùng kiến thức lý thuyết chung
+chung, không xu nịnh, phải công tâm. Nếu kịch bản yếu, nói thẳng là yếu và chỉ rõ tại sao. Luôn góp ý cụ thể,
+kèm CÂU CHỮ THẬT có thể copy dùng ngay - tuyệt đối không nhận xét mơ hồ kiểu "cần hấp dẫn hơn", "nên tối ưu
+hơn" mà không cho ví dụ cụ thể.
+
+Đây là ví dụ về MỘT gợi ý ĐÚNG chuẩn bạn phải viết (ngắn gọn nhưng có câu mẫu thật, tự nhiên, viral):
+"{EXAMPLE_SUGGESTION_STYLE}"
+
+Mọi gợi ý trong "suggestions" và mọi dòng trong "rewrite_examples" đều phải đạt chất lượng như ví dụ trên -
+viết như một biên kịch content viral thực thụ đang trực tiếp sửa bài cho đồng nghiệp, không phải một AI
+liệt kê lý thuyết. Câu mẫu phải tự nhiên bằng tiếng Việt đời thường, đúng giọng văn bác sĩ/chuyên gia thẩm mỹ
+tư vấn trực tiếp khách hàng, có cảm xúc, có nhịp điệu nói được thành lời - không phải văn viết cứng nhắc.
 
 Bắt buộc chấm đủ theo checklist 8 tiêu chí ở mục 6 của cẩm nang (giống kiểu Yoast SEO chấm từng mục riêng
 với đèn xanh/vàng/đỏ), và góp ý sản xuất chi tiết theo đúng 6 khía cạnh ở mục 5 (visual hook, nhạc nền,
@@ -93,6 +113,10 @@ QUAN TRỌNG - chấm sub_score cho từng tiêu chí phải nhất quán, dựa
 không cảm tính: nếu 1 tiêu chí có lỗi rõ ràng (VD: hoàn toàn không có CTA, hoàn toàn không có payoff cụ thể)
 thì sub_score phải dưới 30, không được chấm cao vì "cảm thấy tạm ổn". status "bad" tương ứng sub_score dưới 40,
 "ok" tương ứng 40-69, "good" tương ứng từ 70 trở lên - PHẢI khớp giữa status và sub_score, không được mâu thuẫn.
+
+QUAN TRỌNG - "rewrite_examples": phải trích ĐÚNG NGUYÊN VĂN câu/đoạn gốc từ kịch bản đang chấm (copy chính
+xác, không diễn giải lại), rồi viết bản thay thế hoàn chỉnh, sẵn sàng dùng ngay - không phải gợi ý chung
+chung mà là bản viết lại thật sự người dùng có thể copy-paste vào kịch bản luôn.
 
 --- CẨM NANG VIRAL 2026 ---
 {knowledge_base}
@@ -114,14 +138,15 @@ Nội dung kịch bản:
 Nội dung bài đăng (caption):
 {post_caption or '(không có)'}
 
-Hãy chấm điểm và nhận xét kịch bản này theo đúng checklist ở mục 6 và góp ý sản xuất theo mục 5 của cẩm nang."""
+Hãy chấm điểm, nhận xét, và VIẾT LẠI trực tiếp các đoạn yếu nhất của kịch bản này theo đúng checklist ở
+mục 6, gợi ý sản xuất theo mục 5, và bắt buộc có rewrite_examples cụ thể như một biên kịch thật sự sửa bài."""
 
     client = OpenAI(api_key=settings.DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
 
     response = client.chat.completions.create(
         model="deepseek-chat",
-        max_tokens=4096,
-        temperature=0.2,
+        max_tokens=8192,
+        temperature=0.3,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": system_prompt},

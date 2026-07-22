@@ -26,6 +26,7 @@ class ViralSubmission(models.Model):
     strengths = models.JSONField(default=list, blank=True, verbose_name="Điểm mạnh")
     weaknesses = models.JSONField(default=list, blank=True, verbose_name="Điểm yếu")
     suggestions = models.JSONField(default=list, blank=True, verbose_name="Gợi ý cải thiện")
+    rewrite_examples = models.JSONField(default=list, blank=True, verbose_name="Viết lại mẫu (before/after)")
     production_tips = models.JSONField(default=list, blank=True, verbose_name="Gợi ý sản xuất (hình ảnh/âm thanh/dựng phim)")
     platform_fit = models.TextField(blank=True, verbose_name="Nhận xét mức độ phù hợp nền tảng")
     error_message = models.TextField(blank=True, verbose_name="Lỗi (nếu có)")

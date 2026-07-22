@@ -56,6 +56,7 @@ def submission_create(request):
             submission.strengths = result['strengths']
             submission.weaknesses = result['weaknesses']
             submission.suggestions = result['suggestions']
+            submission.rewrite_examples = result.get('rewrite_examples', [])
             submission.production_tips = result.get('production_tips', [])
             submission.platform_fit = result['platform_fit']
             submission.status = ViralSubmission.Status.DONE

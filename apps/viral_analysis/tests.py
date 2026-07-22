@@ -32,6 +32,10 @@ class ViralAnalysisViewTests(TestCase):
                 {"criterion": "CTA", "status": "bad", "sub_score": 20, "assessment": "Khong co CTA"},
             ],
             strengths=['A', 'B'], weaknesses=['C'], suggestions=['D', 'E'],
+            rewrite_examples=[
+                {"section": "Hook", "original": "Cau goc", "rewritten": "Cau viet lai", "why": "Ly do"},
+                {"section": "Mini-hook moi", "original": "", "rewritten": "Cau moi them vao", "why": "Ly do"},
+            ],
             production_tips=[
                 {"aspect": "Visual hook", "suggestion": "Mo dau bang hinh anh ket qua"},
                 {"aspect": "Nhac nen", "suggestion": "Dung trending sound nhe"},

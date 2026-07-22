@@ -113,6 +113,30 @@
         </ul>
     </div>
 
+    {% if submission.rewrite_examples %}
+    <div class="card-box p-3 mb-3">
+        <h6 class="fw-bold text-danger"><i class="bi bi-pencil-square me-2"></i>Viết lại mẫu (copy dùng ngay)</h6>
+        {% for r in submission.rewrite_examples %}
+        <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="badge bg-dark mb-2">{{ r.section }}</div>
+            {% if r.original %}
+            <div class="p-2 mb-2 rounded" style="background: rgba(220,53,69,0.08); border-left: 3px solid #dc3545;">
+                <div class="small text-muted fw-bold mb-1"><i class="bi bi-x-lg me-1"></i>Bản gốc</div>
+                <div class="small">{{ r.original }}</div>
+            </div>
+            {% endif %}
+            <div class="p-2 mb-2 rounded" style="background: rgba(25,135,84,0.08); border-left: 3px solid #198754;">
+                <div class="small text-muted fw-bold mb-1"><i class="bi bi-check-lg me-1"></i>Viết lại</div>
+                <div class="small fw-bold">{{ r.rewritten }}</div>
+            </div>
+            {% if r.why %}
+            <div class="small text-muted"><i class="bi bi-info-circle me-1"></i>{{ r.why }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if submission.production_tips %}
     <div class="card-box p-3 mb-3">
         <h6 class="fw-bold" style="color:#6f42c1;"><i class="bi bi-camera-reels me-2"></i>Gợi ý sản xuất & dựng phim</h6>
