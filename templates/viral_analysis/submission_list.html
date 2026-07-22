@@ -13,29 +13,33 @@
     {% if submissions %}
     <div class="d-flex flex-column gap-2">
         {% for s in submissions %}
-        <a href="{% url 'viral_analysis:submission_detail' s.id %}" class="text-decoration-none">
-            <div class="card-box p-3 d-flex flex-row align-items-center justify-content-between">
-                <div>
-                    <div class="fw-bold">{{ s.title|default:s.hook|truncatechars:60 }}</div>
-                    <div class="small text-muted">
-                        <span class="badge bg-secondary">{{ s.get_platform_display }}</span>
-                        {{ s.created_at|date:"d/m/Y H:i" }}
-                        {% if s.submitted_by %} • {{ s.submitted_by.username }}{% endif %}
-                    </div>
+        <div class="card-box p-3 d-flex flex-row align-items-center justify-content-between">
+            <a href="{% url 'viral_analysis:submission_detail' s.id %}" class="text-decoration-none text-reset flex-grow-1">
+                <div class="fw-bold">{{ s.title|default:s.hook|truncatechars:60 }}</div>
+                <div class="small text-muted">
+                    <span class="badge bg-secondary">{{ s.get_platform_display }}</span>
+                    {{ s.created_at|date:"d/m/Y H:i" }}
+                    {% if s.submitted_by %} • {{ s.submitted_by.username }}{% endif %}
                 </div>
-                <div class="text-end">
-                    {% if s.status == 'DONE' %}
-                        <span class="badge {% if s.score >= 70 %}bg-success{% elif s.score >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6">
-                            {{ s.score }}
-                        </span>
-                    {% elif s.status == 'PENDING' %}
-                        <span class="badge bg-secondary">Đang chấm...</span>
-                    {% else %}
-                        <span class="badge bg-danger">Lỗi</span>
-                    {% endif %}
-                </div>
+            </a>
+            <div class="text-end d-flex align-items-center gap-2">
+                {% if s.status == 'DONE' %}
+                    <span class="badge {% if s.score >= 70 %}bg-success{% elif s.score >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6">
+                        {{ s.score }}
+                    </span>
+                {% elif s.status == 'PENDING' %}
+                    <span class="badge bg-secondary">Đang chấm...</span>
+                {% else %}
+                    <span class="badge bg-danger">Lỗi</span>
+                {% endif %}
+                <form method="post" action="{% url 'viral_analysis:submission_delete' s.id %}" onsubmit="return confirm('Xoá kịch bản này?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Xoá">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
             </div>
-        </a>
+        </div>
         {% endfor %}
     </div>
     {% else %}

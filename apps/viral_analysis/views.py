@@ -85,3 +85,19 @@ def submission_detail(request, submission_id):
     return render(request, 'viral_analysis/submission_detail.html', {
         'submission': submission,
     })
+
+
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=VIRAL_ROLES)
+def submission_delete(request, submission_id):
+    submission = get_object_or_404(ViralSubmission, id=submission_id)
+    if request.user.role != 'ADMIN' and submission.submitted_by_id != request.user.id:
+        messages.error(request, "Bạn không có quyền xoá kịch bản này.")
+        return redirect('viral_analysis:submission_list')
+
+    if request.method == 'POST':
+        submission.delete()
+        messages.success(request, "Đã xoá kịch bản.")
+        return redirect('viral_analysis:submission_list')
+
+    return redirect('viral_analysis:submission_detail', submission.id)
