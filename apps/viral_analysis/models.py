@@ -13,10 +13,15 @@ class ViralSubmission(models.Model):
         DONE = "DONE", "Đã chấm xong"
         ERROR = "ERROR", "Lỗi khi chấm"
 
+    class ContentType(models.TextChoices):
+        SCRIPT = "SCRIPT", "Kịch bản có lời thoại"
+        FORMAT = "FORMAT", "Bắt trend / Định dạng có sẵn (biến hình, transition, banter mượn trend...)"
+
     platform = models.CharField(max_length=10, choices=Platform.choices, verbose_name="Nền tảng")
+    content_type = models.CharField(max_length=10, choices=ContentType.choices, default=ContentType.SCRIPT, verbose_name="Loại nội dung")
     title = models.CharField(max_length=200, blank=True, verbose_name="Tên chủ đề/dự án")
-    hook = models.TextField(verbose_name="Hook (3 giây đầu)")
-    script_content = models.TextField(verbose_name="Nội dung kịch bản")
+    hook = models.TextField(verbose_name="Hook (3 giây đầu) / Mô tả cảnh mở đầu")
+    script_content = models.TextField(verbose_name="Nội dung kịch bản / Mô tả diễn biến các cảnh")
     post_caption = models.TextField(blank=True, verbose_name="Nội dung bài đăng (caption)")
 
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, verbose_name="Trạng thái")

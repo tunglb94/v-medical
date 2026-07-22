@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Gợi ý chủ đề content - Viral Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 680px;">
+    <a href="{% url 'viral_analysis:submission_list' %}" class="text-decoration-none small mb-2 d-inline-block">
+        <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+    </a>
+
+    <div class="card-box p-3 mb-3">
+        <h5 class="fw-bold mb-3"><i class="bi bi-lightbulb me-2"></i>Gợi ý chủ đề content viral</h5>
+        <p class="small text-muted">Nhập ngành/dịch vụ, AI sẽ gợi ý các ý tưởng content đã được kiểm chứng dễ viral trên TikTok để tham khảo/làm theo - cả dạng "bắt trend/format" (như biến hình) lẫn "kịch bản có lời thoại".</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Ngành/dịch vụ muốn làm content <span class="text-danger">*</span></label>
+                <input type="text" name="niche" class="form-control" value="{{ niche }}" required placeholder="VD: Căng chỉ Ultherapy, trị mụn, trẻ hoá da, tiêm filler...">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Ghi chú thêm (không bắt buộc)</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="VD: muốn tập trung dạng dễ quay, ít cần diễn viên...">{{ notes }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold">
+                <i class="bi bi-lightbulb me-1"></i>Gợi ý ngay
+            </button>
+            <p class="small text-muted mt-2 mb-0 text-center">Có thể mất vài giây, vui lòng chờ sau khi bấm.</p>
+        </form>
+    </div>
+
+    {% if ideas %}
+    <div class="d-flex flex-column gap-2">
+        {% for idea in ideas %}
+        <div class="card-box p-3">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <h6 class="fw-bold mb-0">{{ idea.title }}</h6>
+                <span class="badge {% if 'trend' in idea.content_type|lower or 'format' in idea.content_type|lower %}bg-info text-dark{% else %}bg-dark{% endif %} flex-shrink-0">{{ idea.content_type }}</span>
+            </div>
+            <p class="small mb-2">{{ idea.description }}</p>
+            <div class="small text-muted mb-2"><i class="bi bi-graph-up me-1"></i><b>Vì sao viral:</b> {{ idea.why_it_works }}</div>
+            {% if idea.example_hook %}
+            <div class="p-2 mb-2 rounded" style="background: rgba(13,110,253,0.06); border-left: 3px solid #0d6efd;">
+                <div class="small text-muted fw-bold mb-1">Hook/cảnh mở mẫu</div>
+                <div class="small">{{ idea.example_hook }}</div>
+            </div>
+            {% endif %}
+            {% if idea.platforms %}
+            <div>
+                {% for p in idea.platforms %}<span class="badge bg-secondary me-1">{{ p }}</span>{% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

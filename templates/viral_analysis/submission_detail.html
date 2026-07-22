@@ -43,6 +43,7 @@
         <div class="d-flex justify-content-between align-items-start gap-3">
             <div>
                 <span class="badge bg-secondary mb-1">{{ submission.get_platform_display }}</span>
+                <span class="badge {% if submission.content_type == 'FORMAT' %}bg-info text-dark{% else %}bg-dark{% endif %} mb-1">{{ submission.get_content_type_display }}</span>
                 <h5 class="fw-bold mb-0">{{ submission.title|default:"Kịch bản chưa đặt tên" }}</h5>
                 <div class="small text-muted">{{ submission.created_at|date:"d/m/Y H:i" }}</div>
                 {% if submission.status == 'DONE' %}

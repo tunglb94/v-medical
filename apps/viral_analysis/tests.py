@@ -1,7 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 
-from apps.viral_analysis.analyzer import CHECK_WEIGHTS, compute_score
+from apps.viral_analysis.analyzer import (
+    FORMAT_CHECK_WEIGHTS,
+    SCRIPT_CHECK_WEIGHTS,
+    compute_score,
+)
 from apps.viral_analysis.models import ViralSubmission
 
 User = get_user_model()
@@ -21,9 +25,13 @@ class ViralAnalysisViewTests(TestCase):
         resp = self.client.get('/viral-analysis/new/')
         self.assertEqual(resp.status_code, 200)
 
+    def test_idea_suggest_view_get(self):
+        resp = self.client.get('/viral-analysis/ideas/')
+        self.assertEqual(resp.status_code, 200)
+
     def test_detail_view_done(self):
         sub = ViralSubmission.objects.create(
-            platform='TIKTOK', title='Test render',
+            platform='TIKTOK', content_type='SCRIPT', title='Test render',
             hook='Test hook', script_content='Test script',
             post_caption='Test caption', submitted_by=self.user,
             status='DONE', score=55, verdict='Tam on.',
@@ -45,6 +53,16 @@ class ViralAnalysisViewTests(TestCase):
         resp = self.client.get(f'/viral-analysis/{sub.id}/')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, '55')
+
+    def test_detail_view_format_type(self):
+        sub = ViralSubmission.objects.create(
+            platform='TIKTOK', content_type='FORMAT', title='Bien hinh test',
+            hook='Mo ta trend', script_content='Mo ta canh',
+            submitted_by=self.user, status='DONE', score=70, verdict='Ok.',
+        )
+        resp = self.client.get(f'/viral-analysis/{sub.id}/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Bắt trend')
 
     def test_detail_view_error_status(self):
         sub = ViralSubmission.objects.create(
@@ -84,14 +102,19 @@ class ViralAnalysisViewTests(TestCase):
 
 class ComputeScoreTests(TestCase):
     def test_weights_sum_to_100(self):
-        self.assertEqual(sum(CHECK_WEIGHTS.values()), 100)
+        self.assertEqual(sum(SCRIPT_CHECK_WEIGHTS.values()), 100)
+        self.assertEqual(sum(FORMAT_CHECK_WEIGHTS.values()), 100)
 
-    def test_weighted_average(self):
-        checks = [{"criterion": name, "sub_score": 100} for name in CHECK_WEIGHTS]
-        self.assertEqual(compute_score(checks), 100)
+    def test_weighted_average_script(self):
+        checks = [{"criterion": name, "sub_score": 100} for name in SCRIPT_CHECK_WEIGHTS]
+        self.assertEqual(compute_score(checks, "SCRIPT"), 100)
 
-        checks = [{"criterion": name, "sub_score": 0} for name in CHECK_WEIGHTS]
-        self.assertEqual(compute_score(checks), 0)
+        checks = [{"criterion": name, "sub_score": 0} for name in SCRIPT_CHECK_WEIGHTS]
+        self.assertEqual(compute_score(checks, "SCRIPT"), 0)
+
+    def test_weighted_average_format(self):
+        checks = [{"criterion": name, "sub_score": 100} for name in FORMAT_CHECK_WEIGHTS]
+        self.assertEqual(compute_score(checks, "FORMAT"), 100)
 
     def test_ignores_unknown_criterion(self):
         checks = [
@@ -99,7 +122,11 @@ class ComputeScoreTests(TestCase):
             {"criterion": "Ten khong khop", "sub_score": 0},
         ]
         # Chỉ tính theo trọng số của tiêu chí khớp tên -> phải bằng đúng sub_score đó
-        self.assertEqual(compute_score(checks), 80)
+        self.assertEqual(compute_score(checks, "SCRIPT"), 80)
 
     def test_empty_checks_returns_zero(self):
         self.assertEqual(compute_score([]), 0)
+
+    def test_defaults_to_script_weights(self):
+        checks = [{"criterion": name, "sub_score": 50} for name in SCRIPT_CHECK_WEIGHTS]
+        self.assertEqual(compute_score(checks), 50)

@@ -14,6 +14,15 @@
         <form method="post">
             {% csrf_token %}
             <div class="mb-3">
+                <label class="form-label small fw-bold">Loại nội dung</label>
+                <select name="content_type" id="contentTypeSelect" class="form-select" onchange="toggleLabels()">
+                    {% for value, label in content_types %}
+                    <option value="{{ value }}" {% if form_data.content_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Chọn đúng loại để hệ thống dùng bộ tiêu chí chấm phù hợp (kịch bản lời thoại khác hẳn bắt trend/biến hình).</div>
+            </div>
+            <div class="mb-3">
                 <label class="form-label small fw-bold">Nền tảng đăng</label>
                 <select name="platform" class="form-select" required>
                     <option value="">-- Chọn nền tảng --</option>
@@ -27,12 +36,14 @@
                 <input type="text" name="title" class="form-control" value="{{ form_data.title|default:'' }}" placeholder="VD: Video giới thiệu dịch vụ căng chỉ">
             </div>
             <div class="mb-3">
-                <label class="form-label small fw-bold">Hook (3 giây đầu) <span class="text-danger">*</span></label>
+                <label class="form-label small fw-bold" id="hookLabel">Hook (3 giây đầu) <span class="text-danger">*</span></label>
                 <textarea name="hook" class="form-control" rows="3" required placeholder="Câu/hình ảnh mở đầu để giữ chân người xem...">{{ form_data.hook|default:'' }}</textarea>
+                <div class="form-text" id="hookHint">Với dạng bắt trend/format: mô tả trend/âm thanh dùng làm cảnh mở đầu.</div>
             </div>
             <div class="mb-3">
-                <label class="form-label small fw-bold">Nội dung kịch bản <span class="text-danger">*</span></label>
+                <label class="form-label small fw-bold" id="scriptLabel">Nội dung kịch bản <span class="text-danger">*</span></label>
                 <textarea name="script_content" class="form-control" rows="8" required placeholder="Toàn bộ nội dung/lời thoại/diễn biến của video...">{{ form_data.script_content|default:'' }}</textarea>
+                <div class="form-text" id="scriptHint">Với dạng bắt trend/format: mô tả diễn biến các cảnh, điểm chuyển cảnh/reveal, không cần lời thoại.</div>
             </div>
             <div class="mb-3">
                 <label class="form-label small fw-bold">Nội dung bài đăng (caption)</label>
@@ -45,4 +56,15 @@
         </form>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+function toggleLabels() {
+    const isFormat = document.getElementById('contentTypeSelect').value === 'FORMAT';
+    document.getElementById('hookLabel').innerHTML = (isFormat ? 'Mô tả cảnh mở đầu / trend sử dụng' : 'Hook (3 giây đầu)') + ' <span class="text-danger">*</span>';
+    document.getElementById('scriptLabel').innerHTML = (isFormat ? 'Mô tả diễn biến các cảnh' : 'Nội dung kịch bản') + ' <span class="text-danger">*</span>';
+}
+document.addEventListener('DOMContentLoaded', toggleLabels);
+</script>
+{% endblock %}
 {% endblock %}

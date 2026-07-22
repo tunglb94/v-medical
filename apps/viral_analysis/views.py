@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.authentication.decorators import allowed_users
 
-from .analyzer import analyze_script
+from .analyzer import analyze_script, suggest_content_ideas
 from .models import ViralSubmission
 
 VIRAL_ROLES = ['ADMIN', 'MARKETING', 'CONTENT', 'EDITOR', 'DESIGNER']
@@ -28,6 +28,7 @@ def submission_list(request):
 def submission_create(request):
     if request.method == 'POST':
         platform = request.POST.get('platform')
+        content_type = request.POST.get('content_type') or ViralSubmission.ContentType.SCRIPT
         title = request.POST.get('title', '').strip()
         hook = request.POST.get('hook', '').strip()
         script_content = request.POST.get('script_content', '').strip()
@@ -37,18 +38,20 @@ def submission_create(request):
             messages.error(request, "Vui lòng nhập đủ Nền tảng, Hook và Nội dung kịch bản.")
             return render(request, 'viral_analysis/submission_form.html', {
                 'platforms': ViralSubmission.Platform.choices,
+                'content_types': ViralSubmission.ContentType.choices,
                 'form_data': request.POST,
             })
 
         submission = ViralSubmission.objects.create(
-            platform=platform, title=title, hook=hook,
+            platform=platform, content_type=content_type, title=title, hook=hook,
             script_content=script_content, post_caption=post_caption,
             submitted_by=request.user,
         )
 
         try:
             result = analyze_script(
-                submission.get_platform_display(), hook, script_content, post_caption
+                submission.get_platform_display(), content_type,
+                submission.get_content_type_display(), hook, script_content, post_caption
             )
             submission.score = result['score']
             submission.verdict = result['verdict']
@@ -72,6 +75,7 @@ def submission_create(request):
 
     return render(request, 'viral_analysis/submission_form.html', {
         'platforms': ViralSubmission.Platform.choices,
+        'content_types': ViralSubmission.ContentType.choices,
     })
 
 
@@ -102,3 +106,30 @@ def submission_delete(request, submission_id):
         return redirect('viral_analysis:submission_list')
 
     return redirect('viral_analysis:submission_detail', submission.id)
+
+
+@login_required(login_url='/auth/login/')
+@allowed_users(allowed_roles=VIRAL_ROLES)
+def idea_suggest(request):
+    ideas = None
+    niche = ''
+    notes = ''
+
+    if request.method == 'POST':
+        niche = request.POST.get('niche', '').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        if not niche:
+            messages.error(request, "Vui lòng nhập ngành/dịch vụ muốn làm content.")
+        else:
+            try:
+                result = suggest_content_ideas(niche, notes)
+                ideas = result.get('ideas', [])
+            except Exception as e:
+                messages.error(request, f"Lỗi khi gợi ý chủ đề: {e}")
+
+    return render(request, 'viral_analysis/idea_suggest.html', {
+        'ideas': ideas,
+        'niche': niche,
+        'notes': notes,
+    })
