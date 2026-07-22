@@ -1,25 +1,50 @@
 {% extends 'base.html' %}
 {% block title %}{{ submission.title|default:"Kết quả chấm" }} - Viral Analysis{% endblock %}
 
+{% block extra_css %}
+<style>
+    .score-gauge {
+        width: 90px; height: 90px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column; color: #fff; font-weight: bold; flex-shrink: 0;
+    }
+    .score-gauge .num { font-size: 1.8rem; line-height: 1; }
+    .score-gauge .lbl { font-size: 0.65rem; opacity: 0.85; }
+    .score-good { background: #00a65a; }
+    .score-ok { background: #e9a825; }
+    .score-bad { background: #dd3333; }
+
+    .check-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-color); }
+    .check-row:last-child { border-bottom: none; }
+    .check-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .dot-good { background: #00a65a; }
+    .dot-ok { background: #e9a825; }
+    .dot-bad { background: #dd3333; }
+
+    .production-item { border-left: 3px solid #6f42c1; padding: 6px 12px; margin-bottom: 10px; background: rgba(111,66,193,0.06); border-radius: 0 6px 6px 0; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-3" style="max-width: 640px;">
+<div class="container-fluid py-3" style="max-width: 680px;">
     <a href="{% url 'viral_analysis:submission_list' %}" class="text-decoration-none small mb-2 d-inline-block">
         <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
     </a>
 
     <div class="card-box p-3 mb-3">
-        <div class="d-flex justify-content-between align-items-start">
+        <div class="d-flex justify-content-between align-items-start gap-3">
             <div>
                 <span class="badge bg-secondary mb-1">{{ submission.get_platform_display }}</span>
                 <h5 class="fw-bold mb-0">{{ submission.title|default:"Kịch bản chưa đặt tên" }}</h5>
                 <div class="small text-muted">{{ submission.created_at|date:"d/m/Y H:i" }}</div>
+                {% if submission.status == 'DONE' %}
+                <p class="mb-0 mt-2">{{ submission.verdict }}</p>
+                {% endif %}
             </div>
             {% if submission.status == 'DONE' %}
-            <div class="text-center">
-                <div class="fw-bold fs-2 {% if submission.score >= 70 %}text-success{% elif submission.score >= 40 %}text-warning{% else %}text-danger{% endif %}">
-                    {{ submission.score }}
-                </div>
-                <div class="small text-muted">/100</div>
+            <div class="score-gauge {% if submission.score >= 70 %}score-good{% elif submission.score >= 40 %}score-ok{% else %}score-bad{% endif %}">
+                <div class="num">{{ submission.score }}</div>
+                <div class="lbl">/ 100</div>
             </div>
             {% endif %}
         </div>
@@ -35,10 +60,21 @@
         <i class="bi bi-exclamation-triangle-fill me-2"></i>Lỗi khi chấm điểm: {{ submission.error_message }}
     </div>
     {% else %}
+
+    {% if submission.checks %}
     <div class="card-box p-3 mb-3">
-        <h6 class="fw-bold"><i class="bi bi-chat-quote me-2"></i>Kết luận</h6>
-        <p>{{ submission.verdict }}</p>
+        <h6 class="fw-bold mb-2"><i class="bi bi-list-check me-2"></i>Checklist chi tiết</h6>
+        {% for c in submission.checks %}
+        <div class="check-row">
+            <span class="check-dot dot-{{ c.status }}"></span>
+            <div>
+                <div class="fw-bold small">{{ c.criterion }} {% if c.sub_score %}<span class="text-muted fw-normal">({{ c.sub_score }}/100)</span>{% endif %}</div>
+                <div class="small text-muted">{{ c.assessment }}</div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
+    {% endif %}
 
     <div class="card-box p-3 mb-3">
         <h6 class="fw-bold text-success"><i class="bi bi-check-circle me-2"></i>Điểm mạnh</h6>
@@ -63,11 +99,23 @@
     </div>
 
     <div class="card-box p-3 mb-3">
-        <h6 class="fw-bold text-primary"><i class="bi bi-lightbulb me-2"></i>Gợi ý cải thiện</h6>
+        <h6 class="fw-bold text-primary"><i class="bi bi-lightbulb me-2"></i>Gợi ý cải thiện nội dung</h6>
         <ul class="mb-0">
             {% for item in submission.suggestions %}<li>{{ item }}</li>{% endfor %}
         </ul>
     </div>
+
+    {% if submission.production_tips %}
+    <div class="card-box p-3 mb-3">
+        <h6 class="fw-bold" style="color:#6f42c1;"><i class="bi bi-camera-reels me-2"></i>Gợi ý sản xuất & dựng phim</h6>
+        {% for tip in submission.production_tips %}
+        <div class="production-item">
+            <div class="fw-bold small">{{ tip.aspect }}</div>
+            <div class="small">{{ tip.suggestion }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="card-box p-3 mb-3">
         <h6 class="fw-bold"><i class="bi bi-bullseye me-2"></i>Độ phù hợp nền tảng</h6>

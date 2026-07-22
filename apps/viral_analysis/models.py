@@ -22,9 +22,11 @@ class ViralSubmission(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, verbose_name="Trạng thái")
     score = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Điểm số (0-100)")
     verdict = models.CharField(max_length=300, blank=True, verbose_name="Kết luận ngắn gọn")
+    checks = models.JSONField(default=list, blank=True, verbose_name="Checklist từng tiêu chí (kiểu Yoast)")
     strengths = models.JSONField(default=list, blank=True, verbose_name="Điểm mạnh")
     weaknesses = models.JSONField(default=list, blank=True, verbose_name="Điểm yếu")
     suggestions = models.JSONField(default=list, blank=True, verbose_name="Gợi ý cải thiện")
+    production_tips = models.JSONField(default=list, blank=True, verbose_name="Gợi ý sản xuất (hình ảnh/âm thanh/dựng phim)")
     platform_fit = models.TextField(blank=True, verbose_name="Nhận xét mức độ phù hợp nền tảng")
     error_message = models.TextField(blank=True, verbose_name="Lỗi (nếu có)")
 

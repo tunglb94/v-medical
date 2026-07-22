@@ -52,9 +52,11 @@ def submission_create(request):
             )
             submission.score = result['score']
             submission.verdict = result['verdict']
+            submission.checks = result.get('checks', [])
             submission.strengths = result['strengths']
             submission.weaknesses = result['weaknesses']
             submission.suggestions = result['suggestions']
+            submission.production_tips = result.get('production_tips', [])
             submission.platform_fit = result['platform_fit']
             submission.status = ViralSubmission.Status.DONE
         except Exception as e:

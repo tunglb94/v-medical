@@ -93,18 +93,56 @@ Hook hiệu quả luôn khai thác 1 trong các cơ chế tâm lý sau — một
 
 ---
 
-## 5. TIÊU CHÍ CHẤM ĐIỂM (dùng khi phân tích kịch bản nhân viên nộp)
+## 5. YẾU TỐ SẢN XUẤT / DỰNG PHIM (Production & Editing)
+
+Kịch bản hay nhưng quay dựng kém vẫn chết. Đây là 6 yếu tố kỹ thuật quyết định video có "coi được" hay không — đặc biệt quan trọng với video dạng 1 người nói liên tục (bác sĩ tư vấn, KTV giải thích dịch vụ) vì loại này RẤT dễ rơi vào bẫy "màn hình tĩnh, nói một hơi" khiến retention rớt thẳng đứng dù lời thoại tốt.
+
+### 5.1. Visual hook (hình ảnh mở đầu)
+- 1-2 giây đầu tiên phải có **chuyển động hoặc hành động ngay lập tức** — không phải người đứng yên bắt đầu nói. Ví dụ: máy zoom nhanh vào mặt, cắt cảnh từ hình ảnh kết quả (before/after) rồi mới sang người nói, hoặc động tác tay/dụng cụ xuất hiện trước khi vào lời thoại.
+- Ưu tiên **mở đầu bằng hình ảnh kết quả/bằng chứng** (da sau điều trị, máy Ultherapy thật, phòng khám) thay vì mở đầu bằng khuôn mặt nói chuyện tĩnh — hình ảnh cụ thể luôn thắng lời nói trừu tượng ở giây đầu.
+- Tránh: quay 1 khung hình cố định, nhân vật đứng yên/ngồi yên nói ngay từ giây 0 — đây là dấu hiệu "màn hình tĩnh" khiến TikTok/Shorts đánh giá thấp ngay từ đầu.
+
+### 5.2. Nhạc nền / âm thanh (sound)
+- Ưu tiên dùng **trending sound** đúng nền tảng đang đăng — thuật toán TikTok/Shorts có xu hướng đẩy nội dung dùng âm thanh đang thịnh hành, kể cả khi nội dung nghiêm túc (có thể dùng ở đoạn intro/outro, hạ nhỏ khi nhân vật nói).
+- Với video 1 người nói liên tục (talking-head): nhạc nền nên **nhẹ, tiết tấu ổn định, âm lượng thấp hơn giọng nói 15-20dB** — không để nhạc lấn giọng, nhưng vẫn cần có nhạc nền tối thiểu để tránh cảm giác "video trần trụi, im lặng chết" giữa các câu.
+- Đồng bộ cảm xúc nhạc với nội dung: đoạn nêu vấn đề dùng nhạc tạo tension (âm trầm, chậm), đoạn payoff/kết quả chuyển sang nhạc tích cực hơn.
+
+### 5.3. Nhịp điệu / dựng phim (pacing & rhythm)
+- **Cắt cảnh (cut) mỗi 2-4 giây** để giữ nhịp nhanh — không để 1 cảnh kéo dài quá 5-6 giây nếu không có chuyển động/thay đổi góc máy, vì mắt người xem sẽ "buồn ngủ" và lướt.
+- Với video nói chuyện dài (như kịch bản dạng bác sĩ giải thích nhiều đoạn): **bắt buộc chia nhỏ thành nhiều cảnh quay khác góc/khác bối cảnh**, xen kẽ B-roll (hình ảnh phòng khám, máy móc, khách hàng, before/after) thay vì giữ nguyên 1 cảnh nói suốt.
+- Cắt đúng vào nhịp mạnh của câu nói (ngắt ở dấu phẩy/kết thúc ý) chứ không cắt giữa câu — giữ cảm giác mượt.
+- Tốc độ nói/dựng nên nhỉnh hơn tốc độ nói chuyện tự nhiên một chút (hoặc cắt khoảng lặng thừa khi edit) để tránh cảm giác chậm, dài dòng.
+
+### 5.4. Sub text / chữ trên màn hình
+- **Bắt buộc có phụ đề** — đa số người xem lướt mạng xã hội ở chế độ tắt tiếng, thiếu phụ đề gần như chắc chắn mất phần lớn người xem.
+- Từ khoá/con số quan trọng (VD: "15 triệu", "500 line", "30.000+ khách hàng") nên **bold hoặc đổi màu nổi bật**, xuất hiện đúng lúc được nói tới — không hiện chữ trễ hoặc sớm hơn lời thoại.
+- Dùng thêm **text tóm tắt ý chính** ở góc màn hình cho những đoạn thông tin dày (số liệu, danh sách tiêu chuẩn y tế) để người xem nắm ý ngay cả khi chỉ lướt nhanh, không cần nghe hết.
+
+### 5.5. Hiệu ứng (effects & transitions)
+- Dùng transition tạo cảm giác bất ngờ tại các điểm chuyển ý quan trọng (zoom nhanh, whip pan, match cut theo chuyển động) — đặc biệt hiệu quả ngay tại điểm chuyển từ "nêu vấn đề" sang "giải pháp".
+- Hiệu ứng nhấn mạnh (zoom nhẹ, rung nhẹ khung hình, highlight) khi nói tới con số/tuyên bố quan trọng giúp giữ chú ý.
+- Tránh lạm dụng hiệu ứng hoa mỹ gây rối mắt hoặc làm giảm cảm giác chân thực (UGC) — hiệu ứng chỉ nên phục vụ nhịp điệu, không phải trang trí.
+
+### 5.6. Góc quay (camera angle & shot type)
+- Xen kẽ **cận cảnh (close-up)** khuôn mặt để tạo cảm giác gần gũi, đáng tin — rất quan trọng với nội dung tư vấn y tế/bác sĩ nói chuyện trực tiếp với khách hàng.
+- Xen kẽ **toàn cảnh/trung cảnh (wide/medium shot)** để cho thấy không gian phòng khám, máy móc, bối cảnh thật — tăng độ tin cậy so với chỉ quay mặt.
+- Tuyệt đối tránh giữ nguyên 1 góc máy cố định (thường là máy đặt 1 chỗ quay thẳng mặt) suốt toàn bộ video — đây là lỗi phổ biến nhất khiến video bác sĩ/KTV nói chuyện trở nên nhàm chán dù nội dung tốt.
+
+---
+
+## 6. TIÊU CHÍ CHẤM ĐIỂM (dùng khi phân tích kịch bản nhân viên nộp)
 
 Khi chấm 1 kịch bản (Hook + nội dung + caption đăng), đánh giá công tâm theo các trục sau — không thiên vị, không khen cho có:
 
 | Tiêu chí | Trọng số gợi ý | Câu hỏi cốt lõi |
 |---|---|---|
-| Sức mạnh Hook (0-3s) | 30% | Có dùng đúng 1 trong 6 cơ chế tâm lý ở mục 2 không? Có vào thẳng vấn đề không, hay còn rào đón/chào hỏi? |
-| Cấu trúc & nhịp độ | 20% | Có theo đúng Hook → Thân bài → Payoff → CTA không? Có đoạn nào lan man khiến rớt retention không? |
+| Sức mạnh Hook (0-3s) | 25% | Có dùng đúng 1 trong 6 cơ chế tâm lý ở mục 2 không? Có vào thẳng vấn đề không, hay còn rào đón/chào hỏi? |
+| Cấu trúc & nhịp độ | 15% | Có theo đúng Hook → Thân bài → Payoff → CTA không? Có đoạn nào lan man khiến rớt retention không? |
 | Payoff rõ ràng | 15% | Người xem có nhận được đúng thứ Hook đã hứa không? Có cụ thể, đo lường được không (số liệu, hình ảnh) hay chỉ nói chung chung? |
 | CTA | 10% | Có đúng 1 CTA rõ ràng không? Có phải loại CTA thúc đẩy chia sẻ/bình luận (mạnh) hay chỉ "theo dõi kênh" (yếu)? |
 | Phù hợp nền tảng | 10% | Có tối ưu đúng đặc thù nền tảng ở mục 3 không (độ dài, định dạng, hành vi ưu tiên)? |
 | Tính chân thực (UGC) | 10% | Có cảm giác tự nhiên, đáng tin hay bị "quảng cáo hoá" lộ liễu? |
+| Sản xuất (hình ảnh/âm thanh/nhịp điệu) | 10% | Có đáp ứng 6 yếu tố ở mục 5 không (visual hook, nhạc nền, nhịp điệu cắt cảnh, sub text, hiệu ứng, góc quay)? Có bị lỗi "màn hình tĩnh nói một hơi" không? |
 | Rủi ro/tuân thủ | 5% | Có tuyên bố y khoa quá đà, cam kết kết quả tuyệt đối, hoặc vi phạm quy định quảng cáo dịch vụ thẩm mỹ/y tế không? (cờ đỏ cần chỉnh sửa) |
 
 **Quy tắc khi nhận xét**: Luôn chỉ ra CỤ THỂ câu/đoạn nào yếu và gợi ý cách viết lại — không nhận xét mơ hồ kiểu "cần hấp dẫn hơn". Nếu kịch bản thực sự yếu, phải nói thẳng là yếu và tại sao — không tâng bốc để làm hài lòng người nộp. Nếu kịch bản tốt, cũng chỉ rõ tốt ở điểm nào để nhân viên học lại được công thức.
